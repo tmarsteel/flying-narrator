@@ -84,9 +84,9 @@ function parse_kmlLineString(string $text): array {
 
 class V3 {
   function __construct(
-    public final float $x,
-    public final float $y,
-    public final float $z,
+    public float $x,
+    public float $y,
+    public float $z,
   ){}
 
   public function length(): float {
@@ -96,8 +96,8 @@ class V3 {
 
 class Coordinate {
   function __construct(
-    public final float $lat,
-    public final float $long,
-    public final float $alt
+    public float $lat,
+    public float $long,
+    public float $alt
   ){}
 }
