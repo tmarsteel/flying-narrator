@@ -5,14 +5,17 @@ import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.image.BufferedImage
 import kotlin.math.ceil
+import kotlin.math.floor
 
 fun Route.render(
     scale: Double = 0.4,
     paddingPxs: Int = 50,
     bgColor: Color = Color.WHITE,
     trackColor: Color = Color.BLACK,
+    segmentJointMarkerColor: Color = Color.RED,
     startMarkerColor: Color = Color.RED,
     finishMarkerColor: Color = Color.GREEN,
+    lineThickness: Float = 3.0f,
 ): BufferedImage {
     var minX = Double.POSITIVE_INFINITY
     var maxX = Double.NEGATIVE_INFINITY
@@ -42,7 +45,7 @@ fun Route.render(
         BufferedImage.TYPE_INT_RGB,
     )
     val g = image.graphics as Graphics2D
-    g.stroke = BasicStroke(3.0f)
+    g.stroke = BasicStroke(lineThickness)
     g.color = bgColor
     g.fillRect(0, 0, image.width, image.height)
 
@@ -55,7 +58,18 @@ fun Route.render(
 
         val imageX = trackToImageX(carryPoint.x)
         val imageY = trackToImageY(carryPoint.y)
+        g.color = trackColor
         g.drawLine(prevImageX, prevImageY, imageX, imageY)
+
+        if (carryPoint != Vector3.ORIGIN) {
+            g.color = segmentJointMarkerColor
+            g.fillOval(
+                floor(prevImageX - (lineThickness + 1) / 2).toInt(),
+                floor(prevImageY - (lineThickness + 1) / 2).toInt(),
+                ceil(lineThickness + 1).toInt(),
+                ceil(lineThickness + 1).toInt(),
+            )
+        }
         prevImageX = imageX
         prevImageY = imageY
     }
