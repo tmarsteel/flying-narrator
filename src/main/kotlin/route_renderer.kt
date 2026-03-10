@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator
 
 import java.awt.BasicStroke
 import java.awt.Color
+import java.awt.Font
 import java.awt.Graphics2D
 import java.awt.image.BufferedImage
 import kotlin.math.ceil
@@ -80,7 +81,10 @@ fun Route.render(
     g.color = finishMarkerColor
     g.drawOval(trackToImageX(carryPoint.x - markerRadius), trackToImageY(carryPoint.y - markerRadius), (markerRadius * 2 * scale).toInt(), (markerRadius * 2 * scale).toInt())
 
-    g.rotate(Math.toRadians(90.0))
+    g.color = trackColor
+    g.drawLine(paddingPxs, paddingPxs, paddingPxs + (100.0 * scale).toInt(), paddingPxs)
+    g.font = g.font.deriveFont(Font.PLAIN, 14.0f)
+    g.drawString("100m", paddingPxs, paddingPxs + (g.font.size2D + lineThickness * 2.0f).toInt())
 
     g.dispose()
     return image
