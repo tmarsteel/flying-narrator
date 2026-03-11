@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -15,6 +16,13 @@ class RallyMapsRouteSource(
     init {
         val pageContent = urlReader(url)
         val json = RallyMapsSpider.extractRallyDataAsJSON(pageContent, url)
+        val rallyDto = try {
+            JSON_FORMAT.decodeFromString<RallyDto>(json)
+        } catch (ex: SerializationException) {
+            throw UnreadableRallyMapsPageException("Could not parse rally JSON", ex)
+        }
+
+
     }
 
     companion object {
@@ -29,17 +37,18 @@ class RallyMapsRouteSource(
             val body = response.body ?: throw UnreadableRallyMapsPageException("No body in response")
             body.string()
         }
+
+        val JSON_FORMAT = Json {
+            ignoreUnknownKeys = true
+        }
     }
 }
 
 fun main() {
-    val url = URI.create("https://www.rally-maps.com/Rally-in-the-100-Acre-Wood-2026").toURL()
+    val url = URI.create("https://www.rally-maps.com/12-Uren-van-Aalst-1985/Comfisca#Elevation%20Chart").toURL()
     //val pageContent = RallyMapsRouteSource.DEFAULT_URL_READER(url)
-    val pageContent = Paths.get("Rally-in-the-100-Acre-Wood-2026").readText()
-    val json = RallyMapsSpider.extractRallyDataAsJSON(pageContent, url)
-    val jsonParser = Json {
-        ignoreUnknownKeys = true
-    }
-    val obj = jsonParser.decodeFromString<RallyDto>(json)
-    println(obj)
+    val pageContent = Paths.get("Comfisca").readText()
+    val elevations = RallyMapsSpider.extractElevationProfile(pageContent)
+    println(elevations.size)
+    println(elevations)
 }

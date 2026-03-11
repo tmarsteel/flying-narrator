@@ -1,13 +1,20 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
+import io.github.tmarsteel.flyingnarrator.Geospatial
 import io.github.tmarsteel.flyingnarrator.Vector2
+import io.github.tmarsteel.flyingnarrator.Vector3
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.ClassSerialDescriptorBuilder
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.SerialKind
+import kotlinx.serialization.descriptors.buildSerialDescriptor
 import kotlinx.serialization.descriptors.listSerialDescriptor
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
@@ -130,3 +137,44 @@ class Vector2Serializer : KSerializer<Vector2> {
         }
     }
 }
+
+@OptIn(InternalSerializationApi::class)
+class ElevationDataPointSerializer : KSerializer<Geospatial> {
+    override val descriptor = buildSerialDescriptor(Geospatial::class.java.name, SerialKind.ENUM) {
+        element("lat", Double.serializer().descriptor)
+        element("lng", Double.serializer().descriptor)
+        element("ele", Double.serializer().descriptor)
+    }
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Geospatial
+    ) {
+        encoder.encodeStructure(descriptor) {
+            encodeDoubleElement(descriptor, 0, value.latitude)
+            encodeDoubleElement(descriptor, 1, value.longitude)
+            encodeDoubleElement(descriptor, 2, value.altitude)
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): Geospatial {
+        return decoder.decodeStructure(descriptor) {
+            var lat = 0.0
+            var long = 0.0
+            var alt = 0.0
+            while (true) {
+                when (val index = decodeElementIndex(descriptor)) {
+                    0 -> lat = decodeDoubleElement(descriptor, 0)
+                    1 -> long = decodeDoubleElement(descriptor, 1)
+                    2 -> alt = decodeDoubleElement(descriptor, 2)
+                    CompositeDecoder.DECODE_DONE -> break
+                    else -> error("Unexpected index: $index")
+                }
+            }
+
+            Geospatial(lat, long, alt)
+        }
+    }
+}
+
+val ElevationDataSerializer = ListSerializer(ElevationDataPointSerializer())

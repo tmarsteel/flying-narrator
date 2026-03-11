@@ -1,5 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
+import io.github.tmarsteel.flyingnarrator.Geospatial
+import io.github.tmarsteel.flyingnarrator.Vector3
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import org.jsoup.Jsoup
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.RhinoException
 import org.mozilla.javascript.ast.AstNode
@@ -10,15 +15,17 @@ import org.mozilla.javascript.ast.FunctionCall
 import org.mozilla.javascript.ast.ObjectLiteral
 import org.mozilla.javascript.ast.ObjectProperty
 import org.mozilla.javascript.ast.StringLiteral
+import java.net.URI
 import java.net.URL
 import java.util.Locale
+import java.util.stream.Collectors
 import org.mozilla.javascript.Parser as JsParser
 
 object RallyMapsSpider {
     private val jsContext = Context.enter()
     private val jsScope = jsContext.initStandardObjects()
 
-    private fun unsupportedCode() = UnreadableRallyMapsPageException("Unexpected JavaScript source for stage data, cannot parse")
+    private fun unsupportedCode() = UnreadableRallyMapsPageException("Unexpected JavaScript or HTML source for stage data, cannot parse")
 
     private fun parseJS(code: String, url: URL, lineno: Int = 1): AstRoot {
         try {
@@ -28,14 +35,14 @@ object RallyMapsSpider {
         }
     }
 
-    fun extractRallyDataAsJSON(pageSource: String, url: URL): String {
+    fun extractRallyDataAsJSON(rallyPageSource: String, url: URL): String {
         val decryptionKey = deriveDecryptionKey(url)
-        val dataCodeStartIndex = pageSource.indexOf("sl.leaflet.data.storage.addData({")
+        val dataCodeStartIndex = rallyPageSource.indexOf("sl.leaflet.data.storage.addData({")
         if (dataCodeStartIndex < 0) {
             throw UnreadableRallyMapsPageException("Could not find data code in page source. Please specify a URL to https://www.rally-maps.com/")
         }
-        val dataCodeEndIndex = pageSource.indexOf("});", dataCodeStartIndex);
-        val dataCode = pageSource.substring(dataCodeStartIndex, dataCodeEndIndex + 3)
+        val dataCodeEndIndex = rallyPageSource.indexOf("});", dataCodeStartIndex);
+        val dataCode = rallyPageSource.substring(dataCodeStartIndex, dataCodeEndIndex + 3)
 
         val parsed = parseJS(dataCode, url, 1)
         val addDataCall = (parsed.firstChild as? ExpressionStatement)?.expression as? FunctionCall ?: throw unsupportedCode()
@@ -63,7 +70,7 @@ object RallyMapsSpider {
                     val rawJson = decrypt((geometriesElement.value as StringLiteral).value, decryptionKey)
                     val geometriesAsJsNode = parseJS(rawJson, url, geometriesElement.value.lineno)
                         .let { it.firstChild as? ExpressionStatement ?: throw unsupportedCode() }
-                        .let { it.expression as? AstNode ?: throw unsupportedCode() }
+                        .expression
                     geometriesElement.setKeyAndValue(geometriesElement.key, geometriesAsJsNode)
                     return@visit false
                 }
@@ -75,6 +82,65 @@ object RallyMapsSpider {
         val jsonString = jsContext.evaluateString(jsScope, "JSON.stringify(${addDataCall.arguments[0].toSource()})", url.toString(), 1, null)
         jsonString as? String ?: throw unsupportedCode()
         return jsonString
+    }
+
+    /**
+     * @return key: [StageDto.id], value: the URL with the details, to be used with [extractElevationProfile].
+     */
+    fun extractStageDetailURLs(rallyPageSource: String): Map<Long, URL> {
+        return Jsoup.parse(rallyPageSource)
+            .selectFirst("table.rallyItinerary")
+            .let { it ?: throw unsupportedCode() }
+            .selectStream("tr[data-stage-id]")
+            .map { stageDetailsTr ->
+                val stageIdString = stageDetailsTr.attr("data-stage-id")
+                val stageId = try {
+                    stageIdString.toLong()
+                } catch (ex: NumberFormatException) {
+                    throw UnreadableRallyMapsPageException("Could not parse stage ID from HTML: $stageIdString", ex)
+                }
+                val urlString = stageDetailsTr.selectFirst("td.srname a[href]")
+                    .let { it ?: throw unsupportedCode() }
+                    .attr("href")
+                val url = try {
+                    URI.create(urlString).toURL()
+                } catch (ex: IllegalArgumentException) {
+                    throw UnreadableRallyMapsPageException("Could not parse URL for stage details $stageId: $urlString", ex)
+                }
+
+                stageId to url
+            }
+            .collect(Collectors.toMap(
+                Pair<Long, URL>::first,
+                Pair<Long, URL>::second,
+                { url1, url2 ->
+                    if (url1 != url2) {
+                        throw UnreadableRallyMapsPageException("Multiple URLs for stage: $url1, $url2")
+                    }
+                    url1
+                },
+            ))
+    }
+
+    private val elevationDataRegex = Regex(",elevationData\\s*:\\s*(\\[\\{.+?)(?:\r|\n)")
+    private val ELEVATION_JSON_FORMAT = Json {
+        ignoreUnknownKeys = true
+    }
+    fun extractElevationProfile(stagePageSource: String): List<Geospatial> {
+        val chartSetupCode = Jsoup.parse(stagePageSource)
+            .selectFirst("section.box:has([id='Elevation Chart']) script")
+            .let { it ?: throw unsupportedCode() }
+            .data()
+
+        val elevationData = elevationDataRegex.find(chartSetupCode)
+            .let { it ?: throw unsupportedCode() }
+            .groupValues[1]
+
+        return try {
+            ELEVATION_JSON_FORMAT.decodeFromString(ElevationDataSerializer, elevationData)
+        } catch (ex: SerializationException) {
+            throw UnreadableRallyMapsPageException("Could not parse elevation data", ex)
+        }
     }
 
     /**
