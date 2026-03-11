@@ -8,10 +8,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.URI
 import java.net.URL
-import java.nio.file.Paths
-import kotlin.io.path.readText
 
 class RallyMapsRouteSource(
     val url: URL,

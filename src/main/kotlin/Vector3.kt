@@ -1,7 +1,10 @@
 package io.github.tmarsteel.flyingnarrator
 
+import kotlinx.serialization.Serializable
 import kotlin.math.PI
+import kotlin.math.sqrt
 
+@Serializable
 data class Vector3(
     val x: Double,
     val y: Double,
@@ -19,6 +22,10 @@ data class Vector3(
         }
 
         return angle
+    }
+
+    fun length(): Distance {
+        return Distance(sqrt(x * x + y * y + z * z))
     }
 
     companion object {
