@@ -51,7 +51,7 @@ class KmlRouteReader(
     }
 }
 
-private fun Coordinate.euclideanVectorTo(other: Coordinate): Vector3 {
+fun Coordinate.euclideanVectorTo(other: Coordinate): Vector3 {
     // we are processing KML files, which are based on Google Earth
     // Google Earth+Maps assume the earth is a perfect sphere
     // alas, we make the same assumption here for correctness of the result

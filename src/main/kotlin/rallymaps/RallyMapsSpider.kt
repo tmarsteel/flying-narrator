@@ -1,13 +1,11 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
-import io.github.tmarsteel.flyingnarrator.Geospatial
-import io.github.tmarsteel.flyingnarrator.Vector3
+import de.micromata.opengis.kml.v_2_2_0.Coordinate
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.RhinoException
-import org.mozilla.javascript.ast.AstNode
 import org.mozilla.javascript.ast.AstRoot
 import org.mozilla.javascript.ast.Comment
 import org.mozilla.javascript.ast.ExpressionStatement
@@ -68,11 +66,13 @@ object RallyMapsSpider {
 
                 if (type is StringLiteral && type.value == "stage" && geometriesElement != null && geometriesElement.value is StringLiteral) {
                     val rawJson = decrypt((geometriesElement.value as StringLiteral).value, decryptionKey)
-                    val geometriesAsJsNode = parseJS(rawJson, url, geometriesElement.value.lineno)
-                        .let { it.firstChild as? ExpressionStatement ?: throw unsupportedCode() }
-                        .expression
-                    geometriesElement.setKeyAndValue(geometriesElement.key, geometriesAsJsNode)
-                    return@visit false
+                    if (rawJson != "") {
+                        val geometriesAsJsNode = parseJS(rawJson, url, geometriesElement.value.lineno)
+                            .let { it.firstChild as? ExpressionStatement ?: throw unsupportedCode() }
+                            .expression
+                        geometriesElement.setKeyAndValue(geometriesElement.key, geometriesAsJsNode)
+                        return@visit false
+                    }
                 }
             }
 
@@ -126,7 +126,7 @@ object RallyMapsSpider {
     private val ELEVATION_JSON_FORMAT = Json {
         ignoreUnknownKeys = true
     }
-    fun extractElevationProfile(stagePageSource: String): List<Geospatial> {
+    fun extractElevationProfile(stagePageSource: String): List<Coordinate> {
         val chartSetupCode = Jsoup.parse(stagePageSource)
             .selectFirst("section.box:has([id='Elevation Chart']) script")
             .let { it ?: throw unsupportedCode() }

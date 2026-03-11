@@ -1,5 +1,9 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
+import de.micromata.opengis.kml.v_2_2_0.Coordinate
+import io.github.tmarsteel.flyingnarrator.Route
+import io.github.tmarsteel.flyingnarrator.RouteReader
+import io.github.tmarsteel.flyingnarrator.euclideanVectorTo
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -13,16 +17,54 @@ class RallyMapsRouteSource(
     val url: URL,
     urlReader: (URL) -> String = DEFAULT_URL_READER,
 ) {
+    private val detailUrls: Map<Long, URL>
+    val raceStageReaders: List<RaceReader>
+    val rally: RallyDto
+
     init {
         val pageContent = urlReader(url)
         val json = RallyMapsSpider.extractRallyDataAsJSON(pageContent, url)
-        val rallyDto = try {
-            JSON_FORMAT.decodeFromString<RallyDto>(json)
+        try {
+            rally = JSON_FORMAT.decodeFromString<RallyDto>(json)
         } catch (ex: SerializationException) {
             throw UnreadableRallyMapsPageException("Could not parse rally JSON", ex)
         }
 
+        detailUrls = RallyMapsSpider.extractStageDetailURLs(pageContent)
+        raceStageReaders = rally.stages
+            .filter { it.stageType == StageDto.Type.RACE }
+            .map { RaceReader(it, detailUrls[it.id]) }
+    }
 
+    class RaceReader(
+        val stage: StageDto,
+        val detailsURL: URL?,
+        urlReader: (URL) -> String = DEFAULT_URL_READER,
+    ) : RouteReader {
+        private val elevationProfile: List<Coordinate> by lazy {
+            if (detailsURL == null) {
+                throw UnreadableRallyMapsPageException("Could not find stage details URL for stage ${stage.id} / ${stage.name}")
+            }
+
+            RallyMapsSpider.extractElevationProfile(urlReader(detailsURL))
+        }
+
+        override fun read(): Route {
+            val lineString = stage.geometries
+                .map { it.geometry }
+                .filterIsInstance<LineStringDto>()
+                .firstOrNull() ?: throw UnreadableRallyMapsPageException("Could not find LineString geometry for stage ${stage.id} / ${stage.name}")
+
+            return lineString.coordinates
+                .asSequence()
+                .windowed(size = 2, step = 1)
+                .map { (a, b) ->
+                    val a3 = Coordinate(a.longitude, a.latitude)
+                    val b3 = Coordinate(b.longitude, b.latitude)
+                    a3.euclideanVectorTo(b3)
+                }
+                .toList()
+        }
     }
 
     companion object {
@@ -42,13 +84,4 @@ class RallyMapsRouteSource(
             ignoreUnknownKeys = true
         }
     }
-}
-
-fun main() {
-    val url = URI.create("https://www.rally-maps.com/12-Uren-van-Aalst-1985/Comfisca#Elevation%20Chart").toURL()
-    //val pageContent = RallyMapsRouteSource.DEFAULT_URL_READER(url)
-    val pageContent = Paths.get("Comfisca").readText()
-    val elevations = RallyMapsSpider.extractElevationProfile(pageContent)
-    println(elevations.size)
-    println(elevations)
 }
