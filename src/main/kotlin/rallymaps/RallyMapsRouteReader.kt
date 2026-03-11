@@ -30,7 +30,7 @@ class RallyMapsRouteSource(
             throw UnreadableRallyMapsPageException("Could not parse rally JSON", ex)
         }
 
-        detailUrls = RallyMapsSpider.extractStageDetailURLs(pageContent)
+        detailUrls = RallyMapsSpider.extractStageDetailURLs(pageContent, url)
         raceStageReaders = rally.stages
             .filter { it.stageType == StageDto.Type.RACE }
             .map { RaceReader(it, detailUrls[it.id]) }

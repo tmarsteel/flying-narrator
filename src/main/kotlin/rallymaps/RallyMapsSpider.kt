@@ -87,8 +87,8 @@ object RallyMapsSpider {
     /**
      * @return key: [StageDto.id], value: the URL with the details, to be used with [extractElevationProfile].
      */
-    fun extractStageDetailURLs(rallyPageSource: String): Map<Long, URL> {
-        return Jsoup.parse(rallyPageSource)
+    fun extractStageDetailURLs(rallyPageSource: String, url: URL): Map<Long, URL> {
+        return Jsoup.parse(rallyPageSource,  url.toString())
             .selectFirst("table.rallyItinerary")
             .let { it ?: throw unsupportedCode() }
             .selectStream("tr[data-stage-id]")
@@ -101,7 +101,7 @@ object RallyMapsSpider {
                 }
                 val urlString = stageDetailsTr.selectFirst("td.srname a[href]")
                     .let { it ?: throw unsupportedCode() }
-                    .attr("href")
+                    .attr("abs:href")
                 val url = try {
                     URI.create(urlString).toURL()
                 } catch (ex: IllegalArgumentException) {

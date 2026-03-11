@@ -18,8 +18,17 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.decodeStructure
+import kotlinx.serialization.encoding.encodeCollection
 import kotlinx.serialization.encoding.encodeStructure
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonClassDiscriminator
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.internal.readJson
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.reflect.KProperty1
 
 @Serializable
@@ -35,6 +44,7 @@ data class StageDto(
     val fullName: String,
     val prefix: String,
     val stageType: Type,
+    @Serializable(with = GeometriesSerializer::class)
     val geometries: List<GeometryDto>,
 ) {
     @Serializable(with = Type.Serializer::class)
@@ -51,6 +61,34 @@ data class StageDto(
         ;
 
         class Serializer : EnumAsIntSerializer<Type>(Type::class.java, Type::serialValue, UNKNOWN)
+    }
+
+    class GeometriesSerializer : KSerializer<List<GeometryDto>> {
+        private val geometryDtoSerializer = GeometryDto.serializer()
+        private val listSerializer = ListSerializer(geometryDtoSerializer)
+        override val descriptor: SerialDescriptor = listSerializer.descriptor
+
+        override fun serialize(
+            encoder: Encoder,
+            value: List<GeometryDto>
+        ) {
+            listSerializer.serialize(encoder, value)
+        }
+
+        override fun deserialize(decoder: Decoder): List<GeometryDto> {
+            decoder as? JsonDecoder ?: error("can only deserialize from JSON")
+            val jsonElement = decoder.decodeJsonElement()
+
+            if (jsonElement is JsonArray) {
+                return decoder.json.decodeFromJsonElement(listSerializer, jsonElement)
+            }
+
+            if (jsonElement is JsonPrimitive && jsonElement.isString && jsonElement.content == "") {
+                return emptyList()
+            }
+
+            throw SerializationException("Expected array of geometries, got JSON string: $jsonElement")
+        }
     }
 }
 
