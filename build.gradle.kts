@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "2.2.20"
+    kotlin("plugin.serialization") version "2.3.10"
     id("io.kotest").version("6.1.5")
 }
 
@@ -12,6 +13,9 @@ repositories {
 
 dependencies {
     implementation("uk.m0nom:javaapiforkml:3.0.11")
+    implementation("org.mozilla:rhino:1.9.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-assertions-core:6.1.5")
