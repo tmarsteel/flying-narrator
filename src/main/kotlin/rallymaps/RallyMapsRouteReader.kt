@@ -41,9 +41,5 @@ fun main() {
         ignoreUnknownKeys = true
     }
     val obj = jsonParser.decodeFromString<RallyDto>(json)
-    obj.stages.forEach {
-        println(it.name)
-        println(it.stageType)
-    }
     println(obj)
 }
