@@ -1,3 +1,4 @@
 package io.github.tmarsteel.flyingnarrator
 
-typealias Route = List<Vector3>
+typealias RoadSegment = Vector3
+typealias Route = List<RoadSegment>
