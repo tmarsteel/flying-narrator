@@ -5,11 +5,13 @@ import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
 import java.awt.image.BufferedImage
+import java.text.NumberFormat
 import kotlin.math.ceil
 import kotlin.math.floor
 
 fun Route.render(
     scale: Double = 0.4,
+    distanceMarkersEveryMeters: Double = 100.0,
     paddingPxs: Int = 50,
     bgColor: Color = Color.WHITE,
     trackColor: Color = Color.BLACK,
@@ -37,14 +39,15 @@ fun Route.render(
     val height = maxY - minY
     val markerRadius = width.coerceAtLeast(height) / 25.0 / 2.0
 
-    fun trackToImageX(v: Double) = ceil((v + offsetX) * scale).toInt() + paddingPxs
-    fun trackToImageY(v: Double) = ceil((v + offsetY) * scale).toInt() + paddingPxs
-
     val image = BufferedImage(
         (width * scale).toInt() + paddingPxs * 2,
         (height * scale).toInt() + paddingPxs * 2,
         BufferedImage.TYPE_INT_RGB,
     )
+
+    fun trackToImageX(v: Double) = ceil((v + offsetX) * scale).toInt() + paddingPxs
+    fun trackToImageY(v: Double) = ceil((v + offsetY) * scale).toInt() + paddingPxs
+
     val g = image.graphics as Graphics2D
     g.stroke = BasicStroke(lineThickness)
     g.color = bgColor
@@ -54,6 +57,8 @@ fun Route.render(
     var carryPoint = Vector3.ORIGIN
     var prevImageX = trackToImageX(carryPoint.x)
     var prevImageY = trackToImageY(carryPoint.y)
+    var distanceCarry = 0.0
+    var distanceSinceLastMarker = 0.0
     for (vec in this) {
         carryPoint += vec
 
@@ -62,14 +67,19 @@ fun Route.render(
         g.color = trackColor
         g.drawLine(prevImageX, prevImageY, imageX, imageY)
 
-        if (carryPoint != Vector3.ORIGIN) {
-            g.color = segmentJointMarkerColor
-            g.fillOval(
-                floor(prevImageX - (lineThickness + 1) / 2).toInt(),
-                floor(prevImageY - (lineThickness + 1) / 2).toInt(),
-                ceil(lineThickness + 1).toInt(),
-                ceil(lineThickness + 1).toInt(),
-            )
+        g.color = segmentJointMarkerColor
+        g.fillOval(
+            floor(prevImageX - (lineThickness + 1) / 2).toInt(),
+            floor(prevImageY - (lineThickness + 1) / 2).toInt(),
+            ceil(lineThickness + 1).toInt(),
+            ceil(lineThickness + 1).toInt(),
+        )
+        distanceCarry += vec.length()
+        distanceSinceLastMarker += vec.length()
+        if (distanceSinceLastMarker >= distanceMarkersEveryMeters) {
+            distanceSinceLastMarker = 0.0
+            val distanceText = String.format("  %3.2f km", (distanceCarry / 1000.0))
+            g.drawString(distanceText, imageX, imageY + 10)
         }
         prevImageX = imageX
         prevImageY = imageY
@@ -80,6 +90,9 @@ fun Route.render(
 
     g.color = finishMarkerColor
     g.drawOval(trackToImageX(carryPoint.x - markerRadius), trackToImageY(carryPoint.y - markerRadius), (markerRadius * 2 * scale).toInt(), (markerRadius * 2 * scale).toInt())
+    g.color = segmentJointMarkerColor
+    val distanceText = String.format("%3.2f km", (distanceCarry / 1000.0))
+    g.drawString(distanceText, prevImageX, prevImageY + 10)
 
     g.color = trackColor
     g.drawLine(paddingPxs, paddingPxs, paddingPxs + (100.0 * scale).toInt(), paddingPxs)
