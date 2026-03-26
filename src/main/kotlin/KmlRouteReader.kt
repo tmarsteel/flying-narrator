@@ -9,6 +9,7 @@ import jakarta.xml.bind.JAXBContext
 import org.glassfish.jaxb.runtime.v2.runtime.JAXBContextImpl
 import java.nio.file.Path
 import javax.xml.transform.stream.StreamSource
+import kotlin.math.cos
 
 class KmlRouteReader(
     private val file: Path,
@@ -55,9 +56,7 @@ fun Coordinate.euclideanVectorTo(other: Coordinate): Vector3 {
     // we are processing KML files, which are based on Google Earth
     // Google Earth+Maps assume the earth is a perfect sphere
     // alas, we make the same assumption here for correctness of the result
-
-    val polarCircumference = 40075004.0
-    val equatorialCircumference = polarCircumference
+    val earthRadius = 6378134.981
 
     val polarAngularDistance = other.latitude - this.latitude
     var equatorialAngularDistance = other.longitude - this.longitude
@@ -66,9 +65,10 @@ fun Coordinate.euclideanVectorTo(other: Coordinate): Vector3 {
     } else if (equatorialAngularDistance > 180.0) {
         equatorialAngularDistance -= 360.0
     }
+    val midPolarPosition = this.latitude + polarAngularDistance / 2.0
 
-    val polarDistance = polarAngularDistance / 360.0 * polarCircumference
-    val equatorialDistance = equatorialAngularDistance / 360.0 * equatorialCircumference
+    val polarDistance = Math.toRadians(polarAngularDistance) * earthRadius * cos(Math.toRadians(midPolarPosition))
+    val equatorialDistance = Math.toRadians(equatorialAngularDistance) * earthRadius
 
     return Vector3(
         equatorialDistance,
