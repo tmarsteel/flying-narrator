@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator
 
 import kotlin.math.absoluteValue
 import kotlin.math.sign
+import kotlin.sequences.first
 
 /**
  * Straight distances are rounded to this amount, e.g. `10` for 300, 310, 320, 330, ...
@@ -12,7 +13,7 @@ val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
  * On corners that have little detail in the input data, it is assumed that turns extend at most
  * this distance into the straight sections before/after
  */
-val MAX_CORNER_ROUNDING_DISTANCE = 20.0
+val MAX_CORNER_ROUNDING_DISTANCE = 10.0
 
 /**
  * Two [RoadSegment]s that have a radius greater than this value will be considered straight
@@ -30,30 +31,30 @@ val MAX_REPORTED_RADIUS = STRAIGHTISH_RADIUS_THRESHOLD * 10.0
  */
 val STRAIGHT_ELISION_DISTANCE_THRESHOLD = 20.0
 
-fun Sequence<TrackSegment>.derivePacenotes(): List<PacenoteItem> {
+fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     val features = detectFeatures()
 
-    val pacenoteItems = mutableListOf<PacenoteItem>()
+    val pacenoteItems = mutableListOf<Pair<Double, PacenoteItem>>()
     for (feature in features) {
         when (feature) {
             is Feature.Straight -> {
                 val distance = (feature.distance.toInt() / ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF) * ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF
                 if (distance > STRAIGHT_ELISION_DISTANCE_THRESHOLD) {
-                    pacenoteItems += PacenoteItem.Straight(distance)
+                    pacenoteItems += Pair(feature.startsAtTrackDistance, PacenoteItem.Straight(distance))
                 } else if (!pacenoteItems.isEmpty()) {
-                    pacenoteItems += PacenoteItem.ShortTransition
+                    pacenoteItems += Pair(feature.startsAtTrackDistance, PacenoteItem.ShortTransition)
                 }
             }
             is Feature.Turn -> {
-                if (pacenoteItems.lastOrNull() is PacenoteItem.Turn) {
-                    pacenoteItems += PacenoteItem.ImmediateTransition
+                if (pacenoteItems.lastOrNull()?.second is PacenoteItem.Turn) {
+                    pacenoteItems += Pair(feature.startsAtTrackDistance, PacenoteItem.ImmediateTransition)
                 }
-                pacenoteItems += turnFeatureToPacenoteItem(feature)
+                pacenoteItems += Pair(feature.startsAtTrackDistance, turnFeatureToPacenoteItem(feature))
             }
         }
     }
 
-    while (pacenoteItems.lastOrNull() is PacenoteItem.Transition) {
+    while (pacenoteItems.lastOrNull()?.second is PacenoteItem.Transition) {
         pacenoteItems.removeLast()
     }
 
@@ -62,21 +63,46 @@ fun Sequence<TrackSegment>.derivePacenotes(): List<PacenoteItem> {
 
 data class TrackSegment(
     val roadSegment: RoadSegment,
+    val startsAtDistance: Double,
     val radiusToNext: Double,
     val angleToNext: Double,
 )
 
+fun Route.trackSegments(): Sequence<TrackSegment> {
+    return sequence {
+        val windows = this@trackSegments
+            .asSequence()
+            .capAngledSegmentLength2d(MAX_CORNER_ROUNDING_DISTANCE)
+            .windowed(size = 2, step = 1, partialWindows = true)
+
+        var distanceAlongTrack = 0.0
+        for ((idx, segments) in windows.withIndex()) {
+            val startsAtDistance = distanceAlongTrack
+            distanceAlongTrack += segments.first().length2d
+
+            if (segments.size == 1) {
+                yield(TrackSegment(segments.single(),  startsAtDistance, MAX_REPORTED_RADIUS, 0.0))
+                continue
+            }
+            val (a, b) = segments
+            val radius = radiusOfCorner(a, b).coerceAtMost(MAX_REPORTED_RADIUS)
+            val angle = a.angleTo(b)
+            yield(TrackSegment(a, startsAtDistance, radius, angle))
+        }
+    }
+}
+
 fun Sequence<TrackSegment>.detectFeatures(): List<Feature> {
-    var state: FeatureDetectionState = FeatureDetectionState.Straightish.startStraightish(this.first(), 0)
+    var state = FeatureDetectionState.fromInitial(first())
     val features = mutableListOf<Feature>()
-    for ((index, segment) in this.withIndex().drop(1)) {
-        val (nextState, segmentFeatures) = state.traverse(segment, index)
+    for (segment in this.drop(1)) {
+        val (nextState, segmentFeatures) = state.traverse(segment)
         features += segmentFeatures
         state = nextState
     }
     features += state.finish()
 
-    features.sortBy { it.startsAtSegmentIndex }
+    features.sortBy { it.startsAtTrackDistance }
     return features
 }
 
@@ -99,22 +125,6 @@ private fun Sequence<RoadSegment>.capAngledSegmentLength2d(maxLength: Double): S
             }
         }
     }
-}
-
-fun Route.trackSegments(): Sequence<TrackSegment> {
-    return this
-        .asSequence()
-        .capAngledSegmentLength2d(MAX_CORNER_ROUNDING_DISTANCE)
-        .windowed(size = 2, step =1, partialWindows = true)
-        .mapIndexed { index, segments ->
-            if (segments.size == 1) {
-                return@mapIndexed TrackSegment(segments.single(), MAX_REPORTED_RADIUS, 0.0)
-            }
-            val (a, b) = segments
-            val radius = radiusOfCorner(a, b).coerceAtMost(MAX_REPORTED_RADIUS)
-            val angle = a.angleTo(b)
-            TrackSegment(a, radius, angle)
-        }
 }
 
 /**
@@ -188,104 +198,100 @@ private class MLine(
 }
 
 sealed interface FeatureDetectionState {
-    val currentSegment: TrackSegment
-
-    fun traverse(segment: TrackSegment, segmentIndex: Int): Pair<FeatureDetectionState, List<Feature>>
+    fun traverse(segment: TrackSegment): Pair<FeatureDetectionState, List<Feature>>
     fun finish(): List<Feature>
 
     class Straightish(
-        override val currentSegment: TrackSegment,
+        val startsAtDistance: Double,
         val straightishDistance: Double,
-        val straightStartedAtIndex: Int,
     ) : FeatureDetectionState {
         override fun finish(): List<Feature> {
-            return listOf(Feature.Straight(straightStartedAtIndex, straightishDistance))
+            return listOf(Feature.Straight(startsAtDistance, straightishDistance))
         }
 
-        override fun traverse(
-            segment: TrackSegment,
-            segmentIndex: Int
-        ): Pair<FeatureDetectionState, List<Feature>> {
+        override fun traverse(segment: TrackSegment): Pair<FeatureDetectionState, List<Feature>> {
             if (segment.radiusToNext <= STRAIGHTISH_RADIUS_THRESHOLD) {
-                val nextState = InTurn(segmentIndex, segmentIndex, this, segment)
+                val nextState = InTurn(segment, null)
                 return Pair(nextState, finish())
             }
 
             return Pair(
-                Straightish(segment, straightishDistance + segment.roadSegment.length(), segmentIndex),
+                Straightish(startsAtDistance, straightishDistance + segment.roadSegment.length()),
                 emptyList(),
             )
         }
 
         companion object {
-            fun startStraightish(segment: TrackSegment, startIndex: Int): Straightish = Straightish(segment, segment.roadSegment.length(), startIndex)
+            fun startStraightish(segment: TrackSegment): Straightish = Straightish(segment.startsAtDistance, segment.roadSegment.length())
         }
     }
 
     class InTurn(
-        val turnStartsAtIndex: Int,
-        val currentIndex: Int,
-        val previousState: FeatureDetectionState,
-        override val currentSegment: TrackSegment,
+        val currentSegment: TrackSegment,
+        val continuesTurnState: InTurn?,
     ) : FeatureDetectionState {
-        private fun collectTurnSegments(): List<InTurn> {
-            val states = mutableListOf<InTurn>()
-            var state: FeatureDetectionState = this
-            while (state is InTurn) {
-                states.add(state)
-                if (state.turnStartsAtIndex == state.currentIndex) {
-                    break
-                }
-                state = state.previousState
+        private fun collectTurnSegments(): List<TrackSegment> {
+            val segments = ArrayList<TrackSegment>()
+            var pivot: InTurn? = this
+            while (pivot != null) {
+                segments.add(pivot.currentSegment)
+                pivot = pivot.continuesTurnState
             }
-            states.reverse()
-            return states
+            return segments.asReversed()
         }
 
         override fun finish(): List<Feature> {
-            return listOf(Feature.Turn(turnStartsAtIndex, collectTurnSegments()))
+            val segments = collectTurnSegments()
+            return listOf(Feature.Turn(segments.first().startsAtDistance, segments))
         }
 
-        override fun traverse(
-            segment: TrackSegment,
-            segmentIndex: Int
-        ): Pair<FeatureDetectionState, List<Feature>> {
-            if (previousState is InTurn && previousState.currentSegment.radiusToNext > STRAIGHTISH_RADIUS_THRESHOLD) {
-                val nextState = Straightish.startStraightish(segment, segmentIndex)
+        override fun traverse(segment: TrackSegment): Pair<FeatureDetectionState, List<Feature>> {
+            if (segment.radiusToNext > STRAIGHTISH_RADIUS_THRESHOLD) {
+                val nextState = Straightish.startStraightish(segment)
                 return Pair(nextState, finish())
             }
 
             if (this.currentSegment.angleToNext.sign == segment.angleToNext.sign) {
                 // turn continues
                 return Pair(
-                    InTurn(turnStartsAtIndex, segmentIndex, this, segment),
+                    InTurn(segment, this),
                     emptyList(),
                 )
             } else {
                 // s-curve
                 return Pair(
-                    InTurn(segmentIndex, segmentIndex, this, segment),
+                    InTurn(segment, null),
                     finish()
                 )
+            }
+        }
+    }
+
+    companion object {
+        fun fromInitial(segment: TrackSegment): FeatureDetectionState {
+            return if (segment.radiusToNext > STRAIGHTISH_RADIUS_THRESHOLD) {
+                Straightish.startStraightish(segment)
+            } else {
+                InTurn(segment, null)
             }
         }
     }
 }
 
 sealed interface Feature {
-    val startsAtSegmentIndex: Int
+    val startsAtTrackDistance: Double
 
     class Straight(
-        override val startsAtSegmentIndex: Int,
+        override val startsAtTrackDistance: Double,
         val distance: Double,
     ) : Feature
 
     class Turn(
-        override val startsAtSegmentIndex: Int,
-        val states: List<FeatureDetectionState.InTurn>,
+        override val startsAtTrackDistance: Double,
+        val segments: List<TrackSegment>,
     ) : Feature {
-        val totalAngle: Double = states.sumOf { it.currentSegment.angleToNext }
-        val totalDistance: Double by lazy { states.map { it.currentSegment.roadSegment.length() }.reduce(Double::plus) }
+        val totalAngle: Double = segments.sumOf { it.angleToNext }
+        val totalDistance: Double by lazy { segments.map { it.roadSegment.length() }.reduce(Double::plus) }
 
         val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
 
@@ -328,10 +334,10 @@ private fun turnFeatureToPacenoteItem(turn: Feature.Turn): PacenoteItem {
         ))
     }
 
-    val initialSeverity = radiusToSeverity(turn.states.first().currentSegment.radiusToNext)
+    val initialSeverity = radiusToSeverity(turn.segments.first().radiusToNext)
     var carrySeverity = initialSeverity
-    for (turnState in turn.states.drop(1)) {
-        val segmentSeverity = radiusToSeverity(turnState.currentSegment.radiusToNext)
+    for (turnSegment in turn.segments.drop(1)) {
+        val segmentSeverity = radiusToSeverity(turnSegment.radiusToNext)
         when {
             segmentSeverity == carrySeverity -> { /* continues */ }
             segmentSeverity > carrySeverity -> {
