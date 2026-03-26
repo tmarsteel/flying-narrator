@@ -97,9 +97,9 @@ fun Route.render(
     g.drawString(distanceText, prevImageX, prevImageY + 10)
 
     g.color = trackColor
-    g.drawLine(paddingPxs, image.height - paddingPxs, paddingPxs + (100.0 * scale).toInt(), image.height - paddingPxs)
+    g.drawLine(10, image.height - 10, 10 + (100.0 * scale).toInt(), image.height - 10)
     g.font = g.font.deriveFont(Font.PLAIN, 14.0f)
-    g.drawString("100m", paddingPxs, image.height - paddingPxs - (lineThickness * 2.0f).toInt())
+    g.drawString("100m", 10, image.height - 10 - (lineThickness * 2.0f).toInt())
 
     g.dispose()
     return image
