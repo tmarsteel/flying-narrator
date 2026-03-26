@@ -12,7 +12,7 @@ import kotlin.math.floor
 
 fun Route.render(
     scale: Double = 0.4,
-    distanceMarkersEveryMeters: Double = 100.0,
+    distanceMarkersEveryMeters: Double = 200.0,
     paddingPxs: Int = 50,
     bgColor: Color = Color.WHITE,
     trackColor: Color = Color.BLACK,
@@ -97,9 +97,9 @@ fun Route.render(
     g.drawString(distanceText, prevImageX, prevImageY + 10)
 
     g.color = trackColor
-    g.drawLine(paddingPxs, paddingPxs, paddingPxs + (100.0 * scale).toInt(), paddingPxs)
+    g.drawLine(paddingPxs, image.height - paddingPxs, paddingPxs + (100.0 * scale).toInt(), image.height - paddingPxs)
     g.font = g.font.deriveFont(Font.PLAIN, 14.0f)
-    g.drawString("100m", paddingPxs, paddingPxs + (g.font.size2D + lineThickness * 2.0f).toInt())
+    g.drawString("100m", paddingPxs, image.height - paddingPxs - (lineThickness * 2.0f).toInt())
 
     g.dispose()
     return image
