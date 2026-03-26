@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator
 
 import kotlinx.serialization.Serializable
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.sqrt
 
 @Serializable
@@ -10,13 +11,17 @@ data class Vector3(
     val y: Double,
     val z: Double,
 ) {
+    val length2d: Double by lazy {
+        sqrt(x * x + y * y)
+    }
+
     operator fun plus(other: Vector3): Vector3 = Vector3(x + other.x, y + other.y, z + other.z)
 
     operator fun times(scalar: Double): Vector3 = Vector3(x * scalar, y * scalar, z * scalar)
 
-    fun angleTowardsPositiveY(): Double = Math.atan2(y, x)
-    fun angleFrom(straight: Vector3): Double {
-        var angle = straight.angleTowardsPositiveY() - this.angleTowardsPositiveY()
+    fun angleTowardsPositiveY(): Double = atan2(y, x)
+    fun angleTo(bent: Vector3): Double {
+        var angle = bent.angleTowardsPositiveY() - this.angleTowardsPositiveY()
 
         when {
             angle > PI -> angle -= PI * 2
@@ -26,10 +31,6 @@ data class Vector3(
         return angle
     }
 
-    fun length(): Distance {
-        return Distance(sqrt(x * x + y * y + z * z))
-    }
-
     /**
      * Rotates the two-dimensional components of this vector ([x] and [y]) by 90° counter-clockwise.
      */
@@ -37,19 +38,27 @@ data class Vector3(
         return Vector3(-y, x, z)
     }
 
-    /**
-     * @return the length of this vector, disregarding [z]
-     */
-    fun length2d(): Double = sqrt(x * x + y * y)
+    fun rotate2d90degClockwise(): Vector3 {
+        return Vector3(y, -x, z)
+    }
+
+    fun length(): Double = sqrt(x * x + y * y + z * z)
+
+    fun withLength2d(length: Double): Vector3 {
+        return this * (length / length2d)
+    }
+
+    fun half(): Vector3 = this * 0.5
 
     fun coerce2dLengthAtMost(length: Double): Vector3 {
-        val selfLength2d = length2d()
-        return if (selfLength2d > length) {
-            this * (length / selfLength2d)
+        return if (length2d > length) {
+            this * (length / length2d)
         } else {
             this
         }
     }
+
+    override fun toString() = "($x, $y, $z)"
 
     companion object {
         val ORIGIN = Vector3(0.0, 0.0, 0.0)
