@@ -6,7 +6,6 @@ import java.awt.Font
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
-import java.text.NumberFormat
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -38,7 +37,7 @@ fun Route.render(
     val offsetY = -minY
     val width = maxX - minX
     val height = maxY - minY
-    val markerRadius = width.coerceAtLeast(height) / 25.0 / 3.0
+    val startFinishMarkerRadius = width.coerceAtLeast(height) / 25.0 / 3.0
 
     val image = BufferedImage(
         (width * scale).toInt() + paddingPxs * 2,
@@ -88,10 +87,20 @@ fun Route.render(
     }
 
     g.color = startMarkerColor
-    g.drawOval(trackToImageX(0 - markerRadius), trackToImageY(0 - markerRadius), (markerRadius * 2 * scale).toInt(), (markerRadius * 2 * scale).toInt())
+    g.drawOval(
+        trackToImageX(0 - startFinishMarkerRadius),
+        trackToImageY(0 + startFinishMarkerRadius),
+        (startFinishMarkerRadius * 2 * scale).toInt(),
+        (startFinishMarkerRadius * 2 * scale).toInt()
+    )
 
     g.color = finishMarkerColor
-    g.drawOval(trackToImageX(carryPoint.x - markerRadius), trackToImageY(carryPoint.y - markerRadius), (markerRadius * 2 * scale).toInt(), (markerRadius * 2 * scale).toInt())
+    g.drawOval(
+        trackToImageX(carryPoint.x - startFinishMarkerRadius),
+        trackToImageY(carryPoint.y + startFinishMarkerRadius),
+        (startFinishMarkerRadius * 2 * scale).toInt(),
+        (startFinishMarkerRadius * 2 * scale).toInt()
+    )
     g.color = segmentJointMarkerColor
     val distanceText = String.format("%3.2f km", (distanceCarry / 1000.0))
     g.drawString(distanceText, prevImageX, prevImageY + 10)
