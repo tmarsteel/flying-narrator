@@ -4,10 +4,11 @@ import kotlinx.serialization.Serializable
 import kotlin.math.PI
 import kotlin.math.absoluteValue
 import kotlin.math.atan
-import kotlin.math.atan2
 import kotlin.math.sign
 import kotlin.math.sqrt
 import kotlin.math.withSign
+
+private const val HALFPI = PI / 2.0
 
 @Serializable
 data class Vector3(
@@ -23,20 +24,17 @@ data class Vector3(
 
     operator fun times(scalar: Double): Vector3 = Vector3(x * scalar, y * scalar, z * scalar)
 
-    fun angleTowardsPositiveY(): Double = when {
-        y == 0.0 -> PI / 2.0.withSign(x)
+    fun angleFromPositiveY(): Double = when {
+        y == 0.0 -> (PI / 2.0).withSign(x)
         x == 0.0 -> if (y > 0) 0.0 else PI
         else -> {
             // adapted atan2 calculation
-            var r = atan(y.absoluteValue / x.absoluteValue)
-            if (y < 0) {
-                r = PI - r
-            }
-            r.withSign(x)
+            val angleAwayFromPositiveXCCW = atan(y.absoluteValue / x.absoluteValue)
+            HALFPI.withSign(x) - angleAwayFromPositiveXCCW.withSign(x.sign * y.sign)
         }
     }
     fun angleTo(bent: Vector3): Double {
-        var angle = bent.angleTowardsPositiveY() - this.angleTowardsPositiveY()
+        var angle = bent.angleFromPositiveY() - this.angleFromPositiveY()
 
         when {
             angle > PI -> angle -= PI * 2
@@ -51,10 +49,6 @@ data class Vector3(
      */
     fun rotate2d90degCounterClockwise(): Vector3 {
         return Vector3(-y, x, z)
-    }
-
-    fun rotate2d90degClockwise(): Vector3 {
-        return Vector3(y, -x, z)
     }
 
     fun length(): Double = sqrt(x * x + y * y + z * z)

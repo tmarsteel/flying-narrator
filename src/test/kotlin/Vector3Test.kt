@@ -1,11 +1,9 @@
 package io.github.tmarsteel.flyingnarrator
 
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.doubles.plusOrMinus
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
-import kotlin.math.PI
-import kotlin.math.absoluteValue
-import kotlin.math.atan
-import kotlin.math.atan2
 
 class Vector3Test : FreeSpec({
     val up = Vector3(0.0, 1.0, 0.0)
@@ -18,14 +16,19 @@ class Vector3Test : FreeSpec({
     val upLeft = Vector3(-1.0, 1.0, 0.0)
 
     "angleTowardsPositiveY" {
-        Math.toDegrees(up.angleTowardsPositiveY()) shouldBe 0.0
-        Math.toDegrees(upRight.angleTowardsPositiveY()) shouldBe 45.0
-        Math.toDegrees(right.angleTowardsPositiveY()) shouldBe 90.0
-        Math.toDegrees(downRight.angleTowardsPositiveY()) shouldBe 135.0
-        Math.toDegrees(down.angleTowardsPositiveY()) shouldBe 180.0
-        Math.toDegrees(downLeft.angleTowardsPositiveY()) shouldBe -135.0
-        Math.toDegrees(left.angleTowardsPositiveY()) shouldBe -90.0
-        Math.toDegrees(upLeft.angleTowardsPositiveY()) shouldBe -45.0
+        Math.toDegrees(up.angleFromPositiveY()) shouldBe 0.0
+        Math.toDegrees(upRight.angleFromPositiveY()) shouldBe 45.0
+        Math.toDegrees(right.angleFromPositiveY()) shouldBe 90.0
+        Math.toDegrees(downRight.angleFromPositiveY()) shouldBe 135.0
+        Math.toDegrees(down.angleFromPositiveY()) shouldBe 180.0
+        Math.toDegrees(downLeft.angleFromPositiveY()) shouldBe -135.0
+        Math.toDegrees(left.angleFromPositiveY()) shouldBe -90.0
+        Math.toDegrees(upLeft.angleFromPositiveY()) shouldBe -45.0
+
+        Math.toDegrees(Vector3(2.0, 1.0, 0.0).angleFromPositiveY()) shouldBe 63.43.plusOrMinus(0.01)
+        Math.toDegrees(Vector3(2.0, -1.0, 0.0).angleFromPositiveY()) shouldBe 116.57.plusOrMinus(0.01)
+        Math.toDegrees(Vector3(-2.0, 1.0, 0.0).angleFromPositiveY()) shouldBe (-63.43).plusOrMinus(0.01)
+        Math.toDegrees(Vector3(-2.0, -1.0, 0.0).angleFromPositiveY()) shouldBe (-116.57).plusOrMinus(0.01)
     }
 
     "starting up" - {
