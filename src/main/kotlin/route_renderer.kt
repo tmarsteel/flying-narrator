@@ -4,6 +4,7 @@ import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
+import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.text.NumberFormat
 import kotlin.math.ceil
@@ -37,7 +38,7 @@ fun Route.render(
     val offsetY = -minY
     val width = maxX - minX
     val height = maxY - minY
-    val markerRadius = width.coerceAtLeast(height) / 25.0 / 2.0
+    val markerRadius = width.coerceAtLeast(height) / 25.0 / 3.0
 
     val image = BufferedImage(
         (width * scale).toInt() + paddingPxs * 2,
@@ -49,6 +50,7 @@ fun Route.render(
     fun trackToImageY(v: Double) = ceil((v + offsetY) * scale).toInt() + paddingPxs
 
     val g = image.graphics as Graphics2D
+    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
     g.stroke = BasicStroke(lineThickness)
     g.color = bgColor
     g.fillRect(0, 0, image.width, image.height)
