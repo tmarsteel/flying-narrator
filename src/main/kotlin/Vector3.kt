@@ -51,6 +51,10 @@ data class Vector3(
         return Vector3(-y, x, z)
     }
 
+    fun rotate2d90degClockwise(): Vector3 {
+        return Vector3(y, -x, z)
+    }
+
     fun length(): Double = sqrt(x * x + y * y + z * z)
 
     fun withLength2d(length: Double): Vector3 {
