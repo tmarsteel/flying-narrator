@@ -71,8 +71,8 @@ fun Coordinate.euclideanVectorTo(other: Coordinate): Vector3 {
     val equatorialDistance = Math.toRadians(equatorialAngularDistance) * earthRadius
 
     return Vector3(
-        equatorialDistance,
         polarDistance,
+        equatorialDistance,
         other.altitude - this.altitude,
     )
 }
