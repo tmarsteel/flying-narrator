@@ -2,8 +2,12 @@ package io.github.tmarsteel.flyingnarrator
 
 import kotlinx.serialization.Serializable
 import kotlin.math.PI
+import kotlin.math.absoluteValue
+import kotlin.math.atan
 import kotlin.math.atan2
+import kotlin.math.sign
 import kotlin.math.sqrt
+import kotlin.math.withSign
 
 @Serializable
 data class Vector3(
@@ -19,7 +23,18 @@ data class Vector3(
 
     operator fun times(scalar: Double): Vector3 = Vector3(x * scalar, y * scalar, z * scalar)
 
-    fun angleTowardsPositiveY(): Double = atan2(y, x)
+    fun angleTowardsPositiveY(): Double = when {
+        y == 0.0 -> PI / 2.0.withSign(x)
+        x == 0.0 -> if (y > 0) 0.0 else PI
+        else -> {
+            // adapted atan2 calculation
+            var r = atan(y.absoluteValue / x.absoluteValue)
+            if (y < 0) {
+                r = PI - r
+            }
+            r.withSign(x)
+        }
+    }
     fun angleTo(bent: Vector3): Double {
         var angle = bent.angleTowardsPositiveY() - this.angleTowardsPositiveY()
 
