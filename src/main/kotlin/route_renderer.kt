@@ -47,7 +47,7 @@ fun Route.render(
     )
 
     fun trackToImageX(v: Double) = ceil((v + offsetX) * scale).toInt() + paddingPxs
-    fun trackToImageY(v: Double) = ceil((v + offsetY) * scale).toInt() + paddingPxs
+    fun trackToImageY(v: Double) = ceil((height - (v + offsetY)) * scale).toInt() + paddingPxs
 
     val g = image.graphics as Graphics2D
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
