@@ -29,7 +29,7 @@ class RallyMapsRouteSource(
 
         detailUrls = RallyMapsSpider.extractStageDetailURLs(pageContent, url)
         raceStageReaders = rally.stages
-            .filter { it.stageType == StageDto.Type.RACE }
+            .filter { it.stageType in setOf(StageDto.Type.RACE, StageDto.Type.SHAKEDOWN) }
             .map { RaceReader(it, detailUrls[it.id]) }
     }
 

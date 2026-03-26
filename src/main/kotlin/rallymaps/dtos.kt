@@ -18,17 +18,11 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.decodeStructure
-import kotlinx.serialization.encoding.encodeCollection
 import kotlinx.serialization.encoding.encodeStructure
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonClassDiscriminator
 import kotlinx.serialization.json.JsonDecoder
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.internal.readJson
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlin.reflect.KProperty1
 
 @Serializable
@@ -50,6 +44,7 @@ data class StageDto(
     @Serializable(with = Type.Serializer::class)
     enum class Type(val serialValue: Int) {
         RACE(0),
+        SHAKEDOWN(2),
         SERVICE_PARK(3),
         PODIUM(7),
         REGROUPING(8),
