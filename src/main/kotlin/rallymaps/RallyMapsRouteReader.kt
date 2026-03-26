@@ -4,11 +4,15 @@ import de.micromata.opengis.kml.v_2_2_0.Coordinate
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
 import io.github.tmarsteel.flyingnarrator.euclideanVectorTo
+import io.github.tmarsteel.flyingnarrator.http.CachingUrlReader
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URL
+import java.nio.file.Paths
+import kotlin.io.path.createDirectory
+import kotlin.io.path.notExists
 
 class RallyMapsRouteSource(
     val url: URL,
@@ -66,7 +70,7 @@ class RallyMapsRouteSource(
 
     companion object {
         val OKHTTP_CLIENT = OkHttpClient()
-        val DEFAULT_URL_READER: (URL) -> String = {
+        val SIMPLE_URL_READER: (URL) -> String = {
             val response = OKHTTP_CLIENT.newCall(
                 Request.Builder().url(it).build(),
             ).execute()
@@ -75,6 +79,15 @@ class RallyMapsRouteSource(
             }
             val body = response.body ?: throw UnreadableRallyMapsPageException("No body in response")
             body.string()
+        }
+        val DEFAULT_URL_READER = run {
+            val cacheDir = System.getenv("FLYINGNARRATOR_CACHE_DIR")
+                ?.let(Paths::get)
+                ?: return@run SIMPLE_URL_READER
+            if (cacheDir.notExists()) {
+                cacheDir.createDirectory()
+            }
+            CachingUrlReader(cacheDir, SIMPLE_URL_READER)
         }
 
         val JSON_FORMAT = Json {
