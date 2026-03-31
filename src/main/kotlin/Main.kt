@@ -1,7 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.Json
+import io.github.tmarsteel.flyingnarrator.easportswrc.EASportsWRCCleanGhostRouteReader
 import java.io.File
 import java.nio.file.Paths
 import javax.imageio.ImageIO
@@ -10,10 +9,16 @@ import kotlin.io.path.writer
 import kotlin.math.roundToInt
 
 fun main(args: Array<String>) {
-    val route = Json.decodeFromString(ListSerializer(Vector3.serializer()),  Paths.get("Doukas - Lalas.json").readText())
+    val route = EASportsWRCCleanGhostRouteReader(Paths.get("./easports-wrc-tracks/22.cleanghost.json").readText())
+        .read()
         .trackSegments()
 
-    ImageIO.write(route.map { it.roadSegment }.toList().render(scale = 2.0), "png", File("stage.png"))
+    ImageIO.write(
+        route.map { it.roadSegment }.toList().render(
+            scale = 2.0,
+            segmentJointMarkerColor = null,
+        ), "png", File("stage.png")
+    )
 
     Paths.get("stage.csv").writer().use { writer ->
         writer.appendLine("length,angle,radius")

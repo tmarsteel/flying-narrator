@@ -12,10 +12,11 @@ import kotlin.math.floor
 fun Route.render(
     scale: Double = 0.4,
     distanceMarkersEveryMeters: Double = 200.0,
+    distanceMarkerColor: Color = Color.RED,
     paddingPxs: Int = 50,
     bgColor: Color = Color.WHITE,
     trackColor: Color = Color.BLACK,
-    segmentJointMarkerColor: Color = Color.RED,
+    segmentJointMarkerColor: Color? = Color.RED,
     startMarkerColor: Color = Color.RED,
     finishMarkerColor: Color = Color.GREEN,
     lineThickness: Float = 3.0f,
@@ -68,18 +69,21 @@ fun Route.render(
         g.color = trackColor
         g.drawLine(prevImageX, prevImageY, imageX, imageY)
 
-        g.color = segmentJointMarkerColor
-        g.fillOval(
-            floor(prevImageX - (lineThickness + 1) / 2).toInt(),
-            floor(prevImageY - (lineThickness + 1) / 2).toInt(),
-            ceil(lineThickness + 1).toInt(),
-            ceil(lineThickness + 1).toInt(),
-        )
+        if (segmentJointMarkerColor != null) {
+            g.color = segmentJointMarkerColor
+            g.fillOval(
+                floor(prevImageX - (lineThickness + 1) / 2).toInt(),
+                floor(prevImageY - (lineThickness + 1) / 2).toInt(),
+                ceil(lineThickness + 1).toInt(),
+                ceil(lineThickness + 1).toInt(),
+            )
+        }
         distanceCarry += vec.length()
         distanceSinceLastMarker += vec.length()
         if (distanceSinceLastMarker >= distanceMarkersEveryMeters) {
             distanceSinceLastMarker = 0.0
             val distanceText = String.format("  %3.2f km", (distanceCarry / 1000.0))
+            g.color = distanceMarkerColor
             g.drawString(distanceText, imageX, imageY + 10)
         }
         prevImageX = imageX
