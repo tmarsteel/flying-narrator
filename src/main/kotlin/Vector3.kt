@@ -4,7 +4,9 @@ import kotlinx.serialization.Serializable
 import kotlin.math.PI
 import kotlin.math.absoluteValue
 import kotlin.math.atan
+import kotlin.math.cos
 import kotlin.math.sign
+import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.withSign
 
@@ -22,7 +24,11 @@ data class Vector3(
 
     operator fun plus(other: Vector3): Vector3 = Vector3(x + other.x, y + other.y, z + other.z)
 
+    operator fun minus(other: Vector3): Vector3 = Vector3(x - other.x, y - other.y, z - other.z)
+
     operator fun times(scalar: Double): Vector3 = Vector3(x * scalar, y * scalar, z * scalar)
+
+    operator fun unaryMinus(): Vector3 = Vector3(-x, -y, -z)
 
     fun angleFromPositiveY(): Double = when {
         y == 0.0 -> (PI / 2.0).withSign(x)
@@ -33,6 +39,7 @@ data class Vector3(
             HALFPI.withSign(x) - angleAwayFromPositiveXCCW.withSign(x.sign * y.sign)
         }
     }
+
     fun angleTo(bent: Vector3): Double {
         var angle = bent.angleFromPositiveY() - this.angleFromPositiveY()
 
@@ -51,8 +58,12 @@ data class Vector3(
         return Vector3(-y, x, z)
     }
 
-    fun rotate2d90degClockwise(): Vector3 {
-        return Vector3(y, -x, z)
+    fun rotate2dCounterClockwise(angle: Double): Vector3 {
+        return Vector3(
+            x = cos(angle) * x - sin(angle) * y,
+            y = sin(angle) * x + cos(angle) * y,
+            z = z,
+        )
     }
 
     fun length(): Double = sqrt(x * x + y * y + z * z)
@@ -62,14 +73,6 @@ data class Vector3(
     }
 
     fun half(): Vector3 = this * 0.5
-
-    fun coerce2dLengthAtMost(length: Double): Vector3 {
-        return if (length2d > length) {
-            this * (length / length2d)
-        } else {
-            this
-        }
-    }
 
     override fun toString() = "($x, $y, $z)"
 

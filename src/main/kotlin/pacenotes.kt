@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.RepeatFirstAndLastSequence.Companion.repeatFirstAndLast
 import kotlin.math.absoluteValue
 import kotlin.math.sign
 import kotlin.sequences.first
@@ -13,7 +14,7 @@ val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
  * On corners that have little detail in the input data, it is assumed that turns extend at most
  * this distance into the straight sections before/after
  */
-val MAX_CORNER_ROUNDING_DISTANCE = 10.0
+val MAX_CORNER_ROUNDING_DISTANCE = 5.0
 
 /**
  * Two [RoadSegment]s that have a radius greater than this value will be considered straight
@@ -66,28 +67,26 @@ data class TrackSegment(
     val startsAtDistance: Double,
     val radiusToNext: Double,
     val angleToNext: Double,
+    val arcLength: Double,
 )
 
 fun Route.trackSegments(): Sequence<TrackSegment> {
     return sequence {
         val windows = this@trackSegments
             .asSequence()
-            .capAngledSegmentLength2d(MAX_CORNER_ROUNDING_DISTANCE)
-            .windowed(size = 2, step = 1, partialWindows = true)
+            .capSegmentLength2d(MAX_CORNER_ROUNDING_DISTANCE)
+            .repeatFirstAndLast()
+            .windowed(size = 3, step = 1, partialWindows = false)
 
         var distanceAlongTrack = 0.0
-        for ((idx, segments) in windows.withIndex()) {
+        for ((prev, current, next) in windows) {
             val startsAtDistance = distanceAlongTrack
-            distanceAlongTrack += segments.first().length2d
+            distanceAlongTrack += current.length2d
 
-            if (segments.size == 1) {
-                yield(TrackSegment(segments.single(),  startsAtDistance, MAX_REPORTED_RADIUS, 0.0))
-                continue
-            }
-            val (a, b) = segments
-            val radius = radiusOfCorner(a, b).coerceAtMost(MAX_REPORTED_RADIUS)
-            val angle = a.angleTo(b)
-            yield(TrackSegment(a, startsAtDistance, radius, angle))
+            var (radius, arcLength) = radiusAndArcLengthOfCorner(prev, current, next)
+            radius = radius.coerceAtMost(MAX_REPORTED_RADIUS)
+            val angle = current.angleTo(next)
+            yield(TrackSegment(current, startsAtDistance, radius, angle, arcLength))
         }
     }
 }
@@ -110,7 +109,7 @@ fun Sequence<TrackSegment>.detectFeatures(): List<Feature> {
  * Will split [RoadSegment]s longer than [maxLength] into two or three new [RoadSegment]s, such that the two ends
  * are at most [maxLength] long ([Vector3.length2d]).
  */
-private fun Sequence<RoadSegment>.capAngledSegmentLength2d(maxLength: Double): Sequence<RoadSegment> {
+private fun Sequence<RoadSegment>.capSegmentLength2d(maxLength: Double): Sequence<RoadSegment> {
     return flatMap { segment ->
         when {
             segment.length2d <= maxLength -> return@flatMap sequenceOf(segment)
@@ -131,14 +130,22 @@ private fun Sequence<RoadSegment>.capAngledSegmentLength2d(maxLength: Double): S
  * @return the radius of a circle that passes through the points [Vector3.ORIGIN], [base] and `base + turn`. Returns
  * [Double.POSITIVE_INFINITY] if the angle between [base] and [turn] is `0`.
  */
-private fun radiusOfCorner(base: Vector3, turn: Vector3): Double {
-    val line1 = MLine(Vector3.ORIGIN, base.rotate2d90degCounterClockwise())
-    val line2 = MLine(base + turn, turn.rotate2d90degCounterClockwise())
+private fun radiusAndArcLengthOfCorner(previous: Vector3, current: Vector3, next: Vector3): Pair<Double, Double> {
+    val radial1 = MLine(previous, previous.angleBisectorWith(current))
+    val radial2 = MLine(previous + current, current.angleBisectorWith(next))
+    val center = radial1.intersect2d(radial2) ?: return Pair(Double.POSITIVE_INFINITY, current.length2d)
+    val centerToBeginOfCurrent = (previous - center)
+    val centerToEndOfCurrent = ((previous + current) - center)
+    val turnRadius = centerToEndOfCurrent.length2d
+    val circleSectionAngle = centerToBeginOfCurrent.angleTo(centerToEndOfCurrent).absoluteValue
+    val arcLength = turnRadius * circleSectionAngle
+    return Pair(turnRadius, arcLength)
+}
 
-    val center = line1.intersect2d(line2)
-        ?: return Double.POSITIVE_INFINITY
-
-    return center.length2d
+private fun Vector3.angleBisectorWith(bent: Vector3): Vector3 {
+    val halfAngle = this.angleTo(-bent) / 2.0
+    val rotated = this.rotate2dCounterClockwise(-halfAngle)
+    return rotated
 }
 
 /**
@@ -291,7 +298,7 @@ sealed interface Feature {
         val segments: List<TrackSegment>,
     ) : Feature {
         val totalAngle: Double = segments.sumOf { it.angleToNext }
-        val totalDistance: Double by lazy { segments.map { it.roadSegment.length() }.reduce(Double::plus) }
+        val totalDistance: Double by lazy { segments.sumOf { it.arcLength } }
 
         val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
 
@@ -308,10 +315,11 @@ sealed interface Feature {
 }
 
 private fun radiusToSeverity(radius: Double): PacenoteItem.Turn.Severity {
+    // TODO: calibrate these!!
     return when (radius) {
         in 0.0..5.0 -> PacenoteItem.Turn.Severity.SQUARE
-        in 5.0..10.0 -> PacenoteItem.Turn.Severity.ONE
-        in 10.0..20.0 -> PacenoteItem.Turn.Severity.TWO
+        in 5.0..15.0 -> PacenoteItem.Turn.Severity.ONE
+        in 15.0..20.0 -> PacenoteItem.Turn.Severity.TWO
         in 20.0..40.0 -> PacenoteItem.Turn.Severity.THREE
         in 40.0..80.0 -> PacenoteItem.Turn.Severity.FOUR
         in 80.0 .. 120.0 -> PacenoteItem.Turn.Severity.FIVE
@@ -320,50 +328,55 @@ private fun radiusToSeverity(radius: Double): PacenoteItem.Turn.Severity {
 }
 
 private fun turnFeatureToPacenoteItem(turn: Feature.Turn): PacenoteItem {
-    val modifiers = mutableListOf<PacenoteItem.Turn.Modifier>()
-    when (turn.totalDistance) {
-        in 0.0..50.0 -> { /* no modifier */ }
-        in 50.0 .. 100.0 -> modifiers.add(PacenoteItem.Turn.Modifier.Length(
-            PacenoteItem.Turn.Modifier.Length.Value.LONG,
-        ))
-        in 100.0 .. 150.0 -> modifiers.add(PacenoteItem.Turn.Modifier.Length(
-            PacenoteItem.Turn.Modifier.Length.Value.EXTRA_LONG,
-        ))
-        else -> modifiers.add(PacenoteItem.Turn.Modifier.Length(
-            PacenoteItem.Turn.Modifier.Length.Value.EXTRA_EXTRA_LONG,
-        ))
-    }
+    val compoundRadius = turn.compoundRadius
+    return PacenoteItem.Turn(
+        turn.direction, false, listOf(
+            PacenoteItem.Turn.Section(
+                radiusToSeverity(compoundRadius),
+                turn.totalDistance,
+                emptyList(),
+            )
+        )
+    )
+}
 
-    val initialSeverity = radiusToSeverity(turn.segments.first().radiusToNext)
-    var carrySeverity = initialSeverity
-    for (turnSegment in turn.segments.drop(1)) {
-        val segmentSeverity = radiusToSeverity(turnSegment.radiusToNext)
-        when {
-            segmentSeverity == carrySeverity -> { /* continues */ }
-            segmentSeverity > carrySeverity -> {
-                val prevModifier = modifiers.lastOrNull()
-                if (prevModifier is PacenoteItem.Turn.Modifier.Opens) {
-                    modifiers.removeLast()
-                    modifiers.add(PacenoteItem.Turn.Modifier.Opens(prevModifier.toSeverity.coerceAtLeast(segmentSeverity)))
-                } else {
-                    modifiers.add(PacenoteItem.Turn.Modifier.Opens(segmentSeverity))
-                }
-            }
-            segmentSeverity < carrySeverity -> {
-                val prevModifier = modifiers.lastOrNull()
-                if (prevModifier is PacenoteItem.Turn.Modifier.Tightens) {
-                    modifiers.removeLast()
-                    modifiers.add(PacenoteItem.Turn.Modifier.Tightens(prevModifier.toSeverity.coerceAtMost(segmentSeverity)))
-                } else {
-                    modifiers.add(PacenoteItem.Turn.Modifier.Tightens(segmentSeverity))
-                }
-            }
+private val Feature.Turn.radii: List<Double>
+    get() {
+        require(segments.isNotEmpty())
+        val radii = mutableListOf<Double>()
+        if (segments.size == 1) return listOf(segments.first().radiusToNext)
+
+        val turnStartsAt = Vector3.ORIGIN
+        val turnStart = segments.first().roadSegment
+        var currentPointInTurn = segments.first().roadSegment
+        for (segment in segments.asSequence().drop(1)) {
+            currentPointInTurn += segment.roadSegment
+            val radius = turnAverageRadius(turnStartsAt, turnStart, currentPointInTurn, segment.roadSegment)
+            radii += radius
         }
 
-        carrySeverity = segmentSeverity
+        return radii
     }
 
-    return PacenoteItem.Turn(initialSeverity, turn.direction, modifiers)
+private val Feature.Turn.compoundRadius: Double
+    get() {
+        val turnStartsAt = Vector3.ORIGIN
+        val turnStart = segments.first().roadSegment
+        val turnEndsAt = segments.map { it.roadSegment }.reduce { acc, segment -> acc + segment }
+        val turnEnd = segments.last().roadSegment
+        return turnAverageRadius(turnStartsAt, turnStart, turnEndsAt, turnEnd)
+    }
+
+private fun turnAverageRadius(
+    turnStartsAt: Vector3,
+    turnStart: Vector3,
+    turnEndsAt: Vector3,
+    turnEnd: Vector3,
+): Double {
+    val line1 = MLine(turnStartsAt, turnStart.rotate2d90degCounterClockwise())
+    val line2 = MLine(turnEndsAt, turnEnd.rotate2d90degCounterClockwise())
+    val center = line1.intersect2d(line2) ?: return Double.POSITIVE_INFINITY
+    return (turnEndsAt - center).length2d
 }
 
 sealed interface PacenoteItem {
@@ -384,34 +397,57 @@ sealed interface PacenoteItem {
         }
     }
     data class Turn(
-        val initialSeverity: Severity,
         val direction: Feature.Turn.Direction,
-        val modifiers: List<Modifier>,
+        /**
+         * Whether this turn is across a junction/intersection
+         */
+        val isAtJunction: Boolean,
+        val sections: List<Section>,
     ) : PacenoteItem {
-        override fun toString(): String {
-            var str = "$initialSeverity $direction"
-            modifiers.forEach { modifier ->
-                str += " $modifier"
-            }
+        data class Section(
+            val severity: Severity,
+            val length: Double,
+            val modifiers: List<Modifier>,
+        ) {
+            override fun toString() = toString(null)
 
-            return str
+            fun toString(withDirection: Feature.Turn.Direction?): String {
+                val sb = StringBuilder()
+                sb.append(severity.toString())
+                if (withDirection != null) {
+                    sb.append(' ')
+                    sb.append(withDirection.toString())
+                }
+                for (mod in modifiers) {
+                    sb.append(' ')
+                    sb.append(mod.toString())
+                }
+                return sb.toString()
+            }
         }
 
-        sealed interface Modifier {
-            data class Opens(val toSeverity: Severity) : Modifier {
-                override fun toString(): String {
-                    return "opens $toSeverity"
-                }
+        override fun toString(): String {
+            val sb = StringBuilder()
+            if (isAtJunction) {
+                sb.append("turn ")
             }
-            data class Tightens(val toSeverity: Severity) : Modifier {
-                override fun toString(): String {
-                    return "tightens $toSeverity"
-                }
+            sb.append(sections.first().toString(direction))
+            for (section in sections.drop(1)) {
+                sb.append(' ')
+                sb.append(section.toString(null))
             }
+            return sb.toString()
+        }
+
+        interface Modifier : SectionModifier {
+            /**
+             * Non-standard corner length
+             */
             data class Length(val length: Value) : Modifier {
                 override fun toString() = length.toString()
 
                 enum class Value {
+                    SHORT,
                     LONG,
                     EXTRA_LONG,
                     EXTRA_EXTRA_LONG,
@@ -438,5 +474,12 @@ sealed interface PacenoteItem {
                 return name.lowercase()
             }
         }
+    }
+
+    /**
+     * Additional information applicable to _any_ stretch of road.
+     */
+    interface SectionModifier {
+        data object OverCrest : SectionModifier
     }
 }
