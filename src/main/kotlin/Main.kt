@@ -17,6 +17,7 @@ fun main(args: Array<String>) {
         route.map { it.roadSegment }.toList().render(
             scale = 2.0,
             segmentJointMarkerColor = null,
+            distanceMarkersEveryMeters = 50.0,
         ), "png", File("stage.png")
     )
 

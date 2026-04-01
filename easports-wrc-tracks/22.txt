@@ -3,24 +3,24 @@ slight left
 one right
 
 slight left
-and turn one right
+and turn one right (@0.067km)
 slight right
 70
-late 6 left over crest
+late 6 left over crest (@0.25km)
 to 4 right tightens
 to 3 left over crest
 to 4 right sharp
 through junction
 60
-slowly 6 left over crest
+slowly 6 left over crest (@0.51km)
 and 1 right unseen
 into 2 left
 40
 slight left
 30
-60 right slowly
+6 right slowly
 50
-4 left
+4 left (@0.830km)
 30
 5 right short over crest
 120
@@ -31,66 +31,65 @@ crest
 jump
 100
 slowly
-caution slight right
+caution slight right (@1.36km)
 to slight left
-and turn 1 right
+and turn 1 right (@1.46km)
 40
 crest
 200
 break crest
 80
-turn square left
+turn square left (@1.82km)
 and crest
 70
-slight left
-slight right
+slight left (@1.97km)
+slight right (@2.01km)
 130
 long crest
-slowly 100
-turn square left unseen
+slowly 100 (@2.23km)
+turn square left unseen (@2.33km)
 into crest
-and 1 right
-and 1 left
+and 1 right (@2.4km)
+and 1 left (@2.42km)
 30
 4 right short over crest
 30
 1 left sharp
-into 3 right short
+into 3 right short (@2.58km)
 and 4 right
 into 4 left
 80
 6 left slowly
 50
-late 3 right half-long
+late 3 right half-long (@2.83km)
 50
-3 left opens
-tightens 4 over crest
+3 left opens (@2.95km) tightens 4 over crest
 40
 turn 1 right over crest narrows
 6 right
 into bridge
-and 4 left keep in
+and 4 left keep in (@3.26km)
 into 6 right cut
 into slight left
 140 slowly
 crest
-sudden 1 right long
+sudden 1 right long (@3.52km)
 40
 crest
 40
-3 left half long tightens
+3 left half long tightens (@3.68km)
 90
 crest and dip
 200
 unseen big jump
 170
 slowly
-turn late square left
+turn late square left (@4.33km)
 140
 crest
 190
 slowly
-turn square right unseen
+turn square right unseen (@4.71km)
 150
 6 left over crest
 80
@@ -99,7 +98,7 @@ slight left slowly
 chicane right entry
 crest
 30
-turn square right
+turn square right (@5.17km)
 150
 jump over finish
 160

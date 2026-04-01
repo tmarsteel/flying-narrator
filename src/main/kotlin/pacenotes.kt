@@ -6,7 +6,7 @@ import kotlin.math.sign
 import kotlin.sequences.first
 
 /**
- * Straight distances are rounded to this amount, e.g. `10` for 300, 310, 320, 330, ...
+ * Straight distances are rounded to this amount, e.g. `10` for 80, 90, 100, 110, 120, ...
  */
 val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
 
@@ -335,6 +335,7 @@ private fun turnFeatureToPacenoteItem(turn: Feature.Turn): PacenoteItem {
                 radiusToSeverity(compoundRadius),
                 turn.totalDistance,
                 emptyList(),
+                compoundRadius,
             )
         )
     )
@@ -408,12 +409,16 @@ sealed interface PacenoteItem {
             val severity: Severity,
             val length: Double,
             val modifiers: List<Modifier>,
+            val radius: Double,
         ) {
             override fun toString() = toString(null)
 
             fun toString(withDirection: Feature.Turn.Direction?): String {
                 val sb = StringBuilder()
                 sb.append(severity.toString())
+                sb.append("(r=")
+                sb.append(radius.toStringRounding(1))
+                sb.append("m)")
                 if (withDirection != null) {
                     sb.append(' ')
                     sb.append(withDirection.toString())
@@ -482,4 +487,11 @@ sealed interface PacenoteItem {
     interface SectionModifier {
         data object OverCrest : SectionModifier
     }
+}
+
+private fun Double.toStringRounding(precision: Int): String {
+    val asString = this.toString()
+    val decimalIndex = asString.indexOf('.')
+    if (decimalIndex == -1) return asString
+    return asString.substring(0, decimalIndex + precision + 1)
 }
