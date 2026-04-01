@@ -6,6 +6,7 @@ import java.awt.Font
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
+import java.util.stream.IntStream
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -116,4 +117,41 @@ fun Route.render(
 
     g.dispose()
     return image
+}
+
+fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
+    fun pointName(index: Int) = index.toString(26)
+        .chars()
+        .map {
+            when {
+                it in 48..57 -> it + 17
+                else -> it - 32 + 10
+            }
+        }
+        .collectCodePointsToString()
+
+    val sb = StringBuilder()
+    sb.appendLine("ggbApplet.getAllObjectNames().forEach(o => ggbApplet.deleteObject(o));")
+    sb.appendLine("""ggbApplet.evalCommand("${pointName(0)}=Point({0,0})");""")
+    this.forEachIndexed { index, vec ->
+        val prevPointName = pointName(index)
+        val pointName = pointName(index + 1)
+        val vecName = pointName.lowercase()
+        sb.appendLine(
+            """
+            ggbApplet.evalCommand("$pointName=$prevPointName+Vector((${vec.roadSegment.x},${vec.roadSegment.y}))");
+            ggbApplet.evalCommand("$vecName=Vector($prevPointName,$pointName)");
+        """.trimIndent()
+        )
+    }
+
+    return sb.toString()
+}
+
+private fun IntStream.collectCodePointsToString(): String {
+    return collect(
+        { StringBuilder() },
+        { sb, cp -> sb.appendCodePoint(cp) },
+        { sb1, sb2 -> sb1.append(sb2) },
+    ).toString()
 }
