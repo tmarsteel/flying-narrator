@@ -19,7 +19,7 @@ val MAX_CORNER_ROUNDING_DISTANCE = 5.0
 /**
  * Two [RoadSegment]s that have a radius greater than this value will be considered straight
  */
-val STRAIGHTISH_RADIUS_THRESHOLD = 200.0
+val STRAIGHTISH_RADIUS_THRESHOLD = 150.0
 
 /**
  * The [TrackSegment.radiusToNext] is capped to this value
@@ -317,13 +317,14 @@ sealed interface Feature {
 private fun radiusToSeverity(radius: Double): PacenoteItem.Turn.Severity {
     // TODO: calibrate these!!
     return when (radius) {
-        in 0.0..5.0 -> PacenoteItem.Turn.Severity.SQUARE
-        in 5.0..15.0 -> PacenoteItem.Turn.Severity.ONE
-        in 15.0..20.0 -> PacenoteItem.Turn.Severity.TWO
-        in 20.0..40.0 -> PacenoteItem.Turn.Severity.THREE
-        in 40.0..80.0 -> PacenoteItem.Turn.Severity.FOUR
-        in 80.0 .. 120.0 -> PacenoteItem.Turn.Severity.FIVE
-        else -> PacenoteItem.Turn.Severity.SIX
+        in 0.0..10.0 -> PacenoteItem.Turn.Severity.SQUARE
+        in 10.0..25.0 -> PacenoteItem.Turn.Severity.ONE
+        in 25.0..35.0 -> PacenoteItem.Turn.Severity.TWO
+        in 35.0..50.0 -> PacenoteItem.Turn.Severity.THREE
+        in 50.0..80.0 -> PacenoteItem.Turn.Severity.FOUR
+        in 80.0..100.0 -> PacenoteItem.Turn.Severity.FIVE
+        in 100.0..125.0 -> PacenoteItem.Turn.Severity.SIX
+        else -> PacenoteItem.Turn.Severity.SLIGHT
     }
 }
 
@@ -473,6 +474,7 @@ sealed interface PacenoteItem {
             FOUR,
             FIVE,
             SIX,
+            SLIGHT,
             ;
 
             override fun toString(): String {
