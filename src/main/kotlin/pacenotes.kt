@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.RepeatFirstAndLastSequence.Companion.repeatFirstAndLast
 import kotlin.math.absoluteValue
+import kotlin.math.pow
 import kotlin.math.sign
 import kotlin.sequences.first
 
@@ -321,15 +322,28 @@ private fun radiusToSeverity(radius: Double): PacenoteItem.Turn.Severity {
         in 10.0..25.0 -> PacenoteItem.Turn.Severity.ONE
         in 25.0..35.0 -> PacenoteItem.Turn.Severity.TWO
         in 35.0..50.0 -> PacenoteItem.Turn.Severity.THREE
-        in 50.0..80.0 -> PacenoteItem.Turn.Severity.FOUR
-        in 80.0..100.0 -> PacenoteItem.Turn.Severity.FIVE
-        in 100.0..125.0 -> PacenoteItem.Turn.Severity.SIX
+        in 50.0..70.0 -> PacenoteItem.Turn.Severity.FOUR
+        in 70.0..80.0 -> PacenoteItem.Turn.Severity.FIVE
+        in 80.0..<90.0 -> PacenoteItem.Turn.Severity.SIX
         else -> PacenoteItem.Turn.Severity.SLIGHT
     }
 }
 
 private fun turnFeatureToPacenoteItem(turn: Feature.Turn): PacenoteItem {
     val compoundRadius = turn.compoundRadius
+    /*val radiusStdDev = turn.segments.asSequence()
+        .map { (it.radiusToNext - compoundRadius).pow(2) }
+        .average()
+        .pow(0.5)
+    val minRadius = turn.segments.asSequence()
+        .map { it.radiusToNext }
+        .filter { it >= compoundRadius-radiusStdDev }
+        .minOrNull() ?:
+        turn.segments.rad
+    val maxRadius = turn.segments.asSequence()
+        .map { it.radiusToNext }
+        .filter { it <= compoundRadius+radiusStdDev }
+        .max()*/
     return PacenoteItem.Turn(
         turn.direction, false, listOf(
             PacenoteItem.Turn.Section(
@@ -341,24 +355,6 @@ private fun turnFeatureToPacenoteItem(turn: Feature.Turn): PacenoteItem {
         )
     )
 }
-
-private val Feature.Turn.radii: List<Double>
-    get() {
-        require(segments.isNotEmpty())
-        val radii = mutableListOf<Double>()
-        if (segments.size == 1) return listOf(segments.first().radiusToNext)
-
-        val turnStartsAt = Vector3.ORIGIN
-        val turnStart = segments.first().roadSegment
-        var currentPointInTurn = segments.first().roadSegment
-        for (segment in segments.asSequence().drop(1)) {
-            currentPointInTurn += segment.roadSegment
-            val radius = turnAverageRadius(turnStartsAt, turnStart, currentPointInTurn, segment.roadSegment)
-            radii += radius
-        }
-
-        return radii
-    }
 
 private val Feature.Turn.compoundRadius: Double
     get() {
@@ -418,7 +414,7 @@ sealed interface PacenoteItem {
                 val sb = StringBuilder()
                 sb.append(severity.toString())
                 sb.append("(r=")
-                sb.append(radius.toStringRounding(1))
+                sb.append(radius.toInt())
                 sb.append("m)")
                 if (withDirection != null) {
                     sb.append(' ')
@@ -489,11 +485,4 @@ sealed interface PacenoteItem {
     interface SectionModifier {
         data object OverCrest : SectionModifier
     }
-}
-
-private fun Double.toStringRounding(precision: Int): String {
-    val asString = this.toString()
-    val decimalIndex = asString.indexOf('.')
-    if (decimalIndex == -1) return asString
-    return asString.substring(0, decimalIndex + precision + 1)
 }

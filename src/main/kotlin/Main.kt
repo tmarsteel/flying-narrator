@@ -21,17 +21,6 @@ fun main(args: Array<String>) {
         ), "png", File("stage.png")
     )
 
-    Paths.get("stage.csv").writer().use { writer ->
-        writer.appendLine("length,angle,radius")
-        route
-            .map { v ->
-                Row(v.roadSegment.length(), v.angleToNext, v.radiusToNext)
-            }
-            .forEach {
-                writer.appendLine("${it.length2d},${Math.toDegrees(it.angleToNext)},${it.radiusToNext}")
-            }
-    }
-
     route.derivePacenotes().forEach { (d, i)  ->
         println("${d.roundToInt()}m: $i")
     }
