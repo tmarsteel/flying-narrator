@@ -129,21 +129,82 @@ fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
             }
         }
         .collectCodePointsToString()
+    fun vecName(index: Int) = pointName(index).lowercase()
 
     val sb = StringBuilder()
-    sb.appendLine("ggbApplet.getAllObjectNames().forEach(o => ggbApplet.deleteObject(o));")
-    sb.appendLine("""ggbApplet.evalCommand("${pointName(0)}=Point({0,0})");""")
+    sb.appendLine(
+        """
+        ggbApplet.getAllObjectNames().forEach(o => ggbApplet.deleteObject(o));
+        ggbApplet.evalCommand("${pointName(0)}=Point({0,0})");
+        ggbApplet.setLayer("${pointName(0)}", 1);
+    """.trimIndent()
+    )
     this.forEachIndexed { index, vec ->
         val prevPointName = pointName(index)
         val pointName = pointName(index + 1)
-        val vecName = pointName.lowercase()
+        val vecName = vecName(index)
         sb.appendLine(
             """
             ggbApplet.evalCommand("$pointName=$prevPointName+Vector((${vec.roadSegment.x},${vec.roadSegment.y}))");
             ggbApplet.evalCommand("$vecName=Vector($prevPointName,$pointName)");
+            ggbApplet.setLayer("$pointName", 1);
+            ggbApplet.setLayer("$vecName", 0);
         """.trimIndent()
         )
     }
+
+    fun lotLineName(index: Int) = "lot${pointName(index)}"
+    for (index in 1 until this.count()) {
+        val prevPointName = pointName(index - 1)
+        val pointName = pointName(index)
+        val nextPointName = pointName(index + 1)
+        val lotLineName = lotLineName(index)
+        sb.appendLine(
+            """
+            ggbApplet.evalCommand("$lotLineName=Line($pointName, AngleBisector($prevPointName, $pointName, $nextPointName))");
+            ggbApplet.setLayer("$lotLineName", 1);
+        """.trimIndent()
+        )
+    }
+
+    fun centerPointName(index: Int) = "c${pointName(index)}"
+    for (index in 1 until this.count() - 1) {
+        val lotLineName = lotLineName(index)
+        val nextLotLineName = lotLineName(index + 1)
+        val centerPointName = centerPointName(index)
+        sb.appendLine(
+            """
+            ggbApplet.evalCommand("$centerPointName=Intersect($lotLineName, $nextLotLineName)");
+            ggbApplet.setLayer("$centerPointName", 1);
+        """.trimIndent()
+        )
+    }
+
+    fun arcName(index: Int) = "a${pointName(index)}"
+    fun radiusName(index: Int) = "r${arcName(index)}"
+    for (index in 1 until this.count() - 1) {
+        val centerPointName = centerPointName(index)
+        val pointName = pointName(index)
+        val nextPointName = pointName(index + 1)
+        val arcName = arcName(index)
+        val radiusName = radiusName(index)
+        sb.appendLine(
+            """
+            ggbApplet.evalCommand("$arcName=CircularArc($centerPointName, $nextPointName, $pointName)");
+            ggbApplet.evalCommand("$radiusName=Radius($arcName)");
+            ggbApplet.setLayer("$arcName", 2);
+            ggbApplet.setLayer("$radiusName", 2);
+        """.trimIndent()
+        )
+    }
+
+    sb.appendLine(
+        """
+        ggbApplet.setLayerVisible(0, true);
+        ggbApplet.setLayerVisible(1, false);
+        ggbApplet.setLayerVisible(2, true);
+    """.trimIndent()
+    );
 
     return sb.toString()
 }
