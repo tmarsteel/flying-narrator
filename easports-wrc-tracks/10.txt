@@ -1,0 +1,127 @@
+Starts:
+90
+4 right
+
+
+90
+4 right long
+90
+crest
+120
+small crest slowly
+130
+crest
+keep right
+50
+chicane right entry
+60
+crest
+70
+slight left through dip
+200
+long crest into slight right
+slowly
+100
+small crest
+turn 1 left around bail
+70
+crest
+80
+slight right long
+into crest
+70
+5 left half-long
+180
+crest
+370
+slight right over crest
+80
+6 right slowly
+110
+turn square right around bails
+30
+crest
+120
+turn square left around bail
+150 narrows
+small crest
+and slight left
+40
+6 right over crest
+60
+crest
+and left over crest
+160
+late 6 left don't cut
+70
+6 left over crest
+and 3 right
+70
+slight left over crest
+to slight right
+120
+caution 6 left over crest tightens 5
+100
+3 right short
+100
+6 left
+90
+late 6 left over crest don't cut
+50
+slight right over crest
+and crest
+50
+left over crest
+130
+6 left don't cut
+and crest
+80
+6 left over crest keep in
+120
+6 right opens slight right
+140
+crest
+30
+crest
+3 left short don't cut
+80
+chicane right entry
+230
+slight left over crest
+90
+6 left over crest
+and bump
+into 6 right opens
+small jump
+100
+bumps
+to slight left very long tigthens 5 over crest
+and slight left to slight right
+40
+small crest
+into 5 right tightens around bail
+to 5 left
+70
+long crest
+30
+four left slowly
+120
+1 left
+and slight right
+80
+30 right opens
+into  crest
+3 left short
+170
+5 right short around bail
+100
+slowly crest
+40
+square right short around bail
+and 6 left half-long
+50
+right over crest
+and 6 left
+over finish
+100
+to stop
