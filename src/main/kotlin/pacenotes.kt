@@ -2,7 +2,6 @@ package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.RepeatFirstAndLastSequence.Companion.repeatFirstAndLast
 import kotlin.math.absoluteValue
-import kotlin.math.pow
 import kotlin.math.sign
 import kotlin.sequences.first
 
@@ -12,7 +11,7 @@ import kotlin.sequences.first
 val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
 
 /**
- * On corners that have little detail in the input data, it is assumed that turns extend at most
+ * On corners that have little detail in the input data, it is assumed that corners extend at most
  * this distance into the straight sections before/after
  */
 val MAX_CORNER_ROUNDING_DISTANCE = 5.0
@@ -49,7 +48,7 @@ val SQUARE_MAX_RADIUS = 10.0
 val SQUARE_CORNER_MIN_DISTANCE = 3.0
 
 /**
- * If the [Feature.Turn.totalAngle] of a corner is in this range, it can be considered "square".
+ * If the [Feature.Corner.totalAngle] of a corner is in this range, it can be considered "square".
  */
 val SQUARE_CORNER_TOTAL_ANGLE_RANGE = Math.toRadians(80.0)..Math.toRadians(110.0)
 
@@ -67,11 +66,11 @@ fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
                     pacenoteItems += Pair(feature.startsAtTrackDistance, PacenoteItem.ShortTransition)
                 }
             }
-            is Feature.Turn -> {
-                if (pacenoteItems.lastOrNull()?.second is PacenoteItem.Turn) {
+            is Feature.Corner -> {
+                if (pacenoteItems.lastOrNull()?.second is PacenoteItem.Corner) {
                     pacenoteItems += Pair(feature.startsAtTrackDistance, PacenoteItem.ImmediateTransition)
                 }
-                pacenoteItems += Pair(feature.startsAtTrackDistance, turnFeatureToPacenoteItem(feature))
+                pacenoteItems += Pair(feature.startsAtTrackDistance, cornerFeatureToPacenoteItem(feature))
             }
         }
     }
@@ -148,8 +147,9 @@ private fun Sequence<RoadSegment>.capSegmentLength2d(maxLength: Double): Sequenc
 }
 
 /**
- * @return the radius of a circle that passes through the points [Vector3.ORIGIN], [base] and `base + turn`. Returns
- * [Double.POSITIVE_INFINITY] if the angle between [base] and [turn] is `0`.
+ * Constructs a circle that passes through [previous] and `previous + current` with the constraint
+ * that [next] is tangential to the circle at the location `previous + current`.
+ * @return the radius of a curved road around [current] described by the given vectors.
  */
 private fun radiusAndArcLengthOfCorner(previous: Vector3, current: Vector3, next: Vector3): Pair<Double, Double> {
     val radial1 = MLine(previous, previous.angleBisectorWith(current))
@@ -157,10 +157,10 @@ private fun radiusAndArcLengthOfCorner(previous: Vector3, current: Vector3, next
     val center = radial1.intersect2d(radial2) ?: return Pair(Double.POSITIVE_INFINITY, current.length2d)
     val centerToBeginOfCurrent = (previous - center)
     val centerToEndOfCurrent = ((previous + current) - center)
-    val turnRadius = centerToEndOfCurrent.length2d
+    val cornerRadius = centerToEndOfCurrent.length2d
     val circleSectionAngle = centerToBeginOfCurrent.angleTo(centerToEndOfCurrent).absoluteValue
-    val arcLength = turnRadius * circleSectionAngle
-    return Pair(turnRadius, arcLength)
+    val arcLength = cornerRadius * circleSectionAngle
+    return Pair(cornerRadius, arcLength)
 }
 
 private fun Vector3.angleBisectorWith(bent: Vector3): Vector3 {
@@ -239,7 +239,7 @@ sealed interface FeatureDetectionState {
 
         override fun traverse(segment: TrackSegment): Pair<FeatureDetectionState, List<Feature>> {
             if (segment.radiusToNext <= STRAIGHTISH_RADIUS_THRESHOLD) {
-                val nextState = InTurn(segment, null)
+                val nextState = InCorner(segment, null)
                 return Pair(nextState, finish())
             }
 
@@ -254,23 +254,23 @@ sealed interface FeatureDetectionState {
         }
     }
 
-    class InTurn(
+    class InCorner(
         val currentSegment: TrackSegment,
-        val continuesTurnState: InTurn?,
+        val continuesCornerState: InCorner?,
     ) : FeatureDetectionState {
-        private fun collectTurnSegments(): List<TrackSegment> {
+        private fun collectCornerSegments(): List<TrackSegment> {
             val segments = ArrayList<TrackSegment>()
-            var pivot: InTurn? = this
+            var pivot: InCorner? = this
             while (pivot != null) {
                 segments.add(pivot.currentSegment)
-                pivot = pivot.continuesTurnState
+                pivot = pivot.continuesCornerState
             }
             return segments.asReversed()
         }
 
         override fun finish(): List<Feature> {
-            val segments = collectTurnSegments()
-            return listOf(Feature.Turn(segments.first().startsAtDistance, segments))
+            val segments = collectCornerSegments()
+            return listOf(Feature.Corner(segments.first().startsAtDistance, segments))
         }
 
         override fun traverse(segment: TrackSegment): Pair<FeatureDetectionState, List<Feature>> {
@@ -280,15 +280,15 @@ sealed interface FeatureDetectionState {
             }
 
             if (this.currentSegment.angleToNext.sign == segment.angleToNext.sign) {
-                // turn continues
+                // corner continues
                 return Pair(
-                    InTurn(segment, this),
+                    InCorner(segment, this),
                     emptyList(),
                 )
             } else {
                 // s-curve
                 return Pair(
-                    InTurn(segment, null),
+                    InCorner(segment, null),
                     finish()
                 )
             }
@@ -300,7 +300,7 @@ sealed interface FeatureDetectionState {
             return if (segment.radiusToNext > STRAIGHTISH_RADIUS_THRESHOLD) {
                 Straightish.startStraightish(segment)
             } else {
-                InTurn(segment, null)
+                InCorner(segment, null)
             }
         }
     }
@@ -314,7 +314,7 @@ sealed interface Feature {
         val distance: Double,
     ) : Feature
 
-    class Turn(
+    class Corner(
         override val startsAtTrackDistance: Double,
         val segments: List<TrackSegment>,
     ) : Feature {
@@ -335,38 +335,38 @@ sealed interface Feature {
     }
 }
 
-private fun radiusToSeverity(radius: Double): PacenoteItem.Turn.Severity {
+private fun radiusToSeverity(radius: Double): PacenoteItem.Corner.Severity {
     // TODO: calibrate, especially 3-5
     return when (radius) {
-        in 0.0..10.0 -> PacenoteItem.Turn.Severity.SQUARE
-        in 10.0..25.0 -> PacenoteItem.Turn.Severity.ONE
-        in 25.0..35.0 -> PacenoteItem.Turn.Severity.TWO
-        in 35.0..50.0 -> PacenoteItem.Turn.Severity.THREE
-        in 50.0..70.0 -> PacenoteItem.Turn.Severity.FOUR
-        in 70.0..80.0 -> PacenoteItem.Turn.Severity.FIVE
-        in 80.0..<95.0 -> PacenoteItem.Turn.Severity.SIX
-        else -> PacenoteItem.Turn.Severity.SLIGHT
+        in 0.0..10.0 -> PacenoteItem.Corner.Severity.SQUARE
+        in 10.0..25.0 -> PacenoteItem.Corner.Severity.ONE
+        in 25.0..35.0 -> PacenoteItem.Corner.Severity.TWO
+        in 35.0..50.0 -> PacenoteItem.Corner.Severity.THREE
+        in 50.0..70.0 -> PacenoteItem.Corner.Severity.FOUR
+        in 70.0..80.0 -> PacenoteItem.Corner.Severity.FIVE
+        in 80.0..<95.0 -> PacenoteItem.Corner.Severity.SIX
+        else -> PacenoteItem.Corner.Severity.SLIGHT
     }
 }
 
-private fun turnFeatureToPacenoteItem(turn: Feature.Turn): PacenoteItem {
-    var radius = turn.compoundRadius
+private fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
+    var radius = corner.compoundRadius
     var severity = radiusToSeverity(radius)
-    if (radius <= SQUARE_MAX_COMPOUND_RADIUS && turn.totalAngle.absoluteValue in SQUARE_CORNER_TOTAL_ANGLE_RANGE) {
-        val squareRadiusSegments = turn
+    if (radius <= SQUARE_MAX_COMPOUND_RADIUS && corner.totalAngle.absoluteValue in SQUARE_CORNER_TOTAL_ANGLE_RANGE) {
+        val squareRadiusSegments = corner
             .segments
             .asSequence()
             .filter { it.radiusToNext <= SQUARE_MAX_RADIUS }
         if (squareRadiusSegments.sumOf { it.arcLength } >= SQUARE_CORNER_MIN_DISTANCE) {
             radius = squareRadiusSegments.averageOf { it.radiusToNext }
-            severity = PacenoteItem.Turn.Severity.SQUARE
+            severity = PacenoteItem.Corner.Severity.SQUARE
         }
     }
-    return PacenoteItem.Turn(
-        turn.direction, false, listOf(
-            PacenoteItem.Turn.Section(
+    return PacenoteItem.Corner(
+        corner.direction, false, listOf(
+            PacenoteItem.Corner.Section(
                 severity,
-                turn.totalDistance,
+                corner.totalDistance,
                 emptyList(),
                 radius,
             )
@@ -374,25 +374,25 @@ private fun turnFeatureToPacenoteItem(turn: Feature.Turn): PacenoteItem {
     )
 }
 
-private val Feature.Turn.compoundRadius: Double
+private val Feature.Corner.compoundRadius: Double
     get() {
-        val turnStartsAt = Vector3.ORIGIN
-        val turnStart = segments.first().roadSegment
-        val turnEndsAt = segments.map { it.roadSegment }.reduce { acc, segment -> acc + segment }
-        val turnEnd = segments.last().roadSegment
-        return turnAverageRadius(turnStartsAt, turnStart, turnEndsAt, turnEnd)
+        val cornerStartsAt = Vector3.ORIGIN
+        val cornerStart = segments.first().roadSegment
+        val cornerEndsAt = segments.map { it.roadSegment }.reduce { acc, segment -> acc + segment }
+        val cornerEnd = segments.last().roadSegment
+        return cornerAverageRadius(cornerStartsAt, cornerStart, cornerEndsAt, cornerEnd)
     }
 
-private fun turnAverageRadius(
-    turnStartsAt: Vector3,
-    turnStart: Vector3,
-    turnEndsAt: Vector3,
-    turnEnd: Vector3,
+private fun cornerAverageRadius(
+    cornerStartsAt: Vector3,
+    cornerStart: Vector3,
+    cornerEndsAt: Vector3,
+    cornerEnd: Vector3,
 ): Double {
-    val line1 = MLine(turnStartsAt, turnStart.rotate2d90degCounterClockwise())
-    val line2 = MLine(turnEndsAt, turnEnd.rotate2d90degCounterClockwise())
+    val line1 = MLine(cornerStartsAt, cornerStart.rotate2d90degCounterClockwise())
+    val line2 = MLine(cornerEndsAt, cornerEnd.rotate2d90degCounterClockwise())
     val center = line1.intersect2d(line2) ?: return Double.POSITIVE_INFINITY
-    return (turnEndsAt - center).length2d
+    return (cornerEndsAt - center).length2d
 }
 
 sealed interface PacenoteItem {
@@ -412,10 +412,10 @@ sealed interface PacenoteItem {
             return "to"
         }
     }
-    data class Turn(
-        val direction: Feature.Turn.Direction,
+    data class Corner(
+        val direction: Feature.Corner.Direction,
         /**
-         * Whether this turn is across a junction/intersection
+         * Whether this corner is across a junction/intersection
          */
         val isAtJunction: Boolean,
         val sections: List<Section>,
@@ -428,7 +428,7 @@ sealed interface PacenoteItem {
         ) {
             override fun toString() = toString(null)
 
-            fun toString(withDirection: Feature.Turn.Direction?): String {
+            fun toString(withDirection: Feature.Corner.Direction?): String {
                 val sb = StringBuilder()
                 sb.append(severity.toString())
                 sb.append("(r=")
