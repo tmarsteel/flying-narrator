@@ -89,6 +89,9 @@ fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
         }
     }
 
+    while (pacenoteItems.firstOrNull()?.second is PacenoteItem.Transition) {
+        pacenoteItems.removeFirst()
+    }
     while (pacenoteItems.lastOrNull()?.second is PacenoteItem.Transition) {
         pacenoteItems.removeLast()
     }
