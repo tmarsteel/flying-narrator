@@ -33,6 +33,26 @@ val MAX_REPORTED_RADIUS = STRAIGHTISH_RADIUS_THRESHOLD * 10.0
  */
 val STRAIGHT_ELISION_DISTANCE_THRESHOLD = 20.0
 
+/**
+ * Corners with an overall radius less than this can be considered "square"
+ */
+val SQUARE_MAX_COMPOUND_RADIUS = 35.0
+
+/**
+ * If a corner has a section with a radius smaller than this, it can be considered "square"
+ */
+val SQUARE_MAX_RADIUS = 10.0
+
+/**
+ * If the length of track at a radius of [SQUARE_MAX_RADIUS] is this length or more, the corner can be considered "square".
+ */
+val SQUARE_CORNER_MIN_DISTANCE = 3.0
+
+/**
+ * If the [Feature.Turn.totalAngle] of a corner is in this range, it can be considered "square".
+ */
+val SQUARE_CORNER_TOTAL_ANGLE_RANGE = Math.toRadians(80.0)..Math.toRadians(110.0)
+
 fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     val features = detectFeatures()
 
@@ -316,7 +336,7 @@ sealed interface Feature {
 }
 
 private fun radiusToSeverity(radius: Double): PacenoteItem.Turn.Severity {
-    // TODO: calibrate these!!
+    // TODO: calibrate, especially 3-5
     return when (radius) {
         in 0.0..10.0 -> PacenoteItem.Turn.Severity.SQUARE
         in 10.0..25.0 -> PacenoteItem.Turn.Severity.ONE
@@ -324,33 +344,31 @@ private fun radiusToSeverity(radius: Double): PacenoteItem.Turn.Severity {
         in 35.0..50.0 -> PacenoteItem.Turn.Severity.THREE
         in 50.0..70.0 -> PacenoteItem.Turn.Severity.FOUR
         in 70.0..80.0 -> PacenoteItem.Turn.Severity.FIVE
-        in 80.0..<90.0 -> PacenoteItem.Turn.Severity.SIX
+        in 80.0..<95.0 -> PacenoteItem.Turn.Severity.SIX
         else -> PacenoteItem.Turn.Severity.SLIGHT
     }
 }
 
 private fun turnFeatureToPacenoteItem(turn: Feature.Turn): PacenoteItem {
-    val compoundRadius = turn.compoundRadius
-    /*val radiusStdDev = turn.segments.asSequence()
-        .map { (it.radiusToNext - compoundRadius).pow(2) }
-        .average()
-        .pow(0.5)
-    val minRadius = turn.segments.asSequence()
-        .map { it.radiusToNext }
-        .filter { it >= compoundRadius-radiusStdDev }
-        .minOrNull() ?:
-        turn.segments.rad
-    val maxRadius = turn.segments.asSequence()
-        .map { it.radiusToNext }
-        .filter { it <= compoundRadius+radiusStdDev }
-        .max()*/
+    var radius = turn.compoundRadius
+    var severity = radiusToSeverity(radius)
+    if (radius <= SQUARE_MAX_COMPOUND_RADIUS && turn.totalAngle.absoluteValue in SQUARE_CORNER_TOTAL_ANGLE_RANGE) {
+        val squareRadiusSegments = turn
+            .segments
+            .asSequence()
+            .filter { it.radiusToNext <= SQUARE_MAX_RADIUS }
+        if (squareRadiusSegments.sumOf { it.arcLength } >= SQUARE_CORNER_MIN_DISTANCE) {
+            radius = squareRadiusSegments.averageOf { it.radiusToNext }
+            severity = PacenoteItem.Turn.Severity.SQUARE
+        }
+    }
     return PacenoteItem.Turn(
         turn.direction, false, listOf(
             PacenoteItem.Turn.Section(
-                radiusToSeverity(compoundRadius),
+                severity,
                 turn.totalDistance,
                 emptyList(),
-                compoundRadius,
+                radius,
             )
         )
     )
