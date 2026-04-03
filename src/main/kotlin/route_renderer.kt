@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.DropLastSequence.Companion.dropLast
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Font
@@ -182,15 +183,27 @@ fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
 
     fun arcName(index: Int) = "a${pointName(index)}"
     fun radiusName(index: Int) = "r${arcName(index)}"
-    for (index in 1 until this.count() - 1) {
+    for ((index, segment) in this.withIndex().drop(1).dropLast(1)) {
         val centerPointName = centerPointName(index)
         val pointName = pointName(index)
         val nextPointName = pointName(index + 1)
         val arcName = arcName(index)
         val radiusName = radiusName(index)
+        if (segment.angleToNext >= 0.0) {
+            sb.appendLine(
+                """
+                ggbApplet.evalCommand("$arcName=CircularArc($centerPointName, $pointName, $nextPointName)");
+            """.trimIndent()
+            )
+        } else {
+            sb.appendLine(
+                """
+                ggbApplet.evalCommand("$arcName=CircularArc($centerPointName, $nextPointName, $pointName)");
+            """.trimIndent()
+            )
+        }
         sb.appendLine(
             """
-            ggbApplet.evalCommand("$arcName=CircularArc($centerPointName, $nextPointName, $pointName)");
             ggbApplet.evalCommand("$radiusName=Radius($arcName)");
             ggbApplet.setLayer("$arcName", 2);
             ggbApplet.setLayer("$radiusName", 2);
