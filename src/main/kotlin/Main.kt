@@ -5,7 +5,6 @@ import java.io.File
 import java.nio.file.Paths
 import javax.imageio.ImageIO
 import kotlin.io.path.readText
-import kotlin.io.path.writer
 import kotlin.math.roundToInt
 
 fun main(args: Array<String>) {
@@ -25,9 +24,3 @@ fun main(args: Array<String>) {
         println("${d.roundToInt()}m: $i")
     }
 }
-
-data class Row(
-    val length2d: Double,
-    val angleToNext: Double,
-    val radiusToNext: Double,
-)

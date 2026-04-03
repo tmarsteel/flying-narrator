@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.DropLastSequence.Companion.dropLast
 import io.github.tmarsteel.flyingnarrator.RepeatFirstAndLastSequence.Companion.repeatFirstAndLast
 import kotlin.math.absoluteValue
 import kotlin.math.sign
@@ -8,44 +9,50 @@ import kotlin.sequences.first
 /**
  * Straight distances are rounded to this amount, e.g. `10` for 80, 90, 100, 110, 120, ...
  */
-val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
+const val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
 
 /**
  * On corners that have little detail in the input data, it is assumed that corners extend at most
  * this distance into the straight sections before/after
  */
-val MAX_CORNER_ROUNDING_DISTANCE = 5.0
+const val MAX_CORNER_ROUNDING_DISTANCE = 5.0
 
 /**
  * Two [RoadSegment]s that have a radius greater than this value will be considered straight
  */
-val STRAIGHTISH_RADIUS_THRESHOLD = 150.0
+const val STRAIGHTISH_RADIUS_THRESHOLD = 150.0
 
 /**
  * The [TrackSegment.radiusToNext] is capped to this value
  */
-val MAX_REPORTED_RADIUS = STRAIGHTISH_RADIUS_THRESHOLD * 10.0
+const val MAX_REPORTED_RADIUS = STRAIGHTISH_RADIUS_THRESHOLD * 10.0
 
 /**
  * Straight sections with a length equal to or less than this (after rounding) value will be elided:
  * At the start and end of the stage, they're simply dropped, between corners they are replaced with [PacenoteItem.ShortTransition]
  */
-val STRAIGHT_ELISION_DISTANCE_THRESHOLD = 20.0
+const val STRAIGHT_ELISION_DISTANCE_THRESHOLD = 20.0
+
+/**
+ * It takes at least this number of [TrackSegment] with a [TrackSegment.radiusToNext] less than [STRAIGHTISH_RADIUS_THRESHOLD]
+ * for a corner to be detected.
+ */
+const val CORNER_MIN_SEGMENTS = 2
 
 /**
  * Corners with an overall radius less than this can be considered "square"
  */
-val SQUARE_MAX_COMPOUND_RADIUS = 35.0
+const val SQUARE_MAX_COMPOUND_RADIUS = 35.0
 
 /**
  * If a corner has a section with a radius smaller than this, it can be considered "square"
  */
-val SQUARE_MAX_RADIUS = 10.0
+const val SQUARE_MAX_RADIUS = 10.0
 
 /**
  * If the length of track at a radius of [SQUARE_MAX_RADIUS] is this length or more, the corner can be considered "square".
  */
-val SQUARE_CORNER_MIN_DISTANCE = 3.0
+const val SQUARE_CORNER_MIN_DISTANCE = 3.0
 
 /**
  * If the [Feature.Corner.totalAngle] of a corner is in this range, it can be considered "square".
@@ -109,20 +116,6 @@ fun Route.trackSegments(): Sequence<TrackSegment> {
             yield(TrackSegment(current, startsAtDistance, radius, angle, arcLength))
         }
     }
-}
-
-fun Sequence<TrackSegment>.detectFeatures(): List<Feature> {
-    var state = FeatureDetectionState.fromInitial(first())
-    val features = mutableListOf<Feature>()
-    for (segment in this.drop(1)) {
-        val (nextState, segmentFeatures) = state.traverse(segment)
-        features += segmentFeatures
-        state = nextState
-    }
-    features += state.finish()
-
-    features.sortBy { it.startsAtTrackDistance }
-    return features
 }
 
 /**
@@ -225,85 +218,63 @@ private class MLine(
     }
 }
 
-sealed interface FeatureDetectionState {
-    fun traverse(segment: TrackSegment): Pair<FeatureDetectionState, List<Feature>>
-    fun finish(): List<Feature>
-
-    class Straightish(
-        val startsAtDistance: Double,
-        val straightishDistance: Double,
-    ) : FeatureDetectionState {
-        override fun finish(): List<Feature> {
-            return listOf(Feature.Straight(startsAtDistance, straightishDistance))
+fun Sequence<TrackSegment>.detectFeatures(): List<Feature> {
+    val features = ArrayList<Feature>()
+    val featureSegments = mutableListOf<TrackSegment>()
+    var nCurvedSegmentsPresent = 0
+    var inCorner = false
+    for (segment in this) {
+        if (inCorner) {
+            if (segment.radiusToNext > STRAIGHTISH_RADIUS_THRESHOLD || segment.angleToNext.sign != featureSegments.last().angleToNext.sign) {
+                features.add(Feature.Corner(featureSegments.first().startsAtDistance, featureSegments.toMutableList()))
+                featureSegments.clear()
+                inCorner = false
+                nCurvedSegmentsPresent = 0
+            }
         }
 
-        override fun traverse(segment: TrackSegment): Pair<FeatureDetectionState, List<Feature>> {
-            if (segment.radiusToNext <= STRAIGHTISH_RADIUS_THRESHOLD) {
-                val nextState = InCorner(segment, null)
-                return Pair(nextState, finish())
-            }
+        featureSegments.add(segment)
 
-            return Pair(
-                Straightish(startsAtDistance, straightishDistance + segment.roadSegment.length()),
-                emptyList(),
+        if (!inCorner) {
+            if (segment.radiusToNext <= STRAIGHTISH_RADIUS_THRESHOLD) {
+                nCurvedSegmentsPresent++
+            }
+            if (nCurvedSegmentsPresent >= CORNER_MIN_SEGMENTS) {
+                val straightSegments = featureSegments.asSequence().dropLast(nCurvedSegmentsPresent)
+                features.add(
+                    Feature.Straight(
+                        featureSegments.first().startsAtDistance,
+                        straightSegments.sumOf { it.arcLength })
+                )
+                repeat(featureSegments.size - nCurvedSegmentsPresent) {
+                    featureSegments.removeFirst()
+                }
+                inCorner = true
+            }
+        }
+    }
+
+    if (inCorner) {
+        if (featureSegments.size >= CORNER_MIN_SEGMENTS) {
+            features.add(Feature.Corner(featureSegments.first().startsAtDistance, featureSegments.toMutableList()))
+        } else {
+            features.add(
+                Feature.Straight(
+                    featureSegments.first().startsAtDistance,
+                    featureSegments.sumOf { it.arcLength })
             )
         }
-
-        companion object {
-            fun startStraightish(segment: TrackSegment): Straightish = Straightish(segment.startsAtDistance, segment.roadSegment.length())
-        }
+    } else {
+        features.add(Feature.Straight(featureSegments.first().startsAtDistance, featureSegments.sumOf { it.arcLength }))
     }
 
-    class InCorner(
-        val currentSegment: TrackSegment,
-        val continuesCornerState: InCorner?,
-    ) : FeatureDetectionState {
-        private fun collectCornerSegments(): List<TrackSegment> {
-            val segments = ArrayList<TrackSegment>()
-            var pivot: InCorner? = this
-            while (pivot != null) {
-                segments.add(pivot.currentSegment)
-                pivot = pivot.continuesCornerState
-            }
-            return segments.asReversed()
-        }
-
-        override fun finish(): List<Feature> {
-            val segments = collectCornerSegments()
-            return listOf(Feature.Corner(segments.first().startsAtDistance, segments))
-        }
-
-        override fun traverse(segment: TrackSegment): Pair<FeatureDetectionState, List<Feature>> {
-            if (segment.radiusToNext > STRAIGHTISH_RADIUS_THRESHOLD) {
-                val nextState = Straightish.startStraightish(segment)
-                return Pair(nextState, finish())
-            }
-
-            if (this.currentSegment.angleToNext.sign == segment.angleToNext.sign) {
-                // corner continues
-                return Pair(
-                    InCorner(segment, this),
-                    emptyList(),
-                )
-            } else {
-                // s-curve
-                return Pair(
-                    InCorner(segment, null),
-                    finish()
-                )
-            }
-        }
+    if (features.size > 1 && features[features.lastIndex] is Feature.Straight && features[features.lastIndex - 1] is Feature.Straight) {
+        val s2 = features.removeLast() as Feature.Straight
+        val s1 = features.removeLast() as Feature.Straight
+        features.add(Feature.Straight(s1.startsAtTrackDistance, s1.distance + s2.distance))
     }
 
-    companion object {
-        fun fromInitial(segment: TrackSegment): FeatureDetectionState {
-            return if (segment.radiusToNext > STRAIGHTISH_RADIUS_THRESHOLD) {
-                Straightish.startStraightish(segment)
-            } else {
-                InCorner(segment, null)
-            }
-        }
-    }
+    return features
 }
 
 sealed interface Feature {

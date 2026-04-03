@@ -1,4 +1,3 @@
-* eliminate ghost turns (r = +-Inf)
 * corner opens/tightens
 * hairpin, open hairpin
 * detect crests from z axis data
@@ -6,6 +5,7 @@
     * corners
         * unseen
         * turn / at junction
+      * cut/don't cut
     * straights
         * jump
         * narrows
