@@ -34,6 +34,12 @@ const val MAX_REPORTED_RADIUS = STRAIGHTISH_RADIUS_THRESHOLD * 10.0
 const val STRAIGHT_ELISION_DISTANCE_THRESHOLD = 20.0
 
 /**
+ * Straight sections between two corners that are shorter than this distance will be replaced with
+ * [PacenoteItem.ImmediateTransition] (instead of [PacenoteItem.ShortTransition])
+ */
+const val IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD = 10.0
+
+/**
  * It takes at least this number of [TrackSegment] with a [TrackSegment.radiusToNext] less than [STRAIGHTISH_RADIUS_THRESHOLD]
  * for a corner to be detected.
  */
@@ -67,11 +73,12 @@ fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
         when (feature) {
             is Feature.Straight -> {
                 val distance = (feature.distance.toInt() / ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF) * ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF
-                if (distance > STRAIGHT_ELISION_DISTANCE_THRESHOLD) {
-                    pacenoteItems += Pair(feature.startsAtTrackDistance, PacenoteItem.Straight(distance))
-                } else if (!pacenoteItems.isEmpty()) {
-                    pacenoteItems += Pair(feature.startsAtTrackDistance, PacenoteItem.ShortTransition)
+                val item = when {
+                    distance < IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD -> PacenoteItem.ImmediateTransition
+                    distance <= STRAIGHT_ELISION_DISTANCE_THRESHOLD -> PacenoteItem.ShortTransition
+                    else -> PacenoteItem.Straight(distance)
                 }
+                pacenoteItems += Pair(feature.startsAtTrackDistance, item)
             }
             is Feature.Corner -> {
                 if (pacenoteItems.lastOrNull()?.second is PacenoteItem.Corner) {
