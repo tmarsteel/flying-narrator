@@ -4,7 +4,6 @@ import io.github.tmarsteel.flyingnarrator.DropLastSequence.Companion.dropLast
 import io.github.tmarsteel.flyingnarrator.RepeatFirstAndLastSequence.Companion.repeatFirstAndLast
 import kotlin.math.absoluteValue
 import kotlin.math.sign
-import kotlin.sequences.first
 
 /**
  * Straight distances are rounded to this amount, e.g. `10` for 80, 90, 100, 110, 120, ...
@@ -64,6 +63,12 @@ const val SQUARE_CORNER_MIN_DISTANCE = 3.0
  * If the [Feature.Corner.totalAngle] of a corner is in this range, it can be considered "square".
  */
 val SQUARE_CORNER_TOTAL_ANGLE_RANGE = Math.toRadians(80.0)..Math.toRadians(110.0)
+
+/**
+ * When detecting radius change in a corner (opens/tightens), the data is first smoothed out by
+ * taking the average radius of all vectors within [RADIUS_CHANGE_SMOOTHING_DISTANCE] meters.
+ */
+val RADIUS_CHANGE_SMOOTHING_DISTANCE = 10.0
 
 fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     val features = detectFeatures()
@@ -331,36 +336,160 @@ private fun radiusToSeverity(radius: Double): PacenoteItem.Corner.Severity {
 }
 
 private fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
-    var radius = corner.compoundRadius
-    var severity = radiusToSeverity(radius)
-    if (radius <= SQUARE_MAX_COMPOUND_RADIUS && corner.totalAngle.absoluteValue in SQUARE_CORNER_TOTAL_ANGLE_RANGE) {
-        val squareRadiusSegments = corner
-            .segments
-            .asSequence()
-            .filter { it.radiusToNext <= SQUARE_MAX_RADIUS }
-        if (squareRadiusSegments.sumOf { it.arcLength } >= SQUARE_CORNER_MIN_DISTANCE) {
-            radius = squareRadiusSegments.averageOf { it.radiusToNext }
-            severity = PacenoteItem.Corner.Severity.SQUARE
-        }
-    }
-    return PacenoteItem.Corner(
-        corner.direction, false, listOf(
-            PacenoteItem.Corner.Section(
-                severity,
-                corner.totalDistance,
-                emptyList(),
-                radius,
-            )
-        )
-    )
+    val sections = findCornerSections(corner).map { it.toPacenote() }
+    return PacenoteItem.Corner(corner.direction, false, sections)
 }
 
-private val Feature.Corner.compoundRadius: Double
+private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
+    val radii = averageRadii(corner.segments, RADIUS_CHANGE_SMOOTHING_DISTANCE)
+    val radiiDerivatives = radii.derivative()
+    val stableRadiusSections = radiiDerivatives
+        .findRunsAtYValue(0.0, 2.0)
+        .filterNot { (startsAt, endsAt) -> startsAt == endsAt }
+        .toList()
+    if (stableRadiusSections.count() <= 1) {
+        return listOf(TmpCornerSection.fromTrackSegments(corner.segments))
+    }
+
+    val mergedSections = stableRadiusSections
+        .asSequence()
+        .map { (firstX, lastX) ->
+            val indexOfFirst = corner.segments.indexOfFirst { it.startsAtDistance == firstX }
+            val indexOfLast = corner.segments.indexOfFirst { it.startsAtDistance == lastX }
+            corner.segments.subList(indexOfFirst, indexOfLast + 1)
+        }
+        .map(TmpCornerSection::fromTrackSegments)
+        .mergeConsecutiveSameSeverity()
+        .toList()
+
+    val trimmedSections = if (mergedSections.size <= 1) {
+        mergedSections
+    } else {
+        mergedSections.dropFirstAndLastWhile { it.severity >= PacenoteItem.Corner.Severity.SIX && it.length < 10.0 }
+    }
+
+    return trimmedSections
+}
+
+private fun Sequence<TmpCornerSection>.mergeConsecutiveSameSeverity(): Sequence<TmpCornerSection> {
+    return sequence {
+        var currentSection = first()
+        for (section in drop(1)) {
+            if (section.severity == currentSection.severity) {
+                currentSection += section
+            } else {
+                yield(currentSection)
+                currentSection = section
+            }
+        }
+        yield(currentSection)
+    }
+}
+
+private data class TmpCornerSection(
+    val radius: Double,
+    val severity: PacenoteItem.Corner.Severity,
+    val length: Double,
+) {
+    operator fun plus(other: TmpCornerSection): TmpCornerSection {
+        return TmpCornerSection(
+            (radius * length + other.radius * other.length) / (length + other.length),
+            severity,
+            length + other.length
+        )
+    }
+
+    fun toPacenote(): PacenoteItem.Corner.Section {
+        return PacenoteItem.Corner.Section(severity, length, emptyList(), radius)
+    }
+
+    companion object {
+        fun fromTrackSegments(section: List<TrackSegment>): TmpCornerSection {
+            val totalAngle = section.sumOf { it.angleToNext }
+            var radius = section.compoundRadius
+            var severity = radiusToSeverity(radius)
+            if (radius <= SQUARE_MAX_COMPOUND_RADIUS && totalAngle.absoluteValue in SQUARE_CORNER_TOTAL_ANGLE_RANGE) {
+                val squareRadiusSegments = section
+                    .asSequence()
+                    .filter { it.radiusToNext <= SQUARE_MAX_RADIUS }
+                if (squareRadiusSegments.sumOf { it.arcLength } >= SQUARE_CORNER_MIN_DISTANCE) {
+                    radius = squareRadiusSegments.averageOf { it.radiusToNext }
+                    severity = PacenoteItem.Corner.Severity.SQUARE
+                }
+            }
+
+            return TmpCornerSection(radius, severity, section.sumOf { it.arcLength })
+        }
+    }
+}
+
+private fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double): Sequence<Pair<Double, Double>> {
+    return sequence {
+        val currentWindowSequence = ArrayDeque<TrackSegment>((acrossMeters * 2.0).toInt())
+        var distanceInWindow = 0.0
+        var yielded = false
+        suspend fun SequenceScope<Pair<Double, Double>>.yieldCurrent() {
+            val totalLength = currentWindowSequence.sumOf { it.arcLength }
+            val averageRadius = currentWindowSequence.sumOf { it.radiusToNext * it.arcLength } / totalLength
+            yield(
+                Pair(
+                    currentWindowSequence.first().startsAtDistance,
+                    averageRadius
+                )
+            )
+            val removedSegment = currentWindowSequence.removeFirst()
+            distanceInWindow -= removedSegment.arcLength
+            yielded = true
+        }
+
+        for (segment in segments) {
+            currentWindowSequence.addLast(segment)
+            distanceInWindow += segment.arcLength
+            if (distanceInWindow >= acrossMeters) {
+                yieldCurrent()
+            } else {
+                yielded = false
+            }
+        }
+        if (!yielded) {
+            yieldCurrent()
+        }
+    }
+}
+
+private fun Sequence<Pair<Double, Double>>.derivative(): Sequence<Pair<Double, Double>> {
+    return zipWithNext { a, b -> Pair(a.first, (b.second - a.second) / (b.first - a.first)) }
+}
+
+private fun Sequence<Pair<Double, Double>>.findRunsAtYValue(
+    yValue: Double,
+    tolerance: Double
+): Sequence<Pair<Double, Double>> {
+    val targetRange = yValue - tolerance..yValue + tolerance
+    return sequence {
+        var inRun = false
+        var runStartedAtX = 0.0
+        var previousX = 0.0
+        for ((x, y) in this@findRunsAtYValue) {
+            val yInRange = y in targetRange
+            if (inRun && !yInRange) {
+                yield(Pair(runStartedAtX, previousX))
+                inRun = false
+            } else if (!inRun && yInRange) {
+                runStartedAtX = x
+                inRun = true
+            }
+            previousX = x
+        }
+    }
+}
+
+private val List<TrackSegment>.compoundRadius: Double
     get() {
         val cornerStartsAt = Vector3.ORIGIN
-        val cornerStart = segments.first().roadSegment
-        val cornerEndsAt = segments.map { it.roadSegment }.reduce { acc, segment -> acc + segment }
-        val cornerEnd = segments.last().roadSegment
+        val cornerStart = first().roadSegment
+        val cornerEndsAt = map { it.roadSegment }.reduce { acc, segment -> acc + segment }
+        val cornerEnd = last().roadSegment
         return cornerAverageRadius(cornerStartsAt, cornerStart, cornerEndsAt, cornerEnd)
     }
 
@@ -407,11 +536,16 @@ sealed interface PacenoteItem {
             val modifiers: List<Modifier>,
             val radius: Double,
         ) {
-            override fun toString() = toString(null)
+            override fun toString() = toString(null, true)
 
-            fun toString(withDirection: Feature.Corner.Direction?): String {
+            fun toString(
+                withDirection: Feature.Corner.Direction?,
+                includeSeverity: Boolean,
+            ): String {
                 val sb = StringBuilder()
-                sb.append(severity.toString())
+                if (includeSeverity) {
+                    sb.append(severity.toString())
+                }
                 sb.append("(r=")
                 sb.append(radius.toInt())
                 sb.append("m)")
@@ -432,10 +566,27 @@ sealed interface PacenoteItem {
             if (isAtJunction) {
                 sb.append("turn ")
             }
-            sb.append(sections.first().toString(direction))
+            sb.append(sections.first().toString(direction, includeSeverity = true))
+            var currentSeverity = sections.first().severity
             for (section in sections.drop(1)) {
                 sb.append(' ')
-                sb.append(section.toString(null))
+                val severityChange = currentSeverity.compareTo(section.severity)
+                when {
+                    severityChange < 0 -> {
+                        sb.append("opens ")
+                    }
+
+                    severityChange > 0 -> {
+                        sb.append("tightens ")
+                    }
+                }
+                sb.append(
+                    section.toString(
+                        null,
+                        includeSeverity = severityChange >= 0 || section.severity < Severity.SIX
+                    )
+                )
+                currentSeverity = section.severity
             }
             return sb.toString()
         }

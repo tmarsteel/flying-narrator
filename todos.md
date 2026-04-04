@@ -1,4 +1,3 @@
-* corner opens/tightens
 * corner lengths
 * hairpin, open hairpin
 * detect crests from z axis data
@@ -13,3 +12,4 @@
         * through gate
         * over bridge
     * chicanes
+  * camber
