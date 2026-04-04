@@ -189,7 +189,7 @@ fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
         val nextPointName = pointName(index + 1)
         val arcName = arcName(index)
         val radiusName = radiusName(index)
-        if (segment.angleToNext >= 0.0) {
+        if (segment.angleToNext < 0.0) {
             sb.appendLine(
                 """
                 ggbApplet.evalCommand("$arcName=CircularArc($centerPointName, $pointName, $nextPointName)");
