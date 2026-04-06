@@ -69,6 +69,17 @@ val SQUARE_CORNER_TOTAL_ANGLE_RANGE = Math.toRadians(80.0)..Math.toRadians(110.0
  */
 val CORNER_SECTION_MIN_LENGTH = 30.0
 
+/**
+ * If a corner has a total angle in this range, it is reported as a hairpin
+ */
+val HAIRPIN_TOTAL_ANGLE_RANGE = Math.toRadians(135.0)..Math.toRadians(225.0)
+
+/**
+ * Corners with a total angle of [HAIRPIN_TOTAL_ANGLE_RANGE] but a severity higher than [HAIRPIN_MAX_SEVERITY]
+ * will not be abbreviated to [PacenoteItem.Hairpin].
+ */
+val HAIRPIN_MAX_SEVERITY = PacenoteItem.Corner.Severity.THREE
+
 fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     val features = detectFeatures()
 
@@ -336,6 +347,16 @@ private fun radiusToSeverity(radius: Double): PacenoteItem.Corner.Severity {
 
 private fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
     val sections = findCornerSections(corner).map { it.toPacenote() }
+    if (corner.totalAngle.absoluteValue in HAIRPIN_TOTAL_ANGLE_RANGE) {
+        val minSeverity = sections.minOf { it.severityStart.coerceAtMost(it.severityEnd) }
+        if (minSeverity <= HAIRPIN_MAX_SEVERITY) {
+            val maxSeverity = sections.maxOf { it.severityStart.coerceAtLeast(it.severityEnd) }
+            val hasSimilarSeverities = (maxSeverity.ordinal - minSeverity.ordinal).absoluteValue <= 1
+            if (hasSimilarSeverities) {
+                return PacenoteItem.Hairpin(corner.direction, minSeverity)
+            }
+        }
+    }
     return PacenoteItem.Corner(corner.direction, false, sections)
 }
 
@@ -719,6 +740,21 @@ sealed interface PacenoteItem {
             override fun toString(): String {
                 return name.lowercase()
             }
+        }
+    }
+
+    data class Hairpin(
+        val direction: Feature.Corner.Direction,
+        val minSeverity: Corner.Severity,
+    ) : PacenoteItem {
+        override fun toString(): String {
+            val sb = StringBuilder()
+            if (minSeverity == Corner.Severity.THREE) {
+                sb.append("open ")
+            }
+            sb.append("hairpin ")
+            sb.append(direction)
+            return sb.toString()
         }
     }
 
