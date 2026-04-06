@@ -67,7 +67,18 @@ val SQUARE_CORNER_TOTAL_ANGLE_RANGE = Math.toRadians(80.0)..Math.toRadians(110.0
 /**
  * corner sections have to be at least this long to be called out separately
  */
-val CORNER_SECTION_MIN_LENGTH = 30.0
+const val CORNER_SECTION_MIN_LENGTH = 30.0
+
+/**
+ * High-radius sections at the start of a corner can be elided if they occopy less than this percentage of
+ * the corner distance. This filters some noise coming from steering-into-the-corner data
+ */
+const val CORNER_HEAD_ELISION_THRESHOLD = 0.125
+
+/**
+ * See [CORNER_HEAD_ELISION_THRESHOLD], just for the tail
+ */
+const val CORNER_TAIL_ELISION_THRESHOLD = CORNER_HEAD_ELISION_THRESHOLD
 
 /**
  * If a corner has a total angle in this range, it is reported as a hairpin
@@ -376,14 +387,13 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
 
     // ignore tightening and opening at the start/end of corners, can be an artifact of truning into the corner
     openingOrClosingSections.firstOrNull()?.let { (_, section) ->
-        val length = section.sumOf { it.length }
-        if (length / corner.totalDistance <= 0.1) {
+        if (section.sumOf { it.length } / corner.totalDistance <= CORNER_HEAD_ELISION_THRESHOLD) {
             openingOrClosingSections.removeFirst()
         }
     }
     openingOrClosingSections.lastOrNull()?.let { (_, section) ->
         val length = section.sumOf { it.length }
-        if (length / corner.totalDistance <= 0.1) {
+        if (length / corner.totalDistance <= CORNER_TAIL_ELISION_THRESHOLD) {
             openingOrClosingSections.removeFirst()
         }
     }
