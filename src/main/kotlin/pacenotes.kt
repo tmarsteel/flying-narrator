@@ -67,7 +67,13 @@ val SQUARE_CORNER_TOTAL_ANGLE_RANGE = Math.toRadians(80.0)..Math.toRadians(110.0
 /**
  * corner sections have to be at least this long to be called out separately
  */
-const val CORNER_SECTION_MIN_LENGTH = 30.0
+const val CORNER_SECTION_MIN_LENGTH = 35.0
+
+/**
+ * The radii measured throughout a corner will be average across a distance of [CORNER_RADIUS_AVERAGE_WINDOW_SIZE]
+ * meters before analyzing for severities
+ */
+const val CORNER_RADIUS_AVERAGE_WINDOW_SIZE = 20.0
 
 /**
  * High-radius sections at the start of a corner can be elided if they occopy less than this percentage of
@@ -379,7 +385,7 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     }
 
     // first, find opens/closes sections where the radius is steadily changing
-    val radii = averageRadii(significantSegments, CORNER_SECTION_MIN_LENGTH)
+    val radii = averageRadii(significantSegments, CORNER_RADIUS_AVERAGE_WINDOW_SIZE)
     val radiiDerivatives = radii.derivative()
     val openingOrClosingSections = radiiDerivatives
         .consecutiveRuns { dr -> dr.dRadius.absoluteValue > 1.0 }
@@ -433,7 +439,7 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     ).toList()
 }
 
-data class AveragedRadius(
+private data class AveragedRadius(
     val startsAtIndex: Int,
     val length: Double,
     val radius: Double,
@@ -490,7 +496,7 @@ private data class TmpCornerSection(
         }
 
         fun openingOrTightening(section: List<TrackSegment>): TmpCornerSection {
-            val (radiusStart, radiusEnd) = averageRadii(section, CORNER_SECTION_MIN_LENGTH)
+            val (radiusStart, radiusEnd) = averageRadii(section, CORNER_RADIUS_AVERAGE_WINDOW_SIZE)
                 .map { it.radius }
                 .firstAndLast()
             return TmpCornerSection(
