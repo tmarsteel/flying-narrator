@@ -711,7 +711,7 @@ sealed interface PacenoteItem {
             }
             var directionWritten = false
             var currentSeverity = sections.first().severityStart
-            for ((idx, section) in sections.withIndex()) {
+            for (section in sections) {
                 var severityChange = currentSeverity.compareTo(section.severityStart)
                 when {
                     severityChange < 0 -> {
@@ -722,7 +722,9 @@ sealed interface PacenoteItem {
                         sb.append("tightens ")
                     }
                 }
-                sb.append(section.severityStart)
+                if (severityChange >= 0 || section.severityStart < Severity.SLIGHT) {
+                    sb.append(section.severityStart)
+                }
                 sb.append("(r=")
                 sb.append(section.radiusStart.toInt().toString())
                 sb.append("m)")
@@ -743,7 +745,7 @@ sealed interface PacenoteItem {
                     }
                 }
 
-                if (severityChange != 0) {
+                if (severityChange != 0 && (severityChange > 0 || section.severityEnd < Severity.SLIGHT)) {
                     sb.append(section.severityEnd)
                     sb.append("(r=")
                     sb.append(section.radiusEnd.toInt().toString())
