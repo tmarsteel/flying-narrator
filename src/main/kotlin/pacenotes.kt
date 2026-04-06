@@ -758,6 +758,11 @@ sealed interface PacenoteItem {
 
                 currentSeverity = section.severityEnd
             }
+
+            sb.append("(d=")
+            sb.append(sections.sumOf { it.length }.toInt().toString())
+            sb.append("m)")
+
             return sb.toString()
         }
 
