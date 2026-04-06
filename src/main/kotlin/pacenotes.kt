@@ -19,7 +19,7 @@ const val MAX_CORNER_ROUNDING_DISTANCE = 5.0
 /**
  * Two [RoadSegment]s that have a radius greater than this value will be considered straight
  */
-const val STRAIGHTISH_RADIUS_THRESHOLD = 150.0
+const val STRAIGHTISH_RADIUS_THRESHOLD = 120.0
 
 /**
  * The [TrackSegment.radiusToNext] is capped to this value
@@ -341,22 +341,23 @@ private fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
 }
 
 private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
-    val radii = averageRadii(corner.segments, RADIUS_CHANGE_SMOOTHING_DISTANCE)
+    val significantSegments = corner.segments
+    val radii = averageRadii(significantSegments, RADIUS_CHANGE_SMOOTHING_DISTANCE)
     val radiiDerivatives = radii.derivative()
     val stableRadiusSections = radiiDerivatives
         .findRunsAtYValue(0.0, 2.0)
         .filterNot { (startsAt, endsAt) -> startsAt == endsAt }
         .toList()
     if (stableRadiusSections.count() <= 1) {
-        return listOf(TmpCornerSection.fromTrackSegments(corner.segments))
+        return listOf(TmpCornerSection.fromTrackSegments(significantSegments))
     }
 
     val mergedSections = stableRadiusSections
         .asSequence()
         .map { (firstX, lastX) ->
-            val indexOfFirst = corner.segments.indexOfFirst { it.startsAtDistance == firstX }
-            val indexOfLast = corner.segments.indexOfFirst { it.startsAtDistance == lastX }
-            corner.segments.subList(indexOfFirst, indexOfLast + 1)
+            val indexOfFirst = significantSegments.indexOfFirst { it.startsAtDistance == firstX }
+            val indexOfLast = significantSegments.indexOfFirst { it.startsAtDistance == lastX }
+            significantSegments.subList(indexOfFirst, indexOfLast + 1)
         }
         .map(TmpCornerSection::fromTrackSegments)
         .mergeConsecutiveSameSeverity()
@@ -486,24 +487,30 @@ private fun Sequence<Pair<Double, Double>>.findRunsAtYValue(
 
 private val List<TrackSegment>.compoundRadius: Double
     get() {
+        val totalAngle = sumOf { it.angleToNext }
+        if (totalAngle.absoluteValue > 2.793) {
+            /** the perpendicular-line-intersection algo only works reliably for coners considerably less than 180° */
+            val cutIndex = size / 2
+            val part1 = subList(0, cutIndex).compoundRadius
+            val part2 = subList(cutIndex, size).compoundRadius
+            if (part1 == Double.POSITIVE_INFINITY) {
+                return part2
+            }
+            if (part2 == Double.POSITIVE_INFINITY) {
+                return part1
+            }
+            return (part1 + part2) / 2.0
+        }
+
         val cornerStartsAt = Vector3.ORIGIN
         val cornerStart = first().roadSegment
         val cornerEndsAt = map { it.roadSegment }.reduce { acc, segment -> acc + segment }
         val cornerEnd = last().roadSegment
-        return cornerAverageRadius(cornerStartsAt, cornerStart, cornerEndsAt, cornerEnd)
+        val line1 = MLine(cornerStartsAt, cornerStart.rotate2d90degCounterClockwise())
+        val line2 = MLine(cornerEndsAt, cornerEnd.rotate2d90degCounterClockwise())
+        val center = line1.intersect2d(line2) ?: return Double.POSITIVE_INFINITY
+        return (cornerEndsAt - center).length2d
     }
-
-private fun cornerAverageRadius(
-    cornerStartsAt: Vector3,
-    cornerStart: Vector3,
-    cornerEndsAt: Vector3,
-    cornerEnd: Vector3,
-): Double {
-    val line1 = MLine(cornerStartsAt, cornerStart.rotate2d90degCounterClockwise())
-    val line2 = MLine(cornerEndsAt, cornerEnd.rotate2d90degCounterClockwise())
-    val center = line1.intersect2d(line2) ?: return Double.POSITIVE_INFINITY
-    return (cornerEndsAt - center).length2d
-}
 
 sealed interface PacenoteItem {
     data class Straight(val distance: Int) : PacenoteItem {
