@@ -392,14 +392,22 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
         .toMutableList()
 
     // ignore tightening and opening at the start/end of corners, can be an artifact of truning into the corner
-    openingOrClosingSections.firstOrNull()?.let { (_, section) ->
-        if (section.sumOf { it.length } / corner.totalDistance <= CORNER_HEAD_ELISION_THRESHOLD) {
+    openingOrClosingSections.firstOrNull()?.let { (startsAtIndex, section) ->
+        val preceedingDistance = significantSegments.subList(0, startsAtIndex).sumOf { it.arcLength }
+        val isHead = preceedingDistance < CORNER_SECTION_MIN_LENGTH
+        val tightens = section.map { it.dRadius }.average().sign < 0
+        val lengthProportion = section.sumOf { it.length } / corner.totalDistance
+        if (isHead && tightens && lengthProportion <= CORNER_HEAD_ELISION_THRESHOLD) {
             openingOrClosingSections.removeFirst()
         }
     }
-    openingOrClosingSections.lastOrNull()?.let { (_, section) ->
-        val length = section.sumOf { it.length }
-        if (length / corner.totalDistance <= CORNER_TAIL_ELISION_THRESHOLD) {
+    openingOrClosingSections.lastOrNull()?.let { (startsAtIndex, section) ->
+        val trailingDistance =
+            significantSegments.subList(startsAtIndex + section.size, significantSegments.size).sumOf { it.arcLength }
+        val isTail = trailingDistance < CORNER_SECTION_MIN_LENGTH
+        val opens = section.map { it.dRadius }.average().sign > 0
+        val lengthProportion = section.sumOf { it.length } / corner.totalDistance
+        if (isTail && opens && lengthProportion <= CORNER_TAIL_ELISION_THRESHOLD) {
             openingOrClosingSections.removeFirst()
         }
     }
