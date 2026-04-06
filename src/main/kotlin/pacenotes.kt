@@ -548,6 +548,8 @@ sealed interface PacenoteItem {
                 }
                 sb.append("(r=")
                 sb.append(radius.toInt())
+                sb.append("m,d=")
+                sb.append(length.toInt())
                 sb.append("m)")
                 if (withDirection != null) {
                     sb.append(' ')
