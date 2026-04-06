@@ -23,14 +23,14 @@ long crest into slight right
 slowly
 100
 small crest
-turn 1 left around bail
+turn 1 left around bail (@1.29km)
 70
 crest
 80
 slight right long
 into crest
 70
-5 left half-long
+5 left half-long (@1.70km)
 180
 crest
 370
@@ -38,90 +38,91 @@ slight right over crest
 80
 6 right slowly
 110
-turn square right around bails
+turn square right around bails (@2.65km)
 30
 crest
 120
-turn square left around bail
+turn square left around bail (@2.84km)
 150 narrows
 small crest
 and slight left
 40
-6 right over crest
+6 right over crest (@3.12km)
 60
 crest
 and left over crest
 160
 late 6 left don't cut
 70
-6 left over crest
-and 3 right
+slowly
+6 left over crest (@3.60km)
+and 3 right (@3.67km)
 70
 slight left over crest
-to slight right
+to slight right (@3.85km)
 120
-caution 6 left over crest tightens 5
+caution 6 left over crest tightens 5 (@4.00km)
 100
-3 right short
+3 right short (@4.15km)
 100
 6 left
 90
 late 6 left over crest don't cut
 50
-slight right over crest
+slight right over crest (@4.56km)
 and crest
 50
 left over crest
 130
-6 left don't cut
+6 left don't cut (@4.68km)
 and crest
 80
 6 left over crest keep in
 120
-6 right opens slight right
+6 right opens slight right (@5.17km)
 140
 crest
 30
 crest
-3 left short don't cut
+3 left short don't cut (@5.55km)
 80
-chicane right entry
+chicane right entry (@5.59km)
 230
-slight left over crest
+slight left over crest (@5.9km)
 90
 6 left over crest
 and bump
-into 6 right opens
+into 6 right opens (@6.20km)
 small jump
 100
 bumps
-to slight left very long tigthens 5 over crest
+to slight left very long tigthens 5 over crest (@6.15km)
 and slight left to slight right
 40
 small crest
-into 5 right tightens around bail
+into 5 right tightens around bail (@6.92km)
 to 5 left
 70
 long crest
 30
-four left slowly
+four left long slowly (@7.18km)
 120
-1 left
+1 left (@7.39km)
 and slight right
 80
-30 right opens
+30 right opens (@7.54km)
 into  crest
-3 left short
+3 left short (@7.67km)
 170
-5 right short around bail
+5 right short around bail (@7.9km)
 100
 slowly crest
 40
-square right short around bail
+square right short around bail (@8.10km)
 and 6 left half-long
 50
 right over crest
-and 6 left
-over finish
+and 6 left (@8.36km)
+over finish (@8.46km)
 100
 to stop
