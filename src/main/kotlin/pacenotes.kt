@@ -267,11 +267,26 @@ fun Sequence<TrackSegment>.detectFeatures(): List<Feature> {
     var inCorner = false
     for (segment in this) {
         if (inCorner) {
-            if (segment.radiusToNext > STRAIGHTISH_RADIUS_THRESHOLD || segment.angleToNext.sign != featureSegments.last().angleToNext.sign) {
+            if (segment.angleToNext.sign != 0.0 && featureSegments.last().angleToNext.sign != 0.0 && segment.angleToNext.sign != featureSegments.last().angleToNext.sign) {
                 features.add(Feature.Corner(featureSegments.first().startsAtDistance, featureSegments.toMutableList()))
                 featureSegments.clear()
                 inCorner = false
                 nCurvedSegmentsPresent = 0
+            } else if (segment.radiusToNext >= STRAIGHTISH_RADIUS_THRESHOLD) {
+                val existingCornerRadius = featureSegments.compoundRadius
+                val straightishTailSegments = featureSegments
+                    .takeLastWhile { it.radiusToNext >= STRAIGHTISH_RADIUS_THRESHOLD }
+                val straightishDistanceInCorner = straightishTailSegments.sumOf { it.arcLength } + segment.arcLength
+                if (straightishDistanceInCorner >= straightishThresholdDistance(existingCornerRadius)) {
+                    val cornerSegments = featureSegments.take(featureSegments.size - straightishTailSegments.size)
+                    features.add(Feature.Corner(featureSegments.first().startsAtDistance, cornerSegments))
+                    repeat(cornerSegments.size) {
+                        featureSegments.removeFirst()
+                    }
+                    featureSegments.add(segment)
+                    inCorner = false
+                    nCurvedSegmentsPresent = 0
+                }
             }
         }
 
@@ -319,10 +334,17 @@ fun Sequence<TrackSegment>.detectFeatures(): List<Feature> {
     return features
 }
 
+private fun straightishThresholdDistance(existingCornerRadius: Double): Double {
+    return when {
+        existingCornerRadius <= 50.0 -> 0.0
+        else -> (((existingCornerRadius.coerceAtMost(100.0) - 50.0).toInt() / 10) * 5).toDouble()
+    }
+}
+
 sealed interface Feature {
     val startsAtTrackDistance: Double
 
-    class Straight(
+    data class Straight(
         override val startsAtTrackDistance: Double,
         val distance: Double,
     ) : Feature
@@ -335,6 +357,10 @@ sealed interface Feature {
         val totalDistance: Double by lazy { segments.sumOf { it.arcLength } }
 
         val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
+
+        override fun toString(): String {
+            return "Corner(totalAngle=$totalAngle, totalDistance=$totalDistance, direction=$direction)"
+        }
 
         enum class Direction {
             LEFT,
@@ -697,6 +723,9 @@ sealed interface PacenoteItem {
                     }
                 }
                 sb.append(section.severityStart)
+                sb.append("(r=")
+                sb.append(section.radiusStart.toInt().toString())
+                sb.append("m)")
                 sb.append(' ')
                 if (!directionWritten) {
                     sb.append(direction)
@@ -714,14 +743,17 @@ sealed interface PacenoteItem {
                     }
                 }
 
+                if (severityChange != 0) {
+                    sb.append(section.severityEnd)
+                    sb.append("(r=")
+                    sb.append(section.radiusEnd.toInt().toString())
+                    sb.append("m)")
+                    sb.append(' ')
+                }
+
                 for (mod in section.modifiers) {
                     sb.append(' ')
                     sb.append(mod)
-                }
-
-                if (severityChange != 0) {
-                    sb.append(section.severityEnd)
-                    sb.append(' ')
                 }
 
                 currentSeverity = section.severityEnd
