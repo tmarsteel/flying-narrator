@@ -121,7 +121,9 @@ fun Route.render(
 }
 
 fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
-    fun pointName(index: Int) = index.toString(26)
+    fun pointName(index: Int) = index
+        // avoid using X, Y and Z because reserved in geogebra
+        .toString(23)
         .chars()
         .map {
             when {
