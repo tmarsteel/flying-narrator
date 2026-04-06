@@ -65,10 +65,9 @@ const val SQUARE_CORNER_MIN_DISTANCE = 3.0
 val SQUARE_CORNER_TOTAL_ANGLE_RANGE = Math.toRadians(80.0)..Math.toRadians(110.0)
 
 /**
- * When detecting radius change in a corner (opens/tightens), the data is first smoothed out by
- * taking the average radius of all vectors within [RADIUS_CHANGE_SMOOTHING_DISTANCE] meters.
+ * corner sections have to be at least this long to be called out separately
  */
-val RADIUS_CHANGE_SMOOTHING_DISTANCE = 10.0
+val CORNER_SECTION_MIN_LENGTH = 30.0
 
 fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     val features = detectFeatures()
@@ -342,70 +341,107 @@ private fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
 
 private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     val significantSegments = corner.segments
-    val radii = averageRadii(significantSegments, RADIUS_CHANGE_SMOOTHING_DISTANCE)
+
+    if (corner.totalDistance <= CORNER_SECTION_MIN_LENGTH) {
+        return listOf(TmpCornerSection.steadyCurvature(significantSegments))
+    }
+
+    // first, find opens/closes sections where the radius is steadily changing
+    val radii = averageRadii(significantSegments, CORNER_SECTION_MIN_LENGTH)
     val radiiDerivatives = radii.derivative()
-    val stableRadiusSections = radiiDerivatives
-        .findRunsAtYValue(0.0, 2.0)
-        .filterNot { (startsAt, endsAt) -> startsAt == endsAt }
-        .toList()
-    if (stableRadiusSections.count() <= 1) {
-        return listOf(TmpCornerSection.fromTrackSegments(significantSegments))
-    }
+    val openingOrClosingSections = radiiDerivatives
+        .consecutiveRuns { dr -> dr.dRadius.absoluteValue > 1.0 }
+        .toMutableList()
 
-    val mergedSections = stableRadiusSections
-        .asSequence()
-        .map { (firstX, lastX) ->
-            val indexOfFirst = significantSegments.indexOfFirst { it.startsAtDistance == firstX }
-            val indexOfLast = significantSegments.indexOfFirst { it.startsAtDistance == lastX }
-            significantSegments.subList(indexOfFirst, indexOfLast + 1)
+    // ignore tightening and opening at the start/end of corners, can be an artifact of truning into the corner
+    openingOrClosingSections.firstOrNull()?.let { (_, section) ->
+        val length = section.sumOf { it.length }
+        if (length / corner.totalDistance <= 0.1) {
+            openingOrClosingSections.removeFirst()
         }
-        .map(TmpCornerSection::fromTrackSegments)
-        .mergeConsecutiveSameSeverity()
-        .toList()
-
-    val trimmedSections = if (mergedSections.size <= 1) {
-        mergedSections
-    } else {
-        mergedSections.dropFirstAndLastWhile { it.severity >= PacenoteItem.Corner.Severity.SIX && it.length < 10.0 }
+    }
+    openingOrClosingSections.lastOrNull()?.let { (_, section) ->
+        val length = section.sumOf { it.length }
+        if (length / corner.totalDistance <= 0.1) {
+            openingOrClosingSections.removeFirst()
+        }
     }
 
-    return trimmedSections
+    if (openingOrClosingSections.isEmpty()) {
+        return listOf(TmpCornerSection.steadyCurvature(significantSegments))
+    }
+
+    val tmpSections = mutableListOf<TmpCornerSection>()
+    val unsteadyCurvatureSectionsByStartIndex = openingOrClosingSections.toMap()
+    var idx = 0
+    while (idx < significantSegments.size) {
+        val unsteadySection = unsteadyCurvatureSectionsByStartIndex[idx]
+        if (unsteadySection != null) {
+            tmpSections.add(
+                TmpCornerSection.openingOrTightening(
+                    significantSegments.subList(
+                        idx,
+                        idx + unsteadySection.size
+                    )
+                )
+            )
+            idx += unsteadySection.size
+        } else {
+            val indexOfNextSection =
+                unsteadyCurvatureSectionsByStartIndex.keys.filter { it > idx }.minOrNull() ?: significantSegments.size
+            tmpSections.add(TmpCornerSection.steadyCurvature(significantSegments.subList(idx, indexOfNextSection)))
+            idx = indexOfNextSection
+        }
+    }
+
+    return tmpSections.mergeConsecutiveIf(
+        shouldMerge = { a, b ->
+            a.length < CORNER_SECTION_MIN_LENGTH || b.length < CORNER_SECTION_MIN_LENGTH || a.severityEnd == b.severityStart
+        },
+        merge = TmpCornerSection::mergeWithSuccessor,
+    ).toList()
 }
 
-private fun Sequence<TmpCornerSection>.mergeConsecutiveSameSeverity(): Sequence<TmpCornerSection> {
-    return sequence {
-        var currentSection = first()
-        for (section in drop(1)) {
-            if (section.severity == currentSection.severity) {
-                currentSection += section
-            } else {
-                yield(currentSection)
-                currentSection = section
-            }
-        }
-        yield(currentSection)
-    }
-}
+data class AveragedRadius(
+    val startsAtIndex: Int,
+    val length: Double,
+    val radius: Double,
+)
+
+private data class DerivedRadius(
+    val startsAtIndex: Int,
+    val length: Double,
+    /**
+     * change in radius, radius-meters per arcLength-meter
+     */
+    val dRadius: Double,
+)
 
 private data class TmpCornerSection(
-    val radius: Double,
-    val severity: PacenoteItem.Corner.Severity,
+    val segments: List<TrackSegment>,
+    val radiusStart: Double,
+    val radiusEnd: Double,
+    val severityStart: PacenoteItem.Corner.Severity,
+    val severityEnd: PacenoteItem.Corner.Severity,
     val length: Double,
 ) {
-    operator fun plus(other: TmpCornerSection): TmpCornerSection {
+    fun mergeWithSuccessor(other: TmpCornerSection): TmpCornerSection {
         return TmpCornerSection(
-            (radius * length + other.radius * other.length) / (length + other.length),
-            severity,
+            segments + other.segments,
+            radiusStart,
+            other.radiusEnd,
+            severityStart,
+            other.severityStart,
             length + other.length
         )
     }
 
     fun toPacenote(): PacenoteItem.Corner.Section {
-        return PacenoteItem.Corner.Section(severity, length, emptyList(), radius)
+        return PacenoteItem.Corner.Section(radiusStart, severityStart, radiusEnd, severityEnd, length, emptyList())
     }
 
     companion object {
-        fun fromTrackSegments(section: List<TrackSegment>): TmpCornerSection {
+        fun steadyCurvature(section: List<TrackSegment>): TmpCornerSection {
             val totalAngle = section.sumOf { it.angleToNext }
             var radius = section.compoundRadius
             var severity = radiusToSeverity(radius)
@@ -419,27 +455,44 @@ private data class TmpCornerSection(
                 }
             }
 
-            return TmpCornerSection(radius, severity, section.sumOf { it.arcLength })
+            return TmpCornerSection(section, radius, radius, severity, severity, section.sumOf { it.arcLength })
+        }
+
+        fun openingOrTightening(section: List<TrackSegment>): TmpCornerSection {
+            val (radiusStart, radiusEnd) = averageRadii(section, CORNER_SECTION_MIN_LENGTH)
+                .map { it.radius }
+                .firstAndLast()
+            return TmpCornerSection(
+                section,
+                radiusStart,
+                radiusEnd,
+                radiusToSeverity(radiusStart),
+                radiusToSeverity(radiusEnd),
+                section.sumOf { it.arcLength },
+            )
         }
     }
 }
 
-private fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double): Sequence<Pair<Double, Double>> {
+private fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double): Sequence<AveragedRadius> {
     return sequence {
         val currentWindowSequence = ArrayDeque<TrackSegment>((acrossMeters * 2.0).toInt())
+        var currentWindowStartsAtIndex = 0
         var distanceInWindow = 0.0
         var yielded = false
-        suspend fun SequenceScope<Pair<Double, Double>>.yieldCurrent() {
+        suspend fun SequenceScope<AveragedRadius>.yieldCurrent() {
             val totalLength = currentWindowSequence.sumOf { it.arcLength }
             val averageRadius = currentWindowSequence.sumOf { it.radiusToNext * it.arcLength } / totalLength
             yield(
-                Pair(
-                    currentWindowSequence.first().startsAtDistance,
-                    averageRadius
+                AveragedRadius(
+                    currentWindowStartsAtIndex,
+                    currentWindowSequence.first().arcLength,
+                    averageRadius,
                 )
             )
             val removedSegment = currentWindowSequence.removeFirst()
             distanceInWindow -= removedSegment.arcLength
+            currentWindowStartsAtIndex += 1
             yielded = true
         }
 
@@ -452,41 +505,52 @@ private fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double)
                 yielded = false
             }
         }
-        if (!yielded) {
+        if (!yielded && currentWindowSequence.isNotEmpty()) {
             yieldCurrent()
         }
     }
 }
 
-private fun Sequence<Pair<Double, Double>>.derivative(): Sequence<Pair<Double, Double>> {
-    return zipWithNext { a, b -> Pair(a.first, (b.second - a.second) / (b.first - a.first)) }
+private fun Sequence<AveragedRadius>.derivative(): Sequence<DerivedRadius> {
+    return zipWithNext { a, b -> DerivedRadius(a.startsAtIndex, a.length, (b.radius - a.radius) / a.length) }
 }
 
-private fun Sequence<Pair<Double, Double>>.findRunsAtYValue(
-    yValue: Double,
-    tolerance: Double
-): Sequence<Pair<Double, Double>> {
-    val targetRange = yValue - tolerance..yValue + tolerance
+private fun <T> Sequence<T>.consecutiveRuns(
+    predicate: (T) -> Boolean
+): Sequence<Pair<Int, List<T>>> {
     return sequence {
         var inRun = false
-        var runStartedAtX = 0.0
-        var previousX = 0.0
-        for ((x, y) in this@findRunsAtYValue) {
-            val yInRange = y in targetRange
-            if (inRun && !yInRange) {
-                yield(Pair(runStartedAtX, previousX))
-                inRun = false
-            } else if (!inRun && yInRange) {
-                runStartedAtX = x
-                inRun = true
+        var currentRunStartsAtIndex = 0
+        var currentRun = mutableListOf<T>()
+        for ((idx, e) in this@consecutiveRuns.withIndex()) {
+            if (predicate(e)) {
+                if (inRun) {
+                    currentRun += e
+                } else {
+                    currentRun = mutableListOf(e)
+                    currentRunStartsAtIndex = idx
+                    inRun = true
+                }
+            } else {
+                if (inRun) {
+                    yield(Pair(currentRunStartsAtIndex, currentRun))
+                    currentRun = mutableListOf()
+                    inRun = false
+                }
             }
-            previousX = x
+        }
+        if (inRun) {
+            yield(Pair(currentRunStartsAtIndex, currentRun))
         }
     }
 }
 
 private val List<TrackSegment>.compoundRadius: Double
     get() {
+        if (size == 1) {
+            return single().radiusToNext
+        }
+
         val totalAngle = sumOf { it.angleToNext }
         if (totalAngle.absoluteValue > 2.793) {
             /** the perpendicular-line-intersection algo only works reliably for coners considerably less than 180° */
@@ -538,33 +602,32 @@ sealed interface PacenoteItem {
         val sections: List<Section>,
     ) : PacenoteItem {
         data class Section(
-            val severity: Severity,
+            val radiusStart: Double,
+            val severityStart: Severity,
+            val radiusEnd: Double,
+            val severityEnd: Severity,
             val length: Double,
             val modifiers: List<Modifier>,
-            val radius: Double,
         ) {
-            override fun toString() = toString(null, true)
-
-            fun toString(
-                withDirection: Feature.Corner.Direction?,
-                includeSeverity: Boolean,
-            ): String {
+            override fun toString(): String {
                 val sb = StringBuilder()
-                if (includeSeverity) {
-                    sb.append(severity.toString())
-                }
+                sb.append(severityStart)
                 sb.append("(r=")
-                sb.append(radius.toInt())
-                sb.append("m,d=")
-                sb.append(length.toInt())
+                sb.append(radiusStart.toInt().toString())
                 sb.append("m)")
-                if (withDirection != null) {
-                    sb.append(' ')
-                    sb.append(withDirection.toString())
+                if (severityEnd != severityStart) {
+                    sb.append("->")
+                    sb.append(severityEnd)
+                    sb.append("(r=")
+                    sb.append(radiusEnd.toInt().toString())
+                    sb.append("m)")
                 }
-                for (mod in modifiers) {
-                    sb.append(' ')
-                    sb.append(mod.toString())
+                sb.append("(d=")
+                sb.append(length.toInt().toString())
+                sb.append("m)")
+                for (modifier in modifiers) {
+                    sb.append(" ")
+                    sb.append(modifier.toString())
                 }
                 return sb.toString()
             }
@@ -575,11 +638,10 @@ sealed interface PacenoteItem {
             if (isAtJunction) {
                 sb.append("turn ")
             }
-            sb.append(sections.first().toString(direction, includeSeverity = true))
-            var currentSeverity = sections.first().severity
-            for (section in sections.drop(1)) {
-                sb.append(' ')
-                val severityChange = currentSeverity.compareTo(section.severity)
+            var directionWritten = false
+            var currentSeverity = sections.first().severityStart
+            for ((idx, section) in sections.withIndex()) {
+                var severityChange = currentSeverity.compareTo(section.severityStart)
                 when {
                     severityChange < 0 -> {
                         sb.append("opens ")
@@ -589,13 +651,35 @@ sealed interface PacenoteItem {
                         sb.append("tightens ")
                     }
                 }
-                sb.append(
-                    section.toString(
-                        null,
-                        includeSeverity = severityChange >= 0 || section.severity < Severity.SIX
-                    )
-                )
-                currentSeverity = section.severity
+                sb.append(section.severityStart)
+                sb.append(' ')
+                if (!directionWritten) {
+                    sb.append(direction)
+                    sb.append(' ')
+                    directionWritten = true
+                }
+                severityChange = section.severityStart.compareTo(section.severityEnd)
+                when {
+                    severityChange < 0 -> {
+                        sb.append("opens ")
+                    }
+
+                    severityChange > 0 -> {
+                        sb.append("tightens ")
+                    }
+                }
+
+                for (mod in section.modifiers) {
+                    sb.append(' ')
+                    sb.append(mod)
+                }
+
+                if (severityChange != 0) {
+                    sb.append(section.severityEnd)
+                    sb.append(' ')
+                }
+
+                currentSeverity = section.severityEnd
             }
             return sb.toString()
         }
