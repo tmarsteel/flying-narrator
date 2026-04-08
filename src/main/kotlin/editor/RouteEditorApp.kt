@@ -18,19 +18,20 @@ class RouteEditorApp {
             } catch (_: Exception) {
             }
 
-            val route =
-                EASportsWRCCleanGhostRouteReader(Paths.get("./easports-wrc-tracks/10.cleanghost.json").readText())
-                    .read()
+            val route = EASportsWRCCleanGhostRouteReader(Paths.get("./easports-wrc-tracks/10.cleanghost.json").readText())
+                .read()
 
             val features = route.trackSegments().detectFeatures()
 
-            val routeComponent = RouteComponent(route, features)
+            val routeComponent = ScrollableRouteComponent(RouteComponent(route, features))
             val window = JFrame()
             window.layout = BorderLayout()
-            window.add(ScrollableRouteComponent(routeComponent), BorderLayout.CENTER)
+            window.add(routeComponent, BorderLayout.CENTER)
             window.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-            window.setSize(1200, 800)
+            window.maximizedBounds
+            window.extendedState = window.extendedState or JFrame.MAXIMIZED_BOTH
             window.isVisible = true
+            Thread.sleep(100);
             routeComponent.fitScaleToSize()
         }
     }

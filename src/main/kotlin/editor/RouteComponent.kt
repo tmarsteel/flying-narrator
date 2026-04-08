@@ -78,12 +78,6 @@ class RouteComponent(
             ceil(routeCoordinateSystem.height).toInt()
         )
 
-    fun fitScaleToSize() {
-        val scaleX = (this.width.toDouble() - paddingPx * 2) / routeCoordinateSystem.width
-        val scaleY = (this.height.toDouble() - paddingPx * 2) / routeCoordinateSystem.height
-        scale = scaleX.coerceAtMost(scaleY)
-    }
-
     var baseImageNeedsRepaint = true
     fun invalidateBaseImage() {
         baseImageNeedsRepaint = true
@@ -95,6 +89,12 @@ class RouteComponent(
 
     override fun getMinimumSize(): Dimension {
         return Dimension(routeCoordinateSystem.baseImageTargetWidthPx, routeCoordinateSystem.baseImageTargetHeightPx)
+    }
+
+    fun fitScaleToSize(targetWidth: Int, targetHeight: Int) {
+        val scaleX = (targetWidth.toDouble() - paddingPx * 2) / routeCoordinateSystem.width
+        val scaleY = (targetHeight.toDouble() - paddingPx * 2) / routeCoordinateSystem.height
+        scale = scaleX.coerceAtMost(scaleY)
     }
 
     private fun computeTrackColor(activeFeature: Feature?): Color = when {

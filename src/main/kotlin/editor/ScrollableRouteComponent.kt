@@ -76,4 +76,8 @@ class ScrollableRouteComponent(
         routeComponent.addMouseMotionListener(_mouseListener)
         routeComponent.addMouseWheelListener(_mouseListener)
     }
+
+    fun fitScaleToSize() {
+        routeComponent.fitScaleToSize(width, height)
+    }
 }
