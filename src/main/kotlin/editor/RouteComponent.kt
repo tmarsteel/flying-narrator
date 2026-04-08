@@ -3,17 +3,27 @@ package io.github.tmarsteel.flyingnarrator.editor
 import io.github.tmarsteel.flyingnarrator.Feature
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.Vector3
+import io.github.tmarsteel.flyingnarrator.compoundRadius
+import io.github.tmarsteel.flyingnarrator.cornerFeatureToPacenoteItem
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
 import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.Point
 import java.awt.RenderingHints
+import java.awt.Shape
+import java.awt.event.MouseEvent
+import java.awt.event.MouseMotionListener
+import java.awt.geom.Area
+import java.awt.geom.Ellipse2D
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
+import javax.swing.JToolTip
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.roundToInt
 
 class RouteComponent(
     val route: Route,
@@ -87,6 +97,7 @@ class RouteComponent(
     }
 
     override fun paintComponent(g: Graphics) {
+        g as Graphics2D
         assureBaseImageIsUpToDate()
 
         g.drawImage(baseImage, 0, 0, null)
@@ -95,9 +106,19 @@ class RouteComponent(
         g.drawLine(10, height - 10, 10 + (100.0 * scale).toInt(), height - 10)
         g.font = g.font.deriveFont(Font.PLAIN, 14.0f)
         g.drawString("100m", 10, height - 10 - (lineThickness * 2.0f).toInt())
+
+        if (hoveredInspectable != null) {
+            g.color = Color(0x8020FF00.toInt(), true)
+            g.fill(hoveredInspectable!!.shape)
+        }
+    }
+
+    override fun paintChildren(g: Graphics?) {
+        super.paintChildren(g)
     }
 
     private lateinit var baseImage: BufferedImage
+    private val inspectables = ArrayList<Inspectable>()
     private fun assureBaseImageIsUpToDate() {
         if (!baseImageNeedsRepaint && this::baseImage.isInitialized) {
             return
@@ -111,6 +132,7 @@ class RouteComponent(
         }
 
         val bgColor = Color.WHITE
+        inspectables.clear()
 
         val startFinishMarkerRadius =
             routeCoordinateSystem.width.coerceAtLeast(routeCoordinateSystem.height) / 25.0 / 3.0
@@ -127,13 +149,34 @@ class RouteComponent(
         var distanceCarry = 0.0
         var distanceSinceLastMarker = 0.0
         var activeFeature: Feature? = null
+        val currentFeaturePoints = ArrayList<Pair<Int, Int>>()
         for (vec in route) {
             carryPoint += vec
-            activeFeature =
-                features.find { distanceCarry in it.startsAtTrackDistance..(it.startsAtTrackDistance + it.length) }
 
             val imageX = routeCoordinateSystem.routeToBaseImageX(carryPoint.x)
             val imageY = routeCoordinateSystem.routeToBaseImageY(carryPoint.y)
+
+            val nextActiveFeature =
+                features.find { distanceCarry in it.startsAtTrackDistance..(it.startsAtTrackDistance + it.length) }
+            if (nextActiveFeature !== activeFeature) {
+                if (activeFeature != null && activeFeature !is Feature.Straight) {
+                    val featureShape: Area = currentFeaturePoints
+                        .asSequence()
+                        .map { (x, y) -> Ellipse2D.Float(x.toFloat() - 5.0f, y.toFloat() - 5.0f, 10.0f, 10.0f) }
+                        .map(::Area)
+                        .reduce { a, b -> a.add(b); a }
+                    inspectables.add(Inspectable(featureShape, activeFeature))
+                }
+                currentFeaturePoints.clear()
+                if (nextActiveFeature != null) {
+                    currentFeaturePoints.add(Pair(prevImageX, prevImageY))
+                }
+            }
+            activeFeature = nextActiveFeature
+            if (activeFeature != null) {
+                currentFeaturePoints.add(Pair(imageX, imageY))
+            }
+
             g.color = computeTrackColor(activeFeature)
             g.drawLine(prevImageX, prevImageY, imageX, imageY)
 
@@ -211,5 +254,70 @@ class RouteComponent(
                 alsoOnChange(value)
             }
         }
+    }
+
+    private var hoveredInspectable: Inspectable? = null
+
+    private inner class Inspectable(
+        val shape: Shape,
+        val feature: Feature,
+    ) {
+        private val toolTip: JToolTip by lazy {
+            val text = StringBuilder()
+            when (feature) {
+                is Feature.Straight -> {
+                    text.append("d=")
+                    text.append(feature.length.toInt())
+                    text.append("m")
+                }
+
+                is Feature.Corner -> {
+                    text.append("<html>Ør=")
+                    text.append(feature.segments.compoundRadius.roundToInt())
+                    text.append("m<br>")
+                    text.append("∠=")
+                    text.append(Math.toDegrees(feature.totalAngle).roundToInt())
+                    text.append("°<br>")
+                    val pacenote = cornerFeatureToPacenoteItem(feature)
+                    text.append(pacenote.toString())
+                    text.append("</html>")
+                }
+            }
+            val shapeBounds = shape.bounds
+
+            JToolTip().apply {
+                isOpaque = true
+                isVisible = true
+                tipText = text.toString()
+                size = preferredSize
+                location = Point(shapeBounds.x + shapeBounds.width / 2, shapeBounds.y + shapeBounds.height / 2 - height)
+            }
+        }
+
+        fun onHoverEnter(e: MouseEvent) {
+            this@RouteComponent.add(toolTip)
+            revalidate()
+        }
+
+        fun onHoverLeave(e: MouseEvent) {
+            this@RouteComponent.remove(toolTip)
+        }
+    }
+
+    init {
+        addMouseMotionListener(object : MouseMotionListener {
+            override fun mouseMoved(e: MouseEvent) {
+                val inspectable = inspectables.find { it.shape.contains(e.point) }
+                if (inspectable === hoveredInspectable) {
+                    return
+                }
+                hoveredInspectable?.onHoverLeave(e)
+                inspectable?.onHoverEnter(e)
+                hoveredInspectable = inspectable
+                repaint()
+            }
+
+            override fun mouseDragged(e: MouseEvent?) {}
+        })
     }
 }

@@ -388,7 +388,7 @@ private fun radiusToSeverity(radius: Double): PacenoteItem.Corner.Severity {
     }
 }
 
-private fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
+fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
     val sections = findCornerSections(corner).map { it.toPacenote() }
     if (corner.totalAngle.absoluteValue in HAIRPIN_TOTAL_ANGLE_RANGE) {
         val minSeverity = sections.minOf { it.severityStart.coerceAtMost(it.severityEnd) }
@@ -616,7 +616,7 @@ private fun <T> Sequence<T>.consecutiveRuns(
     }
 }
 
-private val List<TrackSegment>.compoundRadius: Double
+val List<TrackSegment>.compoundRadius: Double
     get() {
         if (size == 1) {
             return single().radiusToNext
