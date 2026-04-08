@@ -95,3 +95,8 @@ fun <T> List<T>.dropFirstAndLastWhile(predicate: (T) -> Boolean): List<T> {
     val lastIndex = this.indexOfLast { !predicate(it) }
     return this.subList(firstIndex, lastIndex + 1)
 }
+
+fun <A, T> Sequence<T>.foldInto(mutableAcc: A, fold: (A, T) -> Unit): A {
+    forEach { fold(mutableAcc, it) }
+    return mutableAcc
+}

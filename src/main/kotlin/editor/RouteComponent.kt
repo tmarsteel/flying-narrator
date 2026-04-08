@@ -5,6 +5,7 @@ import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.Vector3
 import io.github.tmarsteel.flyingnarrator.compoundRadius
 import io.github.tmarsteel.flyingnarrator.cornerFeatureToPacenoteItem
+import io.github.tmarsteel.flyingnarrator.foldInto
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension
@@ -12,12 +13,11 @@ import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Point
+import java.awt.Polygon
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionListener
-import java.awt.geom.Area
-import java.awt.geom.Ellipse2D
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JToolTip
@@ -162,16 +162,10 @@ class RouteComponent(
             val imageX = routeCoordinateSystem.routeToBaseImageX(carryPoint.x)
             val imageY = routeCoordinateSystem.routeToBaseImageY(carryPoint.y)
 
-            val nextActiveFeature =
-                features.find { distanceCarry in it.startsAtTrackDistance..(it.startsAtTrackDistance + it.length) }
+            val nextActiveFeature = features.find { distanceCarry in it.startsAtTrackDistance..(it.startsAtTrackDistance + it.length) }
             if (nextActiveFeature !== activeFeature) {
                 if (activeFeature != null && activeFeature !is Feature.Straight) {
-                    val featureShape: Area = currentFeaturePoints
-                        .asSequence()
-                        .map { (x, y) -> Ellipse2D.Float(x.toFloat() - 5.0f, y.toFloat() - 5.0f, 10.0f, 10.0f) }
-                        .map(::Area)
-                        .reduce { a, b -> a.add(b); a }
-                    inspectables.add(Inspectable(featureShape, activeFeature))
+                    inspectables.add(Inspectable(featurePointsToShape(currentFeaturePoints), activeFeature))
                 }
                 currentFeaturePoints.clear()
                 if (nextActiveFeature != null) {
@@ -228,6 +222,54 @@ class RouteComponent(
 
         g.dispose()
         baseImageNeedsRepaint = false
+    }
+
+    private fun featurePointsToShape(points: List<Pair<Int, Int>>): Shape {
+        val pointsOnRouteWithPerpendiculars = points
+            .asSequence()
+            .windowed(size = 2, step = 1, partialWindows = false)
+            .filter { (p1, p2) ->
+                p1 != p2
+            }
+            .withIndex()
+            .map { (index, points) ->
+                val (x1, y1) = points[0]
+                val (x2, y2) = points[1]
+                val vecToP1 = Vector3(x1.toDouble(), y1.toDouble(), 0.0)
+                val vecP1P2 = Vector3(x2.toDouble() - vecToP1.x, y2.toDouble() - vecToP1.y, 0.0)
+                val perpendicularVec = vecP1P2.rotate2d90degCounterClockwise().withLength2d(FEATURE_SHAPE_THICKNESS_PX)
+                val endPair = Pair(Vector3(x2.toDouble(), y2.toDouble(), 0.0), perpendicularVec)
+                if (index == 0) {
+                    sequenceOf(
+                        Pair(vecToP1, perpendicularVec),
+                        endPair
+                    )
+                } else {
+                    sequenceOf(endPair)
+                }
+            }
+            .flatten()
+
+        val polyTopPoints = pointsOnRouteWithPerpendiculars
+            .map { (vec, perpendicularVec) ->
+                vec + perpendicularVec
+            }
+
+        val polyBottomPoints = pointsOnRouteWithPerpendiculars
+            .map { (vec, perpendicularVec) ->
+                vec - perpendicularVec
+            }
+            .toList()
+            .asReversed()
+
+        return (polyTopPoints + polyBottomPoints)
+            .foldInto(Pair(IntArrayAccumulator(), IntArrayAccumulator())) { (xs, ys), p ->
+                xs.add(p.x.roundToInt())
+                ys.add(p.y.roundToInt())
+            }
+            .let { (xs, ys) ->
+                Polygon(xs.rawArray, ys.rawArray, xs.size)
+            }
     }
 
     fun getRoutePositionFromComponentPosition(componentPosition: Point): Vector3 {
@@ -325,5 +367,9 @@ class RouteComponent(
 
             override fun mouseDragged(e: MouseEvent?) {}
         })
+    }
+
+    companion object {
+        const val FEATURE_SHAPE_THICKNESS_PX = 5.0
     }
 }
