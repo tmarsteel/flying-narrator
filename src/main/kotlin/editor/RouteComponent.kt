@@ -72,6 +72,12 @@ class RouteComponent(
         fun baseImageYToRouteY(imageY: Int) = -(((imageY - paddingPx).toDouble() / scale) - height + offsetY)
     }
 
+    val routeBoundsInRouteCoordinateSpace: Dimension
+        get() = Dimension(
+            ceil(routeCoordinateSystem.width).toInt(),
+            ceil(routeCoordinateSystem.height).toInt()
+        )
+
     fun fitScaleToSize() {
         val scaleX = (this.width.toDouble() - paddingPx * 2) / routeCoordinateSystem.width
         val scaleY = (this.height.toDouble() - paddingPx * 2) / routeCoordinateSystem.height
