@@ -164,7 +164,7 @@ class RouteComponent(
 
             val nextActiveFeature = features.find { distanceCarry in it.startsAtTrackDistance..(it.startsAtTrackDistance + it.length) }
             if (nextActiveFeature !== activeFeature) {
-                if (activeFeature != null && activeFeature !is Feature.Straight) {
+                if (activeFeature != null) {
                     inspectables.add(Inspectable(featurePointsToShape(currentFeaturePoints), activeFeature))
                 }
                 currentFeaturePoints.clear()
