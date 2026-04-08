@@ -339,6 +339,9 @@ class RouteComponent(
                 tipText = text.toString()
                 size = preferredSize
                 location = Point(shapeBounds.x + shapeBounds.width / 2, shapeBounds.y + shapeBounds.height / 2 - height)
+                while (shape.intersects(bounds)) {
+                    location = Point(location.x + 10, location.y + 10)
+                }
             }
         }
 
