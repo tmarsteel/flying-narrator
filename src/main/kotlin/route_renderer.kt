@@ -17,11 +17,12 @@ fun Route.render(
     distanceMarkerColor: Color = Color.RED,
     paddingPxs: Int = 50,
     bgColor: Color = Color.WHITE,
-    trackColor: Color = Color.BLACK,
+    trackColor: (Feature?) -> Color = { _ -> Color.BLACK },
     segmentJointMarkerColor: Color? = Color.RED,
     startMarkerColor: Color = Color.RED,
     finishMarkerColor: Color = Color.GREEN,
     lineThickness: Float = 3.0f,
+    features: Iterable<Feature> = emptyList(),
 ): BufferedImage {
     var minX = Double.POSITIVE_INFINITY
     var maxX = Double.NEGATIVE_INFINITY
@@ -57,18 +58,20 @@ fun Route.render(
     g.color = bgColor
     g.fillRect(0, 0, image.width, image.height)
 
-    g.color = trackColor
     var carryPoint = Vector3.ORIGIN
     var prevImageX = trackToImageX(carryPoint.x)
     var prevImageY = trackToImageY(carryPoint.y)
     var distanceCarry = 0.0
     var distanceSinceLastMarker = 0.0
+    var activeFeature: Feature? = null
     for (vec in this) {
         carryPoint += vec
+        activeFeature =
+            features.find { distanceCarry in it.startsAtTrackDistance..(it.startsAtTrackDistance + it.length) }
 
         val imageX = trackToImageX(carryPoint.x)
         val imageY = trackToImageY(carryPoint.y)
-        g.color = trackColor
+        g.color = trackColor(activeFeature)
         g.drawLine(prevImageX, prevImageY, imageX, imageY)
 
         if (segmentJointMarkerColor != null) {
@@ -111,7 +114,7 @@ fun Route.render(
     val distanceText = String.format("%3.2f km", (distanceCarry / 1000.0))
     g.drawString(distanceText, prevImageX, prevImageY + 10)
 
-    g.color = trackColor
+    g.color = trackColor(null)
     g.drawLine(10, image.height - 10, 10 + (100.0 * scale).toInt(), image.height - 10)
     g.font = g.font.deriveFont(Font.PLAIN, 14.0f)
     g.drawString("100m", 10, image.height - 10 - (lineThickness * 2.0f).toInt())

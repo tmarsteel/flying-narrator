@@ -97,14 +97,13 @@ val HAIRPIN_TOTAL_ANGLE_RANGE = Math.toRadians(135.0)..Math.toRadians(225.0)
  */
 val HAIRPIN_MAX_SEVERITY = PacenoteItem.Corner.Severity.THREE
 
-fun Sequence<TrackSegment>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
-    val features = detectFeatures()
-
+fun Iterable<Feature>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     val pacenoteItems = mutableListOf<Pair<Double, PacenoteItem>>()
-    for (feature in features) {
+    for (feature in this) {
         when (feature) {
             is Feature.Straight -> {
-                val distance = (feature.distance.toInt() / ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF) * ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF
+                val distance =
+                    (feature.length.toInt() / ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF) * ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF
                 val item = when {
                     distance < IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD -> PacenoteItem.ImmediateTransition
                     distance <= STRAIGHT_ELISION_DISTANCE_THRESHOLD -> PacenoteItem.ShortTransition
@@ -328,7 +327,7 @@ fun Sequence<TrackSegment>.detectFeatures(): List<Feature> {
     if (features.size > 1 && features[features.lastIndex] is Feature.Straight && features[features.lastIndex - 1] is Feature.Straight) {
         val s2 = features.removeLast() as Feature.Straight
         val s1 = features.removeLast() as Feature.Straight
-        features.add(Feature.Straight(s1.startsAtTrackDistance, s1.distance + s2.distance))
+        features.add(Feature.Straight(s1.startsAtTrackDistance, s1.length + s2.length))
     }
 
     return features
@@ -337,16 +336,17 @@ fun Sequence<TrackSegment>.detectFeatures(): List<Feature> {
 private fun straightishThresholdDistance(existingCornerRadius: Double): Double {
     return when {
         existingCornerRadius <= 50.0 -> 0.0
-        else -> (((existingCornerRadius.coerceAtMost(100.0) - 50.0).toInt() / 10) * 5).toDouble()
+        else -> ((existingCornerRadius.coerceAtMost(100.0) - 50.0).toInt() / 10) * 2.0
     }
 }
 
 sealed interface Feature {
     val startsAtTrackDistance: Double
+    val length: Double
 
     data class Straight(
         override val startsAtTrackDistance: Double,
-        val distance: Double,
+        override val length: Double,
     ) : Feature
 
     class Corner(
@@ -354,12 +354,12 @@ sealed interface Feature {
         val segments: List<TrackSegment>,
     ) : Feature {
         val totalAngle: Double = segments.sumOf { it.angleToNext }
-        val totalDistance: Double by lazy { segments.sumOf { it.arcLength } }
+        override val length: Double by lazy { segments.sumOf { it.arcLength } }
 
         val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
 
         override fun toString(): String {
-            return "Corner(totalAngle=$totalAngle, totalDistance=$totalDistance, direction=$direction)"
+            return "Corner(totalAngle=$totalAngle, totalDistance=$length, direction=$direction)"
         }
 
         enum class Direction {
@@ -406,7 +406,7 @@ private fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
 private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     val significantSegments = corner.segments
 
-    if (corner.totalDistance <= CORNER_SECTION_MIN_LENGTH) {
+    if (corner.length <= CORNER_SECTION_MIN_LENGTH) {
         return listOf(TmpCornerSection.steadyCurvature(significantSegments))
     }
 
@@ -422,7 +422,7 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
         val preceedingDistance = significantSegments.subList(0, startsAtIndex).sumOf { it.arcLength }
         val isHead = preceedingDistance < CORNER_SECTION_MIN_LENGTH
         val tightens = section.map { it.dRadius }.average().sign < 0
-        val lengthProportion = section.sumOf { it.length } / corner.totalDistance
+        val lengthProportion = section.sumOf { it.length } / corner.length
         if (isHead && tightens && lengthProportion <= CORNER_HEAD_ELISION_THRESHOLD) {
             openingOrClosingSections.removeFirst()
         }
@@ -432,7 +432,7 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
             significantSegments.subList(startsAtIndex + section.size, significantSegments.size).sumOf { it.arcLength }
         val isTail = trailingDistance < CORNER_SECTION_MIN_LENGTH
         val opens = section.map { it.dRadius }.average().sign > 0
-        val lengthProportion = section.sumOf { it.length } / corner.totalDistance
+        val lengthProportion = section.sumOf { it.length } / corner.length
         if (isTail && opens && lengthProportion <= CORNER_TAIL_ELISION_THRESHOLD) {
             openingOrClosingSections.removeFirst()
         }

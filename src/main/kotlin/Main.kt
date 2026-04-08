@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.easportswrc.EASportsWRCCleanGhostRouteReader
+import java.awt.Color
 import java.io.File
 import java.nio.file.Paths
 import javax.imageio.ImageIO
@@ -12,15 +13,24 @@ fun main(args: Array<String>) {
         .read()
         .trackSegments()
 
+    val features = route.detectFeatures()
+
     ImageIO.write(
         route.map { it.roadSegment }.toList().render(
             scale = 1.0,
             segmentJointMarkerColor = null,
-            distanceMarkersEveryMeters = 50.0,
+            distanceMarkersEveryMeters = 200.0,
+            features = features,
+            trackColor = { f ->
+                when (f) {
+                    is Feature.Corner -> Color.ORANGE
+                    else -> Color.BLACK
+                }
+            }
         ), "png", File("stage.png")
     )
 
-    route.derivePacenotes().forEach { (d, i)  ->
+    features.derivePacenotes().forEach { (d, i) ->
         println("${d.roundToInt()}m: $i")
     }
 }
