@@ -193,9 +193,8 @@ class RouteComponent(
             distanceSinceLastMarker += vec.length()
             if (distanceSinceLastMarker >= distanceMarkersEveryMeters) {
                 distanceSinceLastMarker = 0.0
-                val distanceText = String.format("  %3.2f km", (distanceCarry / 1000.0))
                 g.color = distanceMarkerColor
-                g.drawString(distanceText, imageX, imageY + 10)
+                g.drawString(distanceToString(distanceCarry), imageX + 30, imageY + 10)
             }
             prevImageX = imageX
             prevImageY = imageY
@@ -222,6 +221,10 @@ class RouteComponent(
 
         g.dispose()
         baseImageNeedsRepaint = false
+    }
+
+    private fun distanceToString(distance: Double): String {
+        return String.format("%3.2f km", (distance / 1000.0))
     }
 
     private fun featurePointsToShape(points: List<Pair<Int, Int>>): Shape {
@@ -312,6 +315,7 @@ class RouteComponent(
     ) {
         private val toolTip: JToolTip by lazy {
             val text = StringBuilder()
+            text.append("<html>")
             when (feature) {
                 is Feature.Straight -> {
                     text.append("d=")
@@ -320,7 +324,7 @@ class RouteComponent(
                 }
 
                 is Feature.Corner -> {
-                    text.append("<html>Ør=")
+                    text.append("Ør=")
                     text.append(feature.segments.compoundRadius.roundToInt())
                     text.append("m<br>")
                     text.append("∠=")
@@ -328,9 +332,12 @@ class RouteComponent(
                     text.append("°<br>")
                     val pacenote = cornerFeatureToPacenoteItem(feature)
                     text.append(pacenote.toString())
-                    text.append("</html>")
                 }
             }
+            text.append("<br>")
+            text.append("@")
+            text.append(distanceToString(feature.startsAtTrackDistance))
+            text.append("</html>")
             val shapeBounds = shape.bounds
 
             JToolTip().apply {
