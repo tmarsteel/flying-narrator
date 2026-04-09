@@ -115,7 +115,7 @@ class RouteComponent(
 
         if (hoveredInspectable != null) {
             g.color = Color(0x8020FF00.toInt(), true)
-            g.fill(hoveredInspectable!!.shape)
+            g.fill(hoveredInspectable!!.displayShape)
         }
     }
 
@@ -165,7 +165,11 @@ class RouteComponent(
             val nextActiveFeature = features.find { distanceCarry in it.startsAtTrackDistance..(it.startsAtTrackDistance + it.length) }
             if (nextActiveFeature !== activeFeature) {
                 if (activeFeature != null) {
-                    inspectables.add(Inspectable(featurePointsToShape(currentFeaturePoints), activeFeature))
+                    inspectables.add(Inspectable(
+                        featurePointsToShape(currentFeaturePoints, FEATURE_HOVER_SHAPE_THICKNESS_PX),
+                        featurePointsToShape(currentFeaturePoints, FEATURE_DISPLAY_SHAPE_THICKNESS_PX),
+                        activeFeature
+                    ))
                 }
                 currentFeaturePoints.clear()
                 if (nextActiveFeature != null) {
@@ -227,7 +231,7 @@ class RouteComponent(
         return String.format("%3.2f km", (distance / 1000.0))
     }
 
-    private fun featurePointsToShape(points: List<Pair<Int, Int>>): Shape {
+    private fun featurePointsToShape(points: List<Pair<Int, Int>>, thicknessPx: Double): Shape {
         val pointsOnRouteWithPerpendiculars = points
             .asSequence()
             .windowed(size = 2, step = 1, partialWindows = false)
@@ -240,7 +244,7 @@ class RouteComponent(
                 val (x2, y2) = points[1]
                 val vecToP1 = Vector3(x1.toDouble(), y1.toDouble(), 0.0)
                 val vecP1P2 = Vector3(x2.toDouble() - vecToP1.x, y2.toDouble() - vecToP1.y, 0.0)
-                val perpendicularVec = vecP1P2.rotate2d90degCounterClockwise().withLength2d(FEATURE_SHAPE_THICKNESS_PX)
+                val perpendicularVec = vecP1P2.rotate2d90degCounterClockwise().withLength2d(thicknessPx)
                 val endPair = Pair(Vector3(x2.toDouble(), y2.toDouble(), 0.0), perpendicularVec)
                 if (index == 0) {
                     sequenceOf(
@@ -310,7 +314,8 @@ class RouteComponent(
     private var hoveredInspectable: Inspectable? = null
 
     private inner class Inspectable(
-        val shape: Shape,
+        val hoverShape: Shape,
+        val displayShape: Shape,
         val feature: Feature,
     ) {
         private val toolTip: JToolTip by lazy {
@@ -338,7 +343,7 @@ class RouteComponent(
             text.append("@")
             text.append(distanceToString(feature.startsAtTrackDistance))
             text.append("</html>")
-            val shapeBounds = shape.bounds
+            val shapeBounds = displayShape.bounds
 
             JToolTip().apply {
                 isOpaque = true
@@ -346,7 +351,7 @@ class RouteComponent(
                 tipText = text.toString()
                 size = preferredSize
                 location = Point(shapeBounds.x + shapeBounds.width / 2, shapeBounds.y + shapeBounds.height / 2 - height)
-                while (shape.intersects(bounds)) {
+                while (displayShape.intersects(bounds)) {
                     location = Point(location.x + 10, location.y + 10)
                 }
             }
@@ -365,7 +370,7 @@ class RouteComponent(
     init {
         addMouseMotionListener(object : MouseMotionListener {
             override fun mouseMoved(e: MouseEvent) {
-                val inspectable = inspectables.find { it.shape.contains(e.point) }
+                val inspectable = inspectables.find { it.hoverShape.contains(e.point) }
                 if (inspectable === hoveredInspectable) {
                     return
                 }
@@ -380,6 +385,7 @@ class RouteComponent(
     }
 
     companion object {
-        const val FEATURE_SHAPE_THICKNESS_PX = 5.0
+        const val FEATURE_HOVER_SHAPE_THICKNESS_PX = 20.0
+        const val FEATURE_DISPLAY_SHAPE_THICKNESS_PX = 6.0
     }
 }
