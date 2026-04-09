@@ -6,8 +6,10 @@ import io.github.tmarsteel.flyingnarrator.trackSegments
 import java.awt.BorderLayout
 import java.nio.file.Paths
 import javax.swing.JFrame
+import javax.swing.JOptionPane
 import javax.swing.UIManager
 import kotlin.io.path.readText
+import kotlin.system.exitProcess
 
 class RouteEditorApp {
     companion object {
@@ -18,7 +20,13 @@ class RouteEditorApp {
             } catch (_: Exception) {
             }
 
-            val route = EASportsWRCCleanGhostRouteReader(Paths.get("./easports-wrc-tracks/10.cleanghost.json").readText())
+            val inputFilePath = args.firstOrNull() ?: run {
+                println("Usage: RouteEditorApp <input-file>")
+                JOptionPane.showMessageDialog(null, "Provide an input file as CLI argument", "Error", JOptionPane.ERROR_MESSAGE)
+                exitProcess(1)
+            }
+
+            val route = EASportsWRCCleanGhostRouteReader(Paths.get(inputFilePath).readText())
                 .read()
 
             val features = route.trackSegments().detectFeatures()
