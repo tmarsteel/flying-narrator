@@ -100,3 +100,26 @@ fun <A, T> Sequence<T>.foldInto(mutableAcc: A, fold: (A, T) -> Unit): A {
     forEach { fold(mutableAcc, it) }
     return mutableAcc
 }
+
+fun <T> List<T>.windowsWhere(
+    overlapping: Boolean = true,
+    yieldCopies: Boolean = false,
+    predicate: (windowCandidate: Iterable<T>) -> Boolean,
+) : Sequence<List<T>> {
+    return sequence {
+        val queue = ArrayDeque<T>()
+        val iterator = this@windowsWhere.iterator()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            queue.addLast(next)
+            if (predicate(queue)) {
+                yield(if (yieldCopies) queue.toList() else queue)
+                if (overlapping) {
+                    queue.removeFirst()
+                } else {
+                    queue.clear()
+                }
+            }
+        }
+    }
+}
