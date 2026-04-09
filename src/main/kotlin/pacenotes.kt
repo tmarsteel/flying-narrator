@@ -68,7 +68,7 @@ const val CORNER_RADIUS_AVERAGE_WINDOW_SIZE = 7.5
 /**
  * [TrackSegment.severity] absolute less than this is considered straight
  */
-const val CORNER_SEVERITY_THRESHOLD = 0.075
+const val CORNER_SEVERITY_THRESHOLD = 0.01
 
 /**
  * High-radius sections at the start of a corner can be elided if they occopy less than this percentage of
@@ -97,8 +97,7 @@ fun Iterable<Feature>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     for (feature in this) {
         when (feature) {
             is Feature.Straight -> {
-                val distance =
-                    (feature.length.toInt() / ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF) * ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF
+                val distance = (feature.length.toInt() / ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF) * ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF
                 val item = when {
                     distance < IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD -> PacenoteItem.ImmediateTransition
                     distance <= STRAIGHT_ELISION_DISTANCE_THRESHOLD -> PacenoteItem.ShortTransition
