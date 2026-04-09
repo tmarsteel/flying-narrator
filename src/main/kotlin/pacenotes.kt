@@ -68,7 +68,7 @@ const val CORNER_RADIUS_AVERAGE_WINDOW_SIZE = 7.5
 /**
  * [TrackSegment.severity] absolute less than this is considered straight
  */
-const val CORNER_SEVERITY_THRESHOLD = 0.01
+const val CORNER_SEVERITY_THRESHOLD = Double.MIN_VALUE
 
 /**
  * High-radius sections at the start of a corner can be elided if they occopy less than this percentage of
