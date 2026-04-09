@@ -181,8 +181,12 @@ class RouteComponent(
                 currentFeaturePoints.add(Pair(imageX, imageY))
             }
 
-            g.color = computeTrackColor(activeFeature)
-            g.drawLine(prevImageX, prevImageY, imageX, imageY)
+            val lineLength = Vector3(prevImageX.toDouble() - imageX.toDouble(), prevImageY.toDouble() - imageY.toDouble(), 0.0).length2d
+            val drawThisLine = lineLength > (lineThickness * 1.75)
+            if (drawThisLine) {
+                g.color = computeTrackColor(activeFeature)
+                g.drawLine(prevImageX, prevImageY, imageX, imageY)
+            }
 
             if (segmentJointMarkerColor != null) {
                 g.color = segmentJointMarkerColor
@@ -200,8 +204,11 @@ class RouteComponent(
                 g.color = distanceMarkerColor
                 g.drawString(distanceToString(distanceCarry), imageX + 30, imageY + 10)
             }
-            prevImageX = imageX
-            prevImageY = imageY
+
+            if (drawThisLine) {
+                prevImageX = imageX
+                prevImageY = imageY
+            }
         }
 
         g.color = startMarkerColor
