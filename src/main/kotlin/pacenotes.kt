@@ -294,7 +294,7 @@ fun List<TrackSegment>.detectFeatures(): List<Feature> {
         val preLast = features[features.lastIndex - 1]
         if (last is Feature.Straight && preLast is Feature.Straight) {
             features.removeLast()
-            features.add(Feature.Straight(preLast.startsAtTrackDistance, preLast.length + last.length))
+            features.add(Feature.Straight(preLast.startsAtTrackDistance, preLast.length + last.length, preLast.angleFirstToLast + last.angleFirstToLast))
         } else if (last is Feature.Corner && preLast is Feature.Corner) {
             features.removeLast()
             features.add(Feature.Corner(preLast.segments + last.segments))
@@ -409,10 +409,12 @@ sealed interface Feature {
     data class Straight(
         override val startsAtTrackDistance: Double,
         override val length: Double,
+        val angleFirstToLast: Double,
     ) : Feature {
         constructor(segments: List<TrackSegment>) : this(
             segments.first().startsAtDistance,
             segments.sumOf { it.arcLength },
+            segments.first().roadSegment.angleTo(segments.last().roadSegment),
         )
     }
 

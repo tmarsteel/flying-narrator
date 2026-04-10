@@ -333,6 +333,10 @@ class RouteComponent(
                     text.append("d=")
                     text.append(feature.length.toInt())
                     text.append("m")
+                    text.append("<br>")
+                    text.append("∠=")
+                    text.append(Math.toDegrees(feature.angleFirstToLast).roundToInt())
+                    text.append("°")
                 }
 
                 is Feature.Corner -> {
