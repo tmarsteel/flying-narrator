@@ -289,19 +289,12 @@ fun List<TrackSegment>.detectFeatures(): List<Feature> {
         state.finish(buffer, features)
     }
 
-    if (features.size > 1) {
-        val last = features[features.lastIndex]
-        val preLast = features[features.lastIndex - 1]
-        if (last is Feature.Straight && preLast is Feature.Straight) {
-            features.removeLast()
-            features.add(Feature.Straight(preLast.startsAtTrackDistance, preLast.length + last.length, preLast.angleFirstToLast + last.angleFirstToLast))
-        } else if (last is Feature.Corner && preLast is Feature.Corner) {
-            features.removeLast()
-            features.add(Feature.Corner(preLast.segments + last.segments))
-        }
-    }
-
     return features
+        .mergeConsecutiveIf(
+            { a, b -> a.shouldMergeWithSuccessor(b) },
+            { a, b -> a.mergeWithSuccessor(b) },
+        )
+        .toList()
 }
 
 private sealed interface FeatureDetectionState {
@@ -406,6 +399,9 @@ sealed interface Feature {
     val startsAtTrackDistance: Double
     val length: Double
 
+    fun shouldMergeWithSuccessor(successor: Feature): Boolean
+    fun mergeWithSuccessor(successor: Feature): Feature
+
     data class Straight(
         override val startsAtTrackDistance: Double,
         override val length: Double,
@@ -416,6 +412,19 @@ sealed interface Feature {
             segments.sumOf { it.arcLength },
             segments.first().roadSegment.angleTo(segments.last().roadSegment),
         )
+
+        override fun shouldMergeWithSuccessor(successor: Feature): Boolean {
+            return successor is Straight
+        }
+
+        override fun mergeWithSuccessor(successor: Feature): Feature {
+            require(shouldMergeWithSuccessor(successor))
+            return Straight(
+                startsAtTrackDistance = startsAtTrackDistance,
+                length = length + successor.length,
+                angleFirstToLast = angleFirstToLast + (successor as Straight).angleFirstToLast,
+            )
+        }
     }
 
     class Corner(
@@ -426,6 +435,15 @@ sealed interface Feature {
         override val length: Double by lazy { segments.sumOf { it.arcLength } }
 
         val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
+
+        override fun shouldMergeWithSuccessor(successor: Feature): Boolean {
+            return successor is Corner && successor.direction == direction
+        }
+
+        override fun mergeWithSuccessor(successor: Feature): Feature {
+            require(shouldMergeWithSuccessor(successor))
+            return Corner(segments + (successor as Corner).segments)
+        }
 
         override fun toString(): String {
             return "Corner(totalAngle=$totalAngle, totalDistance=$length, direction=$direction)"
