@@ -48,31 +48,31 @@ internal sealed interface FeatureDetectionState {
         ): FeatureDetectionState {
             val straightStartsAtIndex = detectCornerExitToStraight(buffer)
             if (straightStartsAtIndex >= 0) {
-                if (straightStartsAtIndex != 0) {
-                    val cornerSegments = buffer.subList(0, straightStartsAtIndex).toList()
-                    features += Feature.Corner(cornerSegments)
-                    repeat(cornerSegments.size) {
-                        buffer.removeFirst()
-                    }
-                }
-
+                yieldCornerAtIndex(buffer, features, straightStartsAtIndex)
                 return Straight
             }
 
             val cornerDirectionChangesAtIndex = detectCornerDirectionChange(buffer)
             if (cornerDirectionChangesAtIndex >= 0) {
-                if (cornerDirectionChangesAtIndex != 0) {
-                    val cornerSegments = buffer.subList(0, cornerDirectionChangesAtIndex).toList()
-                    features += Feature.Corner(cornerSegments)
-                    repeat(cornerSegments.size) {
-                        buffer.removeFirst()
-                    }
-                }
-
+                yieldCornerAtIndex(buffer, features, cornerDirectionChangesAtIndex)
                 return Corner(-severitySign)
             }
 
             return this
+        }
+
+        private fun yieldCornerAtIndex(buffer: ArrayDeque<TrackSegment>, features: MutableList<Feature>, index: Int) {
+            if (index != 0) {
+                val cornerSegments = buffer.subList(0, index).toList()
+                features.add(
+                    Feature.Corner(cornerSegments)
+                        .takeUnless(this::shouldElide)
+                        ?: Feature.Straight(cornerSegments)
+                )
+                repeat(cornerSegments.size) {
+                    buffer.removeFirst()
+                }
+            }
         }
 
         override fun finish(
@@ -89,6 +89,14 @@ internal sealed interface FeatureDetectionState {
 
         private fun detectCornerDirectionChange(buffer: ArrayDeque<TrackSegment>): Int {
             return buffer.indexOfLast { it.turnyness.sign == -severitySign }
+        }
+
+        private fun shouldElide(feature: Feature.Corner): Boolean {
+            if (feature.segments.compoundRadius > 200.0 && feature.length < 50.0) {
+                return true
+            }
+
+            return false
         }
     }
 }
