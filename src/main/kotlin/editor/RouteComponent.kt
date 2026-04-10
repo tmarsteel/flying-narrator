@@ -1,10 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
-import io.github.tmarsteel.flyingnarrator.Feature
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.Vector3
-import io.github.tmarsteel.flyingnarrator.compoundRadius
 import io.github.tmarsteel.flyingnarrator.cornerFeatureToPacenoteItem
+import io.github.tmarsteel.flyingnarrator.feature.Feature
+import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
 import io.github.tmarsteel.flyingnarrator.foldInto
 import java.awt.BasicStroke
 import java.awt.Color

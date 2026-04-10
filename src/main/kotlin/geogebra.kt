@@ -1,15 +1,8 @@
 package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.DropLastSequence.Companion.dropLast
-import java.awt.BasicStroke
-import java.awt.Color
-import java.awt.Font
-import java.awt.Graphics2D
-import java.awt.RenderingHints
-import java.awt.image.BufferedImage
+import io.github.tmarsteel.flyingnarrator.feature.TrackSegment
 import java.util.stream.IntStream
-import kotlin.math.ceil
-import kotlin.math.floor
 
 fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
     fun pointName(index: Int) = index

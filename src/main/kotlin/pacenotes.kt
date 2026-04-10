@@ -1,26 +1,16 @@
 package io.github.tmarsteel.flyingnarrator
 
-import io.github.tmarsteel.flyingnarrator.RepeatFirstAndLastSequence.Companion.repeatFirstAndLast
+import io.github.tmarsteel.flyingnarrator.feature.Feature
+import io.github.tmarsteel.flyingnarrator.feature.TrackSegment
+import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
 import kotlin.math.absoluteValue
-import kotlin.math.pow
 import kotlin.math.sign
-import kotlin.math.withSign
 
 /**
  * Straight distances are rounded to _the next lower_ multiple of this value. E.g., `10` for 80, 90, 100, 110, 120.
  * Given `10`, `89` is reported as `80`; given `5`, `89` is reported as `85`.
  */
 const val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
-
-/**
- * The [TrackSegment.radiusToNext] is capped to this value
- */
-const val MAX_REPORTED_RADIUS = 750.0
-
-/**
- * The minimum [compoundRadius] for a part of the route to be considered a straight section
- */
-const val STRAIGHTISH_MIN_RADIUS = 400.0
 
 /**
  * Straight sections with a length equal to or less than this (after rounding) value will be elided:
@@ -58,29 +48,6 @@ val SQUARE_CORNER_TOTAL_ANGLE_RANGE = Math.toRadians(80.0)..Math.toRadians(110.0
  * corner sections have to be at least this long to be called out separately
  */
 const val CORNER_SECTION_MIN_LENGTH = 35.0
-
-/**
- * The radii measured throughout a corner will be average across a distance of [CORNER_RADIUS_AVERAGE_WINDOW_SIZE]
- * meters before analyzing for severities
- */
-const val CORNER_RADIUS_AVERAGE_WINDOW_SIZE = 7.5
-
-/**
- * [TrackSegment.severity] absolute less than this is considered straight
- */
-const val CORNER_SEVERITY_THRESHOLD = Double.MIN_VALUE
-
-/**
- * Corner extension will extend corners so that the angle between the corner exit and the following corner entry
- * is this or less.
- */
-val CORNER_EXTENSION_STRAIGHTISH_ANGLE: Double = Math.toRadians(2.5)
-
-/**
- * Corner extension will extend corners no further than this amount of meters to make the [CORNER_EXTENSION_STRAIGHTISH_ANGLE]
- * work out.
- */
-const val CORNER_EXTENSION_MAX_DISTANCE = STRAIGHT_ELISION_DISTANCE_THRESHOLD
 
 /**
  * High-radius sections at the start of a corner can be elided if they occupy less than this percentage of
@@ -136,420 +103,6 @@ fun Iterable<Feature>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     return pacenoteItems
 }
 
-data class TrackSegment(
-    val roadSegment: RoadSegment,
-    val startsAtDistance: Double,
-    val radiusToNext: Double,
-    val angleToNext: Double,
-    val arcLength: Double,
-) {
-    var severitySet: Boolean = false
-        private set
-    var severity: Double = 0.0
-        get() {
-            check(severitySet) { "severity not set yet" }
-            return field
-        }
-        set(value) {
-            check(!severitySet) { "severity already set" }
-            severitySet = true
-            field = value
-        }
-}
-
-fun Route.trackSegments(): List<TrackSegment> {
-    val segments = sequence {
-        val windows = this@trackSegments
-            .asSequence()
-            .repeatFirstAndLast()
-            .windowed(size = 3, step = 1, partialWindows = false)
-
-        var distanceAlongTrack = 0.0
-        for ((prev, current, next) in windows) {
-            val startsAtDistance = distanceAlongTrack
-            distanceAlongTrack += current.length2d
-
-            var (radius, arcLength) = radiusAndArcLengthOfCorner(prev, current, next)
-            radius = radius.coerceAtMost(MAX_REPORTED_RADIUS)
-            val angle = current.angleTo(next)
-            yield(TrackSegment(current, startsAtDistance, radius, angle, arcLength))
-        }
-    }.toList()
-
-    segments
-        .windowsWhere { it.sumOf { it.arcLength } >= CORNER_RADIUS_AVERAGE_WINDOW_SIZE }
-        .forEach { avgWindow ->
-            val windowLength = avgWindow.sumOf { it.arcLength }
-            val exactWindowCenterDistance = avgWindow.first().startsAtDistance + windowLength / 2.0
-            val windowCenterSegment = avgWindow.minBy { (it.startsAtDistance - exactWindowCenterDistance).absoluteValue }
-            if (windowCenterSegment.severitySet) {
-                return@forEach
-            }
-            val windowRadius = avgWindow.sumOf { it.radiusToNext * it.arcLength } / windowLength
-            val windowAngle = avgWindow.sumOf { it.angleToNext }
-            windowCenterSegment.severity = ((STRAIGHTISH_MIN_RADIUS - windowRadius.coerceAtMost(STRAIGHTISH_MIN_RADIUS)) / STRAIGHTISH_MIN_RADIUS)
-                .pow(3.0)
-                .withSign(windowAngle)
-        }
-
-    segments.asSequence()
-        .consecutiveRuns { !it.severitySet }
-        .forEach { (runStartIdx, segmentsWithoutSeverity) ->
-            val severityStart = if (runStartIdx == 0) 0.0 else segments[runStartIdx - 1].severity
-            val severityEnd = if (runStartIdx + segmentsWithoutSeverity.size == segments.size) 0.0 else segments[runStartIdx + segmentsWithoutSeverity.size].severity
-            val severityStep = (severityEnd - severityStart) / (segmentsWithoutSeverity.size + 1)
-            // TODO: change the severity proportional to the arcLength
-            var currentSeverity = severityStart + severityStep
-            for (segment in segmentsWithoutSeverity) {
-                segment.severity = currentSeverity
-                currentSeverity += severityStep
-            }
-        }
-
-    return segments
-}
-
-/**
- * Constructs a circle that passes through [previous] and `previous + current` with the constraint
- * that [next] is tangential to the circle at the location `previous + current`.
- * @return the radius of a curved road around [current] described by the given vectors.
- */
-private fun radiusAndArcLengthOfCorner(previous: Vector3, current: Vector3, next: Vector3): Pair<Double, Double> {
-    val radial1 = MLine(previous, previous.angleBisectorWith(current))
-    val radial2 = MLine(previous + current, current.angleBisectorWith(next))
-    val center = radial1.intersect2d(radial2) ?: return Pair(Double.POSITIVE_INFINITY, current.length2d)
-    val centerToBeginOfCurrent = (previous - center)
-    val centerToEndOfCurrent = ((previous + current) - center)
-    val cornerRadius = centerToEndOfCurrent.length2d
-    val circleSectionAngle = centerToBeginOfCurrent.angleTo(centerToEndOfCurrent).absoluteValue
-    val arcLength = cornerRadius * circleSectionAngle
-    return Pair(cornerRadius, arcLength)
-}
-
-private fun Vector3.angleBisectorWith(bent: Vector3): Vector3 {
-    val halfAngle = this.angleTo(-bent) / 2.0
-    val rotated = this.rotate2dCounterClockwise(-halfAngle)
-    return rotated
-}
-
-/**
- * A line defined by a vector from origin to one point on the line
- * and a vector defining the direction of the line.
- */
-private class MLine(
-    val somePoint: Vector3,
-    val direction: Vector3,
-) {
-    /**
-     * Treats this as a two-dimensional line defined by [Vector3.x] and [Vector3.y] and returns the point of intersection
-     * between `this` and [other].
-     * @return the intersection point (in [Vector3.x] and [Vector3.y] with [Vector3.z] being `0`),
-     *         or `null` in case the lines are parallel or identical.
-     */
-    fun intersect2d(other: MLine): Vector3? {
-        val cgMinusFj = other.direction.x * this.direction.y - this.direction.x * other.direction.y
-        if (cgMinusFj == 0.0) {
-            // parallel or identical
-            return null
-        }
-
-        val nForOther = (-this.somePoint.y * this.direction.x - other.somePoint.x * this.direction.y + this.somePoint.x * this.direction.y + this.direction.x * other.somePoint.y) / cgMinusFj
-        val intersectionPoint = other.getPoint(nForOther)
-        if (!this.contains2d(intersectionPoint)) {
-            return null
-        }
-
-        return intersectionPoint
-    }
-
-    /**
-     * @return a point on this line, computed by [somePoint] + [n] * [direction].
-     */
-    fun getPoint(n: Double): Vector3 {
-        return somePoint + direction * n
-    }
-
-    /**
-     * @return whether [point] is on `this`, disregarding [direction].
-     */
-    fun contains2d(point: Vector3, tolerance: Double = 0.00001): Boolean {
-        if (this.direction.x == 0.0) {
-            return point.x == this.somePoint.x
-        }
-
-        if (this.direction.y == 0.0) {
-            return point.y == this.somePoint.y
-        }
-
-        val factorForX = (point.x - this.somePoint.x) / this.direction.x
-        val factorForY = (point.y - this.somePoint.y) / this.direction.y
-        val amountOff = (factorForX - factorForY).absoluteValue / direction.length2d
-        return amountOff <= tolerance
-    }
-}
-
-fun List<TrackSegment>.detectFeatures(): List<Feature> {
-    val buffer = ArrayDeque<TrackSegment>()
-    val features = mutableListOf<Feature>()
-    var state: FeatureDetectionState = FeatureDetectionState.Straight
-    for (segment in this) {
-        buffer.add(segment)
-        state = state.process(buffer, features)
-    }
-
-    if (buffer.isNotEmpty()) {
-        state.finish(buffer, features)
-    }
-
-    val mergedFeatures = features
-        .mergeConsecutiveIf(
-            { a, b -> a.shouldMergeWithSuccessor(b) },
-            { a, b -> a.mergeWithSuccessor(b) },
-        )
-        .toMutableList()
-
-    extendCornersInPlace(mergedFeatures)
-
-    return mergedFeatures
-}
-
-private fun extendCornersInPlace(features: MutableList<Feature>) {
-    for (startIx in 0..features.size - 3) {
-        extendCornersInPlaceOnSingleTransition(features.subList(startIx, startIx + 3))
-    }
-}
-
-private fun extendCornersInPlaceOnSingleTransition(features: MutableList<Feature>): Boolean {
-    require(features.size == 3)
-    val (startCorner, straight, endCorner) = features.takeLast(3)
-    if (startCorner !is Feature.Corner || straight !is Feature.Straight || endCorner !is Feature.Corner) {
-        return false
-    }
-    val extendableSegments = listOf(startCorner.segments.last()) + straight.segments + listOf(endCorner.segments.first())
-    var startExtendSegments = 0
-    var startExtendDistanceCarry = 0.0
-    var endExtendSegments = 0
-    var endExtendDistanceCarry = 0.0
-    var minObservedAngle: Triple<Double, Int, Int>? = null
-    while (startExtendSegments + endExtendSegments < extendableSegments.size) {
-        val startCornerEndSegment = extendableSegments[startExtendSegments]
-        val endCornerStartSegment = extendableSegments[extendableSegments.lastIndex - endExtendSegments]
-        val cornerToCornerAngle = startCornerEndSegment.roadSegment.angleTo(endCornerStartSegment.roadSegment)
-            .absoluteValue
-        if (minObservedAngle == null || minObservedAngle.first > cornerToCornerAngle) {
-            minObservedAngle = Triple(cornerToCornerAngle, startExtendSegments, endExtendSegments)
-        }
-        if (cornerToCornerAngle < CORNER_EXTENSION_STRAIGHTISH_ANGLE) {
-            // that's as straight as we want it
-            break
-        }
-
-        val startExtensionCandidate = extendableSegments[startExtendSegments + 1]
-        val endExtensionCandidate = extendableSegments[extendableSegments.lastIndex - endExtendSegments - 1]
-        val canExtendStart = startExtendDistanceCarry + startExtensionCandidate.arcLength < CORNER_EXTENSION_MAX_DISTANCE
-        val canExtendEnd = endExtendDistanceCarry + endExtensionCandidate.arcLength < CORNER_EXTENSION_MAX_DISTANCE
-        when {
-            canExtendStart && canExtendEnd -> {
-                if (startExtendDistanceCarry + startExtensionCandidate.arcLength < endExtendDistanceCarry + endExtensionCandidate.arcLength) {
-                    startExtendSegments++
-                    startExtendDistanceCarry += startExtensionCandidate.arcLength
-                } else {
-                    endExtendSegments++
-                    endExtendDistanceCarry += endExtensionCandidate.arcLength
-                }
-            }
-            canExtendStart -> {
-                startExtendSegments++
-                startExtendDistanceCarry += startExtensionCandidate.arcLength
-            }
-            canExtendEnd -> {
-                endExtendSegments++
-                endExtendDistanceCarry += endExtensionCandidate.arcLength
-            }
-            else -> break
-        }
-    }
-
-    startExtendSegments = minObservedAngle?.second ?: 0
-    endExtendSegments = minObservedAngle?.third ?: 0
-    if (startExtendSegments == 0 && endExtendSegments == 0) {
-        // good as-is
-        return false
-    }
-
-    val newStart = if (startExtendSegments == 0) startCorner else {
-        Feature.Corner(startCorner.segments + extendableSegments.subList(1, startExtendSegments + 1))
-    }
-    val newStraight = Feature.Straight(extendableSegments.subList(startExtendSegments + 1, extendableSegments.size - endExtendSegments - 1))
-    val newEnd = if (endExtendSegments == 0) endCorner else {
-        Feature.Corner(extendableSegments.subList(extendableSegments.lastIndex - endExtendSegments - 1, extendableSegments.size - 2) + endCorner.segments)
-    }
-    check(startCorner.segments.size + straight.segments.size + endCorner.segments.size == newStart.segments.size + newStraight.segments.size + newEnd.segments.size)  {
-        "buggy code :("
-    }
-
-    features[0] = newStart
-    features[1] = newStraight
-    features[2] = newEnd
-    return true
-}
-
-private sealed interface FeatureDetectionState {
-    fun process(buffer: ArrayDeque<TrackSegment>, features: MutableList<Feature>): FeatureDetectionState
-    fun finish(buffer: ArrayDeque<TrackSegment>, features: MutableList<Feature>)
-
-    object Straight : FeatureDetectionState {
-        override fun process(
-            buffer: ArrayDeque<TrackSegment>,
-            features: MutableList<Feature>
-        ): FeatureDetectionState {
-            val cornerEntryIdx = detectCornerEntry(buffer)
-            if (cornerEntryIdx < 0) {
-                return this
-            }
-
-            if (cornerEntryIdx != 0) {
-                val straightSegments = buffer.subList(0, cornerEntryIdx).toList()
-                features += Feature.Straight(straightSegments)
-                repeat(straightSegments.size) {
-                    buffer.removeFirst()
-                }
-            }
-
-            return Corner(buffer.first().severity.sign)
-        }
-
-        private fun detectCornerEntry(buffer: ArrayDeque<TrackSegment>): Int {
-            return buffer.indexOfLast { it.severity.absoluteValue >= CORNER_SEVERITY_THRESHOLD }
-        }
-
-        override fun finish(
-            buffer: ArrayDeque<TrackSegment>,
-            features: MutableList<Feature>
-        ) {
-            features += Feature.Straight(buffer.toList())
-            buffer.clear()
-        }
-    }
-
-    class Corner(val severitySign: Double) : FeatureDetectionState {
-        override fun process(
-            buffer: ArrayDeque<TrackSegment>,
-            features: MutableList<Feature>
-        ): FeatureDetectionState {
-            val straightStartsAtIndex = detectCornerExitToStraight(buffer)
-            if (straightStartsAtIndex >= 0) {
-                if (straightStartsAtIndex != 0) {
-                    val cornerSegments = buffer.subList(0, straightStartsAtIndex).toList()
-                    features += Feature.Corner(cornerSegments)
-                    repeat(cornerSegments.size) {
-                        buffer.removeFirst()
-                    }
-                }
-
-                return Straight
-            }
-
-            val cornerDirectionChangesAtIndex = detectCornerDirectionChange(buffer)
-            if (cornerDirectionChangesAtIndex >= 0) {
-                if (cornerDirectionChangesAtIndex != 0) {
-                    val cornerSegments = buffer.subList(0, cornerDirectionChangesAtIndex).toList()
-                    features += Feature.Corner(cornerSegments)
-                    repeat(cornerSegments.size) {
-                        buffer.removeFirst()
-                    }
-                }
-
-                return Corner(-severitySign)
-            }
-
-            return this
-        }
-
-        override fun finish(
-            buffer: ArrayDeque<TrackSegment>,
-            features: MutableList<Feature>
-        ) {
-            features += Feature.Corner(buffer.toList())
-            buffer.clear()
-        }
-
-        private fun detectCornerExitToStraight(buffer: ArrayDeque<TrackSegment>): Int {
-            return buffer.indexOfLast { it.severity.absoluteValue < CORNER_SEVERITY_THRESHOLD }
-        }
-
-        private fun minimumStraightDistanceAfterCorner(compoundRadius: Double): Double {
-            return when {
-                compoundRadius <= 50.0 -> 0.0
-                compoundRadius in 50.0..100.0 -> (compoundRadius - 50.0) * (20.0 / 50.0)
-                else -> ((compoundRadius - 100.0) / 5.0).coerceAtMost(50.0)
-            }
-        }
-
-        private fun detectCornerDirectionChange(buffer: ArrayDeque<TrackSegment>): Int {
-            return buffer.indexOfLast { it.severity.sign == -severitySign }
-        }
-    }
-}
-
-sealed interface Feature {
-    val startsAtTrackDistance: Double
-    val length: Double
-
-    fun shouldMergeWithSuccessor(successor: Feature): Boolean
-    fun mergeWithSuccessor(successor: Feature): Feature
-
-    data class Straight(
-        val segments: List<TrackSegment>,
-    ) : Feature {
-        override val startsAtTrackDistance: Double = segments.first().startsAtDistance
-        override val length: Double = segments.sumOf { it.arcLength }
-        val angleFirstToLast: Double = segments.first().roadSegment.angleTo(segments.last().roadSegment)
-
-        override fun shouldMergeWithSuccessor(successor: Feature): Boolean {
-            return successor is Straight
-        }
-
-        override fun mergeWithSuccessor(successor: Feature): Feature {
-            require(shouldMergeWithSuccessor(successor))
-            return Straight(segments + (successor as Straight).segments)
-        }
-    }
-
-    class Corner(
-        val segments: List<TrackSegment>,
-    ) : Feature {
-        override val startsAtTrackDistance: Double = segments.first().startsAtDistance
-        val totalAngle: Double = segments.sumOf { it.angleToNext }
-        override val length: Double by lazy { segments.sumOf { it.arcLength } }
-
-        val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
-
-        override fun shouldMergeWithSuccessor(successor: Feature): Boolean {
-            return successor is Corner && successor.direction == direction
-        }
-
-        override fun mergeWithSuccessor(successor: Feature): Feature {
-            require(shouldMergeWithSuccessor(successor))
-            return Corner(segments + (successor as Corner).segments)
-        }
-
-        override fun toString(): String {
-            return "Corner(totalAngle=$totalAngle, totalDistance=$length, direction=$direction)"
-        }
-
-        enum class Direction {
-            LEFT,
-            RIGHT,
-            ;
-
-            override fun toString(): String {
-                return name.lowercase()
-            }
-        }
-    }
-}
-
 private fun radiusToSeverity(radius: Double): PacenoteItem.Corner.Severity {
     // TODO: calibrate, especially 3-5
     return when (radius) {
@@ -587,7 +140,9 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     }
 
     // first, find opens/closes sections where the radius is steadily changing
-    val radii = averageRadii(significantSegments, CORNER_RADIUS_AVERAGE_WINDOW_SIZE)
+    val radii = averageRadii(significantSegments,
+        io.github.tmarsteel.flyingnarrator.feature.CORNER_RADIUS_AVERAGE_WINDOW_SIZE
+    )
     val radiiDerivatives = radii.derivative()
     val openingOrClosingSections = radiiDerivatives
         .consecutiveRuns { dr -> dr.dRadius.absoluteValue > 1.0 }
@@ -706,7 +261,9 @@ private data class TmpCornerSection(
         }
 
         fun openingOrTightening(section: List<TrackSegment>): TmpCornerSection {
-            val (radiusStart, radiusEnd) = averageRadii(section, CORNER_RADIUS_AVERAGE_WINDOW_SIZE)
+            val (radiusStart, radiusEnd) = averageRadii(section,
+                io.github.tmarsteel.flyingnarrator.feature.CORNER_RADIUS_AVERAGE_WINDOW_SIZE
+            )
                 .map { it.radius }
                 .firstAndLast()
             return TmpCornerSection(
@@ -761,67 +318,6 @@ fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double): Sequen
 private fun Sequence<AveragedRadius>.derivative(): Sequence<DerivedRadius> {
     return zipWithNext { a, b -> DerivedRadius(a.startsAtIndex, a.length, (b.radius - a.radius) / a.length) }
 }
-
-private fun <T> Sequence<T>.consecutiveRuns(
-    predicate: (T) -> Boolean
-): Sequence<Pair<Int, List<T>>> {
-    return sequence {
-        var inRun = false
-        var currentRunStartsAtIndex = 0
-        var currentRun = mutableListOf<T>()
-        for ((idx, e) in this@consecutiveRuns.withIndex()) {
-            if (predicate(e)) {
-                if (inRun) {
-                    currentRun += e
-                } else {
-                    currentRun = mutableListOf(e)
-                    currentRunStartsAtIndex = idx
-                    inRun = true
-                }
-            } else {
-                if (inRun) {
-                    yield(Pair(currentRunStartsAtIndex, currentRun))
-                    currentRun = mutableListOf()
-                    inRun = false
-                }
-            }
-        }
-        if (inRun) {
-            yield(Pair(currentRunStartsAtIndex, currentRun))
-        }
-    }
-}
-
-val List<TrackSegment>.compoundRadius: Double
-    get() {
-        if (size == 1) {
-            return single().radiusToNext
-        }
-
-        val totalAngle = sumOf { it.angleToNext }
-        if (totalAngle.absoluteValue > 2.793) {
-            /** the perpendicular-line-intersection algo only works reliably for coners considerably less than 180° */
-            val cutIndex = size / 2
-            val part1 = subList(0, cutIndex).compoundRadius
-            val part2 = subList(cutIndex, size).compoundRadius
-            if (part1 == Double.POSITIVE_INFINITY) {
-                return part2
-            }
-            if (part2 == Double.POSITIVE_INFINITY) {
-                return part1
-            }
-            return (part1 + part2) / 2.0
-        }
-
-        val cornerStartsAt = Vector3.ORIGIN
-        val cornerStart = first().roadSegment
-        val cornerEndsAt = map { it.roadSegment }.reduce { acc, segment -> acc + segment }
-        val cornerEnd = last().roadSegment
-        val line1 = MLine(cornerStartsAt, cornerStart.rotate2d90degCounterClockwise())
-        val line2 = MLine(cornerEndsAt, cornerEnd.rotate2d90degCounterClockwise())
-        val center = line1.intersect2d(line2) ?: return Double.POSITIVE_INFINITY
-        return (cornerEndsAt - center).length2d
-    }
 
 sealed interface PacenoteItem {
     data class Straight(val distance: Int) : PacenoteItem {

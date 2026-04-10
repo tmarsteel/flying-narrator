@@ -1,8 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
-import io.github.tmarsteel.flyingnarrator.detectFeatures
 import io.github.tmarsteel.flyingnarrator.easportswrc.EASportsWRCCleanGhostRouteReader
-import io.github.tmarsteel.flyingnarrator.trackSegments
+import io.github.tmarsteel.flyingnarrator.feature.Feature
 import java.awt.BorderLayout
 import java.nio.file.Paths
 import javax.swing.JFrame
@@ -29,7 +28,7 @@ class RouteEditorApp {
             val route = EASportsWRCCleanGhostRouteReader(Paths.get(inputFilePath).readText())
                 .read()
 
-            val features = route.trackSegments().detectFeatures()
+            val features = Feature.discoverIn(route)
 
             val routeComponent = ScrollableRouteComponent(RouteComponent(route, features))
             val window = JFrame()

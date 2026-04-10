@@ -123,3 +123,33 @@ fun <T> List<T>.windowsWhere(
         }
     }
 }
+
+fun <T> Sequence<T>.consecutiveRuns(
+    predicate: (T) -> Boolean
+): Sequence<Pair<Int, List<T>>> {
+    return sequence {
+        var inRun = false
+        var currentRunStartsAtIndex = 0
+        var currentRun = mutableListOf<T>()
+        for ((idx, e) in this@consecutiveRuns.withIndex()) {
+            if (predicate(e)) {
+                if (inRun) {
+                    currentRun += e
+                } else {
+                    currentRun = mutableListOf(e)
+                    currentRunStartsAtIndex = idx
+                    inRun = true
+                }
+            } else {
+                if (inRun) {
+                    yield(Pair(currentRunStartsAtIndex, currentRun))
+                    currentRun = mutableListOf()
+                    inRun = false
+                }
+            }
+        }
+        if (inRun) {
+            yield(Pair(currentRunStartsAtIndex, currentRun))
+        }
+    }
+}
