@@ -19,7 +19,7 @@ const val STRAIGHTISH_MIN_RADIUS = 400.0
 const val CORNER_RADIUS_AVERAGE_WINDOW_SIZE = 7.5
 
 /**
- * [TrackSegment.severity] absolute less than this is considered straight
+ * [TrackSegment.turnyness] absolute less than this is considered straight
  */
 const val CORNER_SEVERITY_THRESHOLD = Double.MIN_VALUE
 

@@ -17,16 +17,26 @@ data class TrackSegment(
     val angleToNext: Double,
     val arcLength: Double,
 ) {
-    var severitySet: Boolean = false
+    var turnynessSet: Boolean = false
         private set
-    var severity: Double = 0.0
+
+    /**
+     * A value between`-1` and `1`, signifying the direction and tightness of the track curvature in this segment.
+     * Negative values signify a left turn, positive values signify a right turn and `0.0` represents a straight
+     * segment. `1`/`-1` would be the most severe, angled square corner imaginable whereas a `0.08` would be a slight
+     * corner bordering on straight.
+     * Note that this is separate from a "severity" in pacenotes, which is a representation of how fast you can go in
+     * a corner, rather than of the `turnyness`.
+     */
+    var turnyness: Double = 0.0
         get() {
-            check(severitySet) { "severity not set yet" }
+            check(turnynessSet) { "severity not set yet" }
             return field
         }
         set(value) {
-            check(!severitySet) { "severity already set" }
-            severitySet = true
+            check(!turnynessSet) { "severity already set" }
+            check(value in -1.0 .. 1.0)
+            turnynessSet = true
             field = value
         }
 
@@ -56,26 +66,26 @@ data class TrackSegment(
                     val windowLength = avgWindow.sumOf { it.arcLength }
                     val exactWindowCenterDistance = avgWindow.first().startsAtDistance + windowLength / 2.0
                     val windowCenterSegment = avgWindow.minBy { (it.startsAtDistance - exactWindowCenterDistance).absoluteValue }
-                    if (windowCenterSegment.severitySet) {
+                    if (windowCenterSegment.turnynessSet) {
                         return@forEach
                     }
                     val windowRadius = avgWindow.sumOf { it.radiusToNext * it.arcLength } / windowLength
                     val windowAngle = avgWindow.sumOf { it.angleToNext }
-                    windowCenterSegment.severity = ((STRAIGHTISH_MIN_RADIUS - windowRadius.coerceAtMost(STRAIGHTISH_MIN_RADIUS)) / STRAIGHTISH_MIN_RADIUS)
+                    windowCenterSegment.turnyness = ((STRAIGHTISH_MIN_RADIUS - windowRadius.coerceAtMost(STRAIGHTISH_MIN_RADIUS)) / STRAIGHTISH_MIN_RADIUS)
                         .pow(3.0)
                         .withSign(windowAngle)
                 }
 
             segments.asSequence()
-                .consecutiveRuns { !it.severitySet }
+                .consecutiveRuns { !it.turnynessSet }
                 .forEach { (runStartIdx, segmentsWithoutSeverity) ->
-                    val severityStart = if (runStartIdx == 0) 0.0 else segments[runStartIdx - 1].severity
-                    val severityEnd = if (runStartIdx + segmentsWithoutSeverity.size == segments.size) 0.0 else segments[runStartIdx + segmentsWithoutSeverity.size].severity
+                    val severityStart = if (runStartIdx == 0) 0.0 else segments[runStartIdx - 1].turnyness
+                    val severityEnd = if (runStartIdx + segmentsWithoutSeverity.size == segments.size) 0.0 else segments[runStartIdx + segmentsWithoutSeverity.size].turnyness
                     val severityStep = (severityEnd - severityStart) / (segmentsWithoutSeverity.size + 1)
                     // TODO: change the severity proportional to the arcLength
                     var currentSeverity = severityStart + severityStep
                     for (segment in segmentsWithoutSeverity) {
-                        segment.severity = currentSeverity
+                        segment.turnyness = currentSeverity
                         currentSeverity += severityStep
                     }
                 }

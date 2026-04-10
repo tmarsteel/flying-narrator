@@ -25,11 +25,11 @@ internal sealed interface FeatureDetectionState {
                 }
             }
 
-            return Corner(buffer.first().severity.sign)
+            return Corner(buffer.first().turnyness.sign)
         }
 
         private fun detectCornerEntry(buffer: ArrayDeque<TrackSegment>): Int {
-            return buffer.indexOfLast { it.severity.absoluteValue >= CORNER_SEVERITY_THRESHOLD }
+            return buffer.indexOfLast { it.turnyness.absoluteValue >= CORNER_SEVERITY_THRESHOLD }
         }
 
         override fun finish(
@@ -84,11 +84,11 @@ internal sealed interface FeatureDetectionState {
         }
 
         private fun detectCornerExitToStraight(buffer: ArrayDeque<TrackSegment>): Int {
-            return buffer.indexOfLast { it.severity.absoluteValue < CORNER_SEVERITY_THRESHOLD }
+            return buffer.indexOfLast { it.turnyness.absoluteValue < CORNER_SEVERITY_THRESHOLD }
         }
 
         private fun detectCornerDirectionChange(buffer: ArrayDeque<TrackSegment>): Int {
-            return buffer.indexOfLast { it.severity.sign == -severitySign }
+            return buffer.indexOfLast { it.turnyness.sign == -severitySign }
         }
     }
 }
