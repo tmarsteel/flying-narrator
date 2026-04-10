@@ -1,7 +1,5 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
-import io.github.tmarsteel.flyingnarrator.pacenote.STRAIGHT_ELISION_DISTANCE_THRESHOLD
-
 /**
  * The [TrackSegment.radiusToNext] is capped to this value
  */
@@ -33,4 +31,4 @@ val CORNER_EXTENSION_STRAIGHTISH_ANGLE: Double = Math.toRadians(2.5)
  * Corner extension will extend corners no further than this amount of meters to make the [CORNER_EXTENSION_STRAIGHTISH_ANGLE]
  * work out.
  */
-const val CORNER_EXTENSION_MAX_DISTANCE = STRAIGHT_ELISION_DISTANCE_THRESHOLD
+const val CORNER_EXTENSION_MAX_DISTANCE = 10.0
