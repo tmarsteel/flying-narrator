@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
-import io.github.tmarsteel.flyingnarrator.STRAIGHT_ELISION_DISTANCE_THRESHOLD
+import io.github.tmarsteel.flyingnarrator.pacenote.STRAIGHT_ELISION_DISTANCE_THRESHOLD
 
 /**
  * The [TrackSegment.radiusToNext] is capped to this value
