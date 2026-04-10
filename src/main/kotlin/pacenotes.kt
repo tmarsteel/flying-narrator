@@ -186,6 +186,7 @@ fun Route.trackSegments(): List<TrackSegment> {
             val severityStart = if (runStartIdx == 0) 0.0 else segments[runStartIdx - 1].severity
             val severityEnd = if (runStartIdx + segmentsWithoutSeverity.size == segments.size) 0.0 else segments[runStartIdx + segmentsWithoutSeverity.size].severity
             val severityStep = (severityEnd - severityStart) / (segmentsWithoutSeverity.size + 1)
+            // TODO: change the severity proportional to the arcLength
             var currentSeverity = severityStart + severityStep
             for (segment in segmentsWithoutSeverity) {
                 segment.severity = currentSeverity
@@ -317,10 +318,12 @@ private sealed interface FeatureDetectionState {
                 return this
             }
 
-            val straightSegments = buffer.subList(0, cornerEntryIdx).toList()
-            features += Feature.Straight(straightSegments)
-            repeat(straightSegments.size) {
-                buffer.removeFirst()
+            if (cornerEntryIdx != 0) {
+                val straightSegments = buffer.subList(0, cornerEntryIdx).toList()
+                features += Feature.Straight(straightSegments)
+                repeat(straightSegments.size) {
+                    buffer.removeFirst()
+                }
             }
 
             return Corner(buffer.first().severity.sign)
@@ -346,10 +349,12 @@ private sealed interface FeatureDetectionState {
         ): FeatureDetectionState {
             val straightStartsAtIndex = detectCornerExitToStraight(buffer)
             if (straightStartsAtIndex >= 0) {
-                val cornerSegments = buffer.subList(0, straightStartsAtIndex).toList()
-                features += Feature.Corner(cornerSegments)
-                repeat(cornerSegments.size) {
-                    buffer.removeFirst()
+                if (straightStartsAtIndex != 0) {
+                    val cornerSegments = buffer.subList(0, straightStartsAtIndex).toList()
+                    features += Feature.Corner(cornerSegments)
+                    repeat(cornerSegments.size) {
+                        buffer.removeFirst()
+                    }
                 }
 
                 return Straight
@@ -357,10 +362,12 @@ private sealed interface FeatureDetectionState {
 
             val cornerDirectionChangesAtIndex = detectCornerDirectionChange(buffer)
             if (cornerDirectionChangesAtIndex >= 0) {
-                val cornerSegments = buffer.subList(0, cornerDirectionChangesAtIndex).toList()
-                features += Feature.Corner(cornerSegments)
-                repeat(cornerSegments.size) {
-                    buffer.removeFirst()
+                if (cornerDirectionChangesAtIndex != 0) {
+                    val cornerSegments = buffer.subList(0, cornerDirectionChangesAtIndex).toList()
+                    features += Feature.Corner(cornerSegments)
+                    repeat(cornerSegments.size) {
+                        buffer.removeFirst()
+                    }
                 }
 
                 return Corner(-severitySign)
