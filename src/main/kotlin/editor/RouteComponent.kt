@@ -340,12 +340,19 @@ class RouteComponent(
                 }
 
                 is Feature.Corner -> {
+                    val minTurnyness = feature.segments.minOf { it.turnyness }
+                    val maxTurnyness = feature.segments.maxOf { it.turnyness }
                     text.append("Ør=")
                     text.append(feature.segments.compoundRadius.roundToInt())
                     text.append("m<br>")
                     text.append("∠=")
                     text.append(Math.toDegrees(feature.totalAngle).roundToInt())
                     text.append("°<br>")
+                    text.append("turnyness ")
+                    text.append(String.format("%.4f", minTurnyness))
+                    text.append("..")
+                    text.append(String.format("%.4f", maxTurnyness))
+                    text.append("<br>")
                     val pacenote = cornerFeatureToPacenoteItem(feature)
                     text.append(pacenote.toString())
                 }

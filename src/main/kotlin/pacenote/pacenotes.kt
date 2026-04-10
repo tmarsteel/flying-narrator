@@ -144,7 +144,7 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     ).toList()
 }
 
-data class AveragedRadius(
+private data class AveragedRadius(
     val startsAtIndex: Int,
     val length: Double,
     val radius: Double,
@@ -218,7 +218,7 @@ private data class TmpCornerSection(
     }
 }
 
-fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double): Sequence<AveragedRadius> {
+private fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double): Sequence<AveragedRadius> {
     return sequence {
         val currentWindowSequence = ArrayDeque<TrackSegment>((acrossMeters * 2.0).toInt())
         var currentWindowStartsAtIndex = 0
