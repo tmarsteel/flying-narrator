@@ -10,7 +10,7 @@ import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
 fun main(args: Array<String>) {
-    val route = EASportsWRCCleanGhostRouteReader(Paths.get("./easports-wrc-tracks/10.cleanghost.json").readText())
+    val route = EASportsWRCCleanGhostRouteReader(Paths.get("./easports-wrc-tracks/22.cleanghost.json").readText())
         .read()
 
     val features = Feature.discoverIn(route)
