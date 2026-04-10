@@ -13,11 +13,11 @@ small crest slowly
 crest
 keep right
 50
-chicane right entry
+chicane right entry (@0.63km0,)
 60
 crest
 70
-slight left through dip
+slight left through dip (@0.81km)
 200
 long crest into slight right
 slowly
@@ -74,7 +74,7 @@ and crest
 50
 left over crest
 130
-6 left don't cut (@4.68km)
+6 left don't cut (@4.86km)
 and crest
 80
 6 left over crest keep in
@@ -87,7 +87,7 @@ crest
 3 left short don't cut (@5.55km)
 80
 chicane right entry (@5.59km)
-230
+2306
 slight left over crest (@5.9km)
 90
 6 left over crest
