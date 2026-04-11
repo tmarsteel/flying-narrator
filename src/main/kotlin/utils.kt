@@ -41,7 +41,7 @@ inline fun <T> Sequence<T>.weightedAverageOf(
     return currentAverage
 }
 
-fun Sequence<Double>.averageAndStandardDeviationOf(): Pair<Double, Double> {
+fun Iterable<Double>.averageAndStandardDeviationOf(): Pair<Double, Double> {
     val average = average()
     val variance = map { (it - average) * (it - average) }.average()
     val stdDev = sqrt(variance)
