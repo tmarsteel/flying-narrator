@@ -62,12 +62,11 @@ fun <T> Sequence<T>.firstAndLast(): Pair<T, T> {
     return Pair(first, last)
 }
 
-fun <T> List<T>.mergeConsecutiveIf(
-    shouldMerge: (T, T) -> Boolean,
-    merge: (T, T) -> T,
+fun <T : Any> List<T>.tryMergeConsecutive(
+    tryMerge: (T, T) -> T?,
 ): Sequence<T> {
     return sequence {
-        val iterator = this@mergeConsecutiveIf.iterator()
+        val iterator = this@tryMergeConsecutive.iterator()
         if (!iterator.hasNext()) {
             return@sequence
         }
@@ -75,8 +74,9 @@ fun <T> List<T>.mergeConsecutiveIf(
         var pivot = iterator.next()
         while (iterator.hasNext()) {
             val next = iterator.next()
-            if (shouldMerge(pivot, next)) {
-                pivot = merge(pivot, next)
+            val merged = tryMerge(pivot, next)
+            if (merged != null) {
+                pivot = merged
             } else {
                 yield(pivot)
                 pivot = next

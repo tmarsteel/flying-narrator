@@ -1,15 +1,14 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
 import io.github.tmarsteel.flyingnarrator.Route
-import io.github.tmarsteel.flyingnarrator.mergeConsecutiveIf
+import io.github.tmarsteel.flyingnarrator.tryMergeConsecutive
 import kotlin.math.absoluteValue
 
 sealed interface Feature {
     val startsAtTrackDistance: Double
     val length: Double
 
-    fun shouldMergeWithSuccessor(successor: Feature): Boolean
-    fun mergeWithSuccessor(successor: Feature): Feature
+    fun tryMergeWithSuccessor(successor: Feature): Feature?
 
     data class Straight(
         val segments: List<TrackSegment>,
@@ -18,12 +17,10 @@ sealed interface Feature {
         override val length: Double = segments.sumOf { it.arcLength }
         val angleFirstToLast: Double = segments.first().roadSegment.angleTo(segments.last().roadSegment)
 
-        override fun shouldMergeWithSuccessor(successor: Feature): Boolean {
-            return successor is Straight
-        }
-
-        override fun mergeWithSuccessor(successor: Feature): Feature {
-            require(shouldMergeWithSuccessor(successor))
+        override fun tryMergeWithSuccessor(successor: Feature): Feature? {
+            if (successor !is Straight) {
+                return null
+            }
             return Straight(segments + (successor as Straight).segments)
         }
     }
@@ -37,13 +34,12 @@ sealed interface Feature {
 
         val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
 
-        override fun shouldMergeWithSuccessor(successor: Feature): Boolean {
-            return successor is Corner && successor.direction == direction
-        }
+        override fun tryMergeWithSuccessor(successor: Feature): Feature? {
+            if (successor !is Corner || successor.direction != direction) {
+                return null
+            }
 
-        override fun mergeWithSuccessor(successor: Feature): Feature {
-            require(shouldMergeWithSuccessor(successor))
-            return Corner(segments + (successor as Corner).segments)
+            return Corner(segments + successor.segments)
         }
 
         override fun toString(): String {
@@ -77,10 +73,7 @@ sealed interface Feature {
             }
 
             val mergedFeatures = features
-                .mergeConsecutiveIf(
-                    { a, b -> a.shouldMergeWithSuccessor(b) },
-                    { a, b -> a.mergeWithSuccessor(b) },
-                )
+                .tryMergeConsecutive(Feature::tryMergeWithSuccessor)
                 .toMutableList()
 
             extendCornersInPlace(mergedFeatures)

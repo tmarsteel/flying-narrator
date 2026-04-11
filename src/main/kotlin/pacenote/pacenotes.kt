@@ -7,7 +7,7 @@ import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.TrackSegment
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
 import io.github.tmarsteel.flyingnarrator.firstAndLast
-import io.github.tmarsteel.flyingnarrator.mergeConsecutiveIf
+import io.github.tmarsteel.flyingnarrator.tryMergeConsecutive
 import kotlin.math.absoluteValue
 import kotlin.math.sign
 
@@ -137,12 +137,15 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
         }
     }
 
-    return tmpSections.mergeConsecutiveIf(
-        shouldMerge = { a, b ->
-            a.length < CORNER_SECTION_MIN_LENGTH || b.length < CORNER_SECTION_MIN_LENGTH || a.severityEnd == b.severityStart
-        },
-        merge = TmpCornerSection::mergeWithSuccessor,
-    ).toList()
+    return tmpSections
+        .tryMergeConsecutive { a, b ->
+            if (a.length >= CORNER_SECTION_MIN_LENGTH && b.length >= CORNER_SECTION_MIN_LENGTH && a.severityEnd != b.severityStart) {
+                null
+            } else {
+                a.mergeWithSuccessor(b)
+            }
+        }
+        .toList()
 }
 
 internal data class AveragedRadius(
