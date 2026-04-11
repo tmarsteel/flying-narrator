@@ -55,6 +55,12 @@ const val CORNER_HEAD_ELISION_THRESHOLD = 0.125
 const val CORNER_TAIL_ELISION_THRESHOLD = CORNER_HEAD_ELISION_THRESHOLD
 
 /**
+ * Corner sections that change the radius faster than this number of radius-meters/track-meters, it can be considered
+ * opening / tightening.
+ */
+const val SEVERITY_CHANGE_DRADIUS_THRESHOLD = 1.5
+
+/**
  * If a corner has a total angle in this range, it is reported as a hairpin
  */
 val HAIRPIN_TOTAL_ANGLE_RANGE = Math.toRadians(135.0)..Math.toRadians(225.0)

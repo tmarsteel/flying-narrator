@@ -82,38 +82,43 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     val radii = averageRadii(significantSegments, CORNER_RADIUS_AVERAGE_WINDOW_SIZE)
     val radiiDerivatives = radii.derivative()
     val openingOrClosingSections = radiiDerivatives
-        .consecutiveRuns { dr -> dr.dRadius.absoluteValue > 1.0 }
+        .consecutiveRuns { dr -> dr.dRadius.absoluteValue > SEVERITY_CHANGE_DRADIUS_THRESHOLD }
         .toMutableList()
 
-    // ignore tightening and opening at the start/end of corners, can be an artifact of truning into the corner
+    // ignore tightening and opening at the start/end of corners, can be an artifact of turning into the corner
+    var actualCornerStartsAtIdx = 0
     openingOrClosingSections.firstOrNull()?.let { (startsAtIndex, section) ->
         val preceedingDistance = significantSegments.subList(0, startsAtIndex).sumOf { it.arcLength }
         val isHead = preceedingDistance < CORNER_SECTION_MIN_LENGTH
         val tightens = section.map { it.dRadius }.average().sign < 0
-        val lengthProportion = section.sumOf { it.length } / corner.length
+        val sectionLength = section.last().from.aroundDistance - section.first().from.aroundDistance
+        val lengthProportion = sectionLength / corner.length
         if (isHead && tightens && lengthProportion <= CORNER_HEAD_ELISION_THRESHOLD) {
             openingOrClosingSections.removeFirst()
+            actualCornerStartsAtIdx = startsAtIndex + section.size
         }
     }
+    var actualCornerEndsAtIdxExcl = significantSegments.size
     openingOrClosingSections.lastOrNull()?.let { (startsAtIndex, section) ->
-        val trailingDistance =
-            significantSegments.subList(startsAtIndex + section.size, significantSegments.size).sumOf { it.arcLength }
+        val trailingDistance = significantSegments.subList(startsAtIndex + section.size, significantSegments.size).sumOf { it.arcLength }
         val isTail = trailingDistance < CORNER_SECTION_MIN_LENGTH
         val opens = section.map { it.dRadius }.average().sign > 0
-        val lengthProportion = section.sumOf { it.length } / corner.length
+        val sectionLength = section.last().from.aroundDistance - section.first().from.aroundDistance
+        val lengthProportion = sectionLength / corner.length
         if (isTail && opens && lengthProportion <= CORNER_TAIL_ELISION_THRESHOLD) {
             openingOrClosingSections.removeFirst()
+            actualCornerEndsAtIdxExcl = startsAtIndex
         }
     }
 
     if (openingOrClosingSections.isEmpty()) {
-        return listOf(TmpCornerSection.steadyCurvature(significantSegments))
+        return listOf(TmpCornerSection.steadyCurvature(significantSegments.subList(actualCornerStartsAtIdx, actualCornerEndsAtIdxExcl)))
     }
 
     val tmpSections = mutableListOf<TmpCornerSection>()
     val unsteadyCurvatureSectionsByStartIndex = openingOrClosingSections.toMap()
-    var idx = 0
-    while (idx < significantSegments.size) {
+    var idx = actualCornerStartsAtIdx
+    while (idx < actualCornerEndsAtIdxExcl) {
         val unsteadySection = unsteadyCurvatureSectionsByStartIndex[idx]
         if (unsteadySection != null) {
             tmpSections.add(
@@ -126,8 +131,7 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
             )
             idx += unsteadySection.size
         } else {
-            val indexOfNextSection =
-                unsteadyCurvatureSectionsByStartIndex.keys.filter { it > idx }.minOrNull() ?: significantSegments.size
+            val indexOfNextSection = unsteadyCurvatureSectionsByStartIndex.keys.filter { it > idx }.minOrNull() ?: significantSegments.size
             tmpSections.add(TmpCornerSection.steadyCurvature(significantSegments.subList(idx, indexOfNextSection)))
             idx = indexOfNextSection
         }
@@ -141,15 +145,17 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     ).toList()
 }
 
-private data class AveragedRadius(
+internal data class AveragedRadius(
     val startsAtIndex: Int,
-    val length: Double,
+    val windowStartsAtDistance: Double,
+    val windowLength: Double,
     val radius: Double,
-)
+) {
+    val aroundDistance: Double = windowStartsAtDistance + windowLength / 2.0
+}
 
-private data class DerivedRadius(
-    val startsAtIndex: Int,
-    val length: Double,
+internal data class DerivedRadius(
+    val from: AveragedRadius,
     /**
      * change in radius, radius-meters per arcLength-meter
      */
@@ -171,7 +177,7 @@ private data class TmpCornerSection(
             other.radiusEnd,
             severityStart,
             other.severityStart,
-            length + other.length
+            length + other.length,
         )
     }
 
@@ -194,7 +200,14 @@ private data class TmpCornerSection(
                 }
             }
 
-            return TmpCornerSection(section, radius, radius, severity, severity, section.sumOf { it.arcLength })
+            return TmpCornerSection(
+                section,
+                radius,
+                radius,
+                severity,
+                severity,
+                section.sumOf { it.arcLength },
+            )
         }
 
         fun openingOrTightening(section: List<TrackSegment>): TmpCornerSection {
@@ -227,6 +240,7 @@ private fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double)
             yield(
                 AveragedRadius(
                     currentWindowStartsAtIndex,
+                    currentWindowSequence.first().startsAtDistance,
                     windowLength,
                     averageRadius,
                 )
@@ -253,6 +267,8 @@ private fun averageRadii(segments: Iterable<TrackSegment>, acrossMeters: Double)
 }
 
 private fun Sequence<AveragedRadius>.derivative(): Sequence<DerivedRadius> {
-    return zipWithNext { a, b -> DerivedRadius(a.startsAtIndex, a.length, (b.radius - a.radius) / a.length) }
+    return zipWithNext { a, b ->
+        DerivedRadius(a, (b.radius - a.radius) / a.windowLength)
+    }
 }
 
