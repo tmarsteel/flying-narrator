@@ -43,18 +43,17 @@ fun Iterable<Feature>.derivePacenotes(): List<Pair<Double, PacenoteItem>> {
     return pacenoteItems
 }
 
+private val severityMinRadius = sequenceOf(
+    0.0 to PacenoteItem.Corner.Severity.ONE,
+    55.0 to PacenoteItem.Corner.Severity.TWO,
+    75.0 to PacenoteItem.Corner.Severity.THREE,
+    90.0 to PacenoteItem.Corner.Severity.FOUR,
+    150.0 to PacenoteItem.Corner.Severity.FIVE,
+    185.0 to PacenoteItem.Corner.Severity.SIX,
+    225.0 to PacenoteItem.Corner.Severity.SLIGHT,
+)
 private fun radiusToSeverity(radius: Double): PacenoteItem.Corner.Severity {
-    // TODO: calibrate, especially 3-5
-    return when (radius) {
-        in 0.0..10.0 -> PacenoteItem.Corner.Severity.SQUARE
-        in 10.0..25.0 -> PacenoteItem.Corner.Severity.ONE
-        in 25.0..35.0 -> PacenoteItem.Corner.Severity.TWO
-        in 35.0..50.0 -> PacenoteItem.Corner.Severity.THREE
-        in 50.0..70.0 -> PacenoteItem.Corner.Severity.FOUR
-        in 70.0..80.0 -> PacenoteItem.Corner.Severity.FIVE
-        in 80.0..<95.0 -> PacenoteItem.Corner.Severity.SIX
-        else -> PacenoteItem.Corner.Severity.SLIGHT
-    }
+    return severityMinRadius.last { (minRadius, _) -> radius >= minRadius }.second
 }
 
 fun cornerFeatureToPacenoteItem(corner: Feature.Corner): PacenoteItem {
@@ -80,9 +79,7 @@ private fun findCornerSections(corner: Feature.Corner): List<TmpCornerSection> {
     }
 
     // first, find opens/closes sections where the radius is steadily changing
-    val radii = averageRadii(significantSegments,
-        CORNER_RADIUS_AVERAGE_WINDOW_SIZE
-    )
+    val radii = averageRadii(significantSegments, CORNER_RADIUS_AVERAGE_WINDOW_SIZE)
     val radiiDerivatives = radii.derivative()
     val openingOrClosingSections = radiiDerivatives
         .consecutiveRuns { dr -> dr.dRadius.absoluteValue > 1.0 }
