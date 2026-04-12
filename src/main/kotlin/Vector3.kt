@@ -5,9 +5,9 @@ import kotlin.math.PI
 import kotlin.math.absoluteValue
 import kotlin.math.atan
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sign
 import kotlin.math.sin
-import kotlin.math.sqrt
 import kotlin.math.withSign
 
 private const val HALFPI = PI / 2.0
@@ -18,8 +18,11 @@ data class Vector3(
     val y: Double,
     val z: Double,
 ) {
+    val length: Double by lazy {
+        hypot(hypot(x, y), z)
+    }
     val length2d: Double by lazy {
-        sqrt(x * x + y * y)
+        hypot(x, y)
     }
 
     operator fun plus(other: Vector3): Vector3 = Vector3(x + other.x, y + other.y, z + other.z)
@@ -65,8 +68,6 @@ data class Vector3(
             z = z,
         )
     }
-
-    fun length(): Double = sqrt(x * x + y * y + z * z)
 
     fun withLength2d(length: Double): Vector3 {
         return this * (length / length2d)

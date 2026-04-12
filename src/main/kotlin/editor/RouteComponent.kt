@@ -197,8 +197,8 @@ class RouteComponent(
                     ceil(lineThickness + 1).toInt(),
                 )
             }
-            distanceCarry += vec.length()
-            distanceSinceLastMarker += vec.length()
+            distanceCarry += vec.length
+            distanceSinceLastMarker += vec.length
             if (distanceSinceLastMarker >= distanceMarkersEveryMeters && distanceMarkerColor != null) {
                 distanceSinceLastMarker = 0.0
                 g.color = distanceMarkerColor
