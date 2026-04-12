@@ -31,7 +31,7 @@ class RouteComponent(
 ) : JComponent() {
     var scale by RepaintBaseImageOnChange(0.4, alsoOnChange = { revalidate() })
     var distanceMarkersEveryMeters by RepaintBaseImageOnChange(200.0)
-    var distanceMarkerColor by RepaintBaseImageOnChange(Color.RED)
+    var distanceMarkerColor: Color? by RepaintBaseImageOnChange(Color.RED)
     var startMarkerColor by RepaintBaseImageOnChange(Color.RED)
     var finishMarkerColor by RepaintBaseImageOnChange(Color.GREEN)
     var lineThickness by RepaintBaseImageOnChange(3.0f)
@@ -199,7 +199,7 @@ class RouteComponent(
             }
             distanceCarry += vec.length()
             distanceSinceLastMarker += vec.length()
-            if (distanceSinceLastMarker >= distanceMarkersEveryMeters) {
+            if (distanceSinceLastMarker >= distanceMarkersEveryMeters && distanceMarkerColor != null) {
                 distanceSinceLastMarker = 0.0
                 g.color = distanceMarkerColor
                 g.drawString(distanceToString(distanceCarry), imageX + 30, imageY + 10)
