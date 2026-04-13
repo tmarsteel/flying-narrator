@@ -5,6 +5,7 @@ import io.github.tmarsteel.flyingnarrator.HermiteSpline
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
 import io.github.tmarsteel.flyingnarrator.Vector3
+import io.github.tmarsteel.flyingnarrator.zipWithNextAndEmitLast
 import tools.jackson.databind.MapperFeature
 import tools.jackson.dataformat.xml.XmlFactory
 import tools.jackson.dataformat.xml.XmlMapper
@@ -17,46 +18,79 @@ import javax.xml.bind.annotation.XmlElement
 import javax.xml.bind.annotation.XmlRootElement
 
 class DirtRally2SplineRouteReader(
-    val splines: DR2TrackSplines,
+    val splineDto: DR2TrackSplines,
 ) : RouteReader {
     constructor(xmlSource: Path) : this(
         objectMapper.readValue(xmlSource, DR2TrackSplines::class.java)
     )
 
+    val routeCentralSpline by lazy {
+        splineDto.centralSplineOriginal.splines.asSequence()
+            .map { it.controlPoints }
+            .zipWithNextAndEmitLast(this::withoutOverlap)
+            .flatten()
+            .map { cp -> HermiteSpline.ControlPoint(
+                Vector3(cp.z, cp.x, cp.y),
+                Vector3(cp.forwardZ, cp.forwardX, cp.forwardY),
+            ) }
+            .toList()
+    }
+
     private val route by lazy {
-        splines.centralSplineOriginal.splines.asSequence()
-            .flatMap { splineDto ->
-                splineDto.controlPoints.asSequence()
-                    .map { cp -> HermiteSpline.ControlPoint(
-                        Vector3(cp.z, cp.x, cp.y),
-                        Vector3(cp.forwardZ, cp.forwardX, cp.forwardY),
-                    ) }
-                    .zipWithNext { a, b ->
-                        val distance = (b.position - a.position).length2d
-                        val step = 1.0 / distance
-                        var t = step
-                        sequence {
-                            yield(a.position)
-                            while (t < 1.0) {
-                                yield(HermiteSpline.interpolate(a, b, t))
-                                t += step
-                            }
-                        }
+        routeCentralSpline
+            .asSequence()
+            .zipWithNext { a, b ->
+                val distance = (b.position - a.position).length2d
+                val step = TARGET_MAX_SEGMENT_LENGTH_METERS / distance
+                var t = step
+                sequence {
+                    yield(a.position)
+                    while (t < 1.0) {
+                        yield(HermiteSpline.interpolate(a, b, t))
+                        t += step
                     }
-                    .flatten()
-                    .zipWithNext { pos1, pos2 ->
-                        pos2 - pos1
-                    }
+                }
+            }
+            .flatten()
+            .zipWithNext { pos1, pos2 ->
+                pos2 - pos1
             }
             .toList()
+    }
+
+    /**
+     * In the game data, sometimes controlpoints between two adjacent `<spline>`s overlap (e.g. in germany/route_0,
+     * `<CentralSplineOriginal>` the second `<spline>` repeats the last 4 control points of the first `<spline>`).
+     *
+     * @return a view of the [DR2TrackSplineControlPoint]s from [splineDto] except those that are
+     * also contained in [nextSpline].
+     */
+    private fun withoutOverlap(spline: List<DR2TrackSplineControlPoint>, nextSpline: List<DR2TrackSplineControlPoint>): List<DR2TrackSplineControlPoint> {
+        val idxOfOverlapEndInNext = nextSpline.indexOf(spline.last())
+        if (idxOfOverlapEndInNext == -1) {
+            return spline
+        }
+
+        for (idxInNext in idxOfOverlapEndInNext - 1 downTo 0) {
+            if (spline[spline.size - idxOfOverlapEndInNext - 1 + idxInNext] != nextSpline[idxInNext]) {
+                // overlap is not perfect
+                throw DirtRally2RouteReadingException(
+                    "[WARN] non-perfect overlap detected between splines; overlapping control point: ${nextSpline[idxOfOverlapEndInNext]}"
+                )
+            }
+        }
+
+        // overlap proven identical
+        return spline.subList(0, spline.size - idxOfOverlapEndInNext - 1)
     }
 
     override fun read(): Route {
         return route
     }
 
-    companion object {
-        val objectMapper = XmlMapper.Builder(XmlFactory())
+    private companion object {
+        private const val TARGET_MAX_SEGMENT_LENGTH_METERS = 1.0
+        val objectMapper: XmlMapper = XmlMapper.Builder(XmlFactory())
             .addModule(kotlinModule())
             .addModule(JaxbAnnotationModule())
             .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES)
@@ -114,7 +148,7 @@ class DR2TrackSpline(
     val controlPoints: List<DR2TrackSplineControlPoint>,
 )
 
-class DR2TrackSplineControlPoint(
+data class DR2TrackSplineControlPoint(
     @XmlAttribute
     @JsonProperty("posX")
     val x: Double,
@@ -150,4 +184,10 @@ class DR2TrackSplineControlPoint(
     @XmlAttribute
     @JsonProperty("upZ")
     val upwardsZ: Double,
-)
+) {
+    override fun toString(): String {
+        return """
+            <cp posX="$x" posY="$y" posZ="$z" forX="$forwardX" forY="$forwardY" forZ="$forwardZ" upX="$upwardsX" upY="$upwardsY" upZ="$upwardsZ" /> 
+        """.trimIndent()
+    }
+}

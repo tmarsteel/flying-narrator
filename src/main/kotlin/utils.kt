@@ -153,3 +153,17 @@ fun <T> Sequence<T>.consecutiveRuns(
         }
     }
 }
+
+fun <T> Sequence<T>.zipWithNextAndEmitLast(zipMapper: (T, T) -> T): Sequence<T> {
+    return sequence result@ {
+        val iterator = iterator()
+        if (!iterator.hasNext()) return@result
+        var current = iterator.next()
+        while (iterator.hasNext()) {
+            val next = iterator.next()
+            yield(zipMapper(current, next))
+            current = next
+        }
+        yield(current)
+    }
+}
