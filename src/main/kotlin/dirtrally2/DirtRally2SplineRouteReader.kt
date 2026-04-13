@@ -26,8 +26,10 @@ class DirtRally2SplineRouteReader(
 
     val routeCentralSpline by lazy {
         splineDto.centralSplineOriginal.splines.asSequence()
-            .map { it.controlPoints }
-            .zipWithNextAndEmitLast(this::withoutOverlap)
+            .zipWithNextAndEmitLast(
+                zipMapper = this::withoutOverlap,
+                mapLast = { it.controlPoints },
+            )
             .flatten()
             .map { cp -> HermiteSpline.ControlPoint(
                 Vector3(cp.z, cp.x, cp.y),
@@ -39,18 +41,21 @@ class DirtRally2SplineRouteReader(
     private val route by lazy {
         routeCentralSpline
             .asSequence()
-            .zipWithNext { a, b ->
-                val distance = (b.position - a.position).length2d
-                val step = TARGET_MAX_SEGMENT_LENGTH_METERS / distance
-                var t = step
-                sequence {
-                    yield(a.position)
-                    while (t < 1.0) {
-                        yield(HermiteSpline.interpolate(a, b, t))
-                        t += step
+            .zipWithNextAndEmitLast(
+                zipMapper = { a, b ->
+                    val distance = (b.position - a.position).length2d
+                    val step = TARGET_MAX_SEGMENT_LENGTH_METERS / distance
+                    var t = step
+                    sequence {
+                        yield(a.position)
+                        while (t < 1.0) {
+                            yield(HermiteSpline.interpolate(a, b, t))
+                            t += step
+                        }
                     }
-                }
-            }
+                },
+                mapLast = { sequenceOf(it.position) },
+            )
             .flatten()
             .zipWithNext { pos1, pos2 ->
                 pos2 - pos1
@@ -65,23 +70,23 @@ class DirtRally2SplineRouteReader(
      * @return a view of the [DR2TrackSplineControlPoint]s from [splineDto] except those that are
      * also contained in [nextSpline].
      */
-    private fun withoutOverlap(spline: List<DR2TrackSplineControlPoint>, nextSpline: List<DR2TrackSplineControlPoint>): List<DR2TrackSplineControlPoint> {
-        val idxOfOverlapEndInNext = nextSpline.indexOf(spline.last())
+    private fun withoutOverlap(splineDto: DR2TrackSpline, nextSplineDto: DR2TrackSpline): List<DR2TrackSplineControlPoint> {
+        val idxOfOverlapEndInNext = nextSplineDto.controlPoints.indexOf(splineDto.controlPoints.last())
         if (idxOfOverlapEndInNext == -1) {
-            return spline
+            return splineDto.controlPoints
         }
 
         for (idxInNext in idxOfOverlapEndInNext - 1 downTo 0) {
-            if (spline[spline.size - idxOfOverlapEndInNext - 1 + idxInNext] != nextSpline[idxInNext]) {
+            if (splineDto.controlPoints[splineDto.controlPoints.size - idxOfOverlapEndInNext - 1 + idxInNext] != nextSplineDto.controlPoints[idxInNext]) {
                 // overlap is not perfect
                 throw DirtRally2RouteReadingException(
-                    "[WARN] non-perfect overlap detected between splines; overlapping control point: ${nextSpline[idxOfOverlapEndInNext]}"
+                    "[WARN] non-perfect overlap detected between splines; overlapping control point: ${nextSplineDto.controlPoints[idxOfOverlapEndInNext]}"
                 )
             }
         }
 
         // overlap proven identical
-        return spline.subList(0, spline.size - idxOfOverlapEndInNext - 1)
+        return splineDto.controlPoints.subList(0, splineDto.controlPoints.size - idxOfOverlapEndInNext - 1)
     }
 
     override fun read(): Route {

@@ -154,7 +154,10 @@ fun <T> Sequence<T>.consecutiveRuns(
     }
 }
 
-fun <T> Sequence<T>.zipWithNextAndEmitLast(zipMapper: (T, T) -> T): Sequence<T> {
+fun <T, M> Sequence<T>.zipWithNextAndEmitLast(
+    zipMapper: (T, T) -> M,
+    mapLast: (T) -> M,
+): Sequence<M> {
     return sequence result@ {
         val iterator = iterator()
         if (!iterator.hasNext()) return@result
@@ -164,6 +167,6 @@ fun <T> Sequence<T>.zipWithNextAndEmitLast(zipMapper: (T, T) -> T): Sequence<T> 
             yield(zipMapper(current, next))
             current = next
         }
-        yield(current)
+        yield(mapLast(current))
     }
 }
