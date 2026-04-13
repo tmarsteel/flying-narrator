@@ -80,7 +80,7 @@ class DirtRally2SplineRouteReader(
     }
 
     private companion object {
-        private const val TARGET_MAX_SEGMENT_LENGTH_METERS = 1.0
+        private const val TARGET_MAX_SEGMENT_LENGTH_METERS = 5.0
         val objectMapper: XmlMapper = XmlMapper.Builder(XmlFactory())
             .addModule(kotlinModule())
             .addModule(JaxbAnnotationModule())
