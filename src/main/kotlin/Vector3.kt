@@ -33,7 +33,7 @@ data class Vector3(
 
     operator fun unaryMinus(): Vector3 = Vector3(-x, -y, -z)
 
-    fun angleFromPositiveY(): Double = when {
+    fun clockwiseAngleFromPositiveY(): Double = when {
         y == 0.0 -> (PI / 2.0).withSign(x)
         x == 0.0 -> if (y > 0) 0.0 else PI
         else -> {
@@ -44,7 +44,7 @@ data class Vector3(
     }
 
     fun angleTo(bent: Vector3): Double {
-        var angle = bent.angleFromPositiveY() - this.angleFromPositiveY()
+        var angle = bent.clockwiseAngleFromPositiveY() - this.clockwiseAngleFromPositiveY()
 
         when {
             angle > PI -> angle -= PI * 2

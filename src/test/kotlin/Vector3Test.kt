@@ -2,7 +2,6 @@ package io.github.tmarsteel.flyingnarrator
 
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.doubles.plusOrMinus
-import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 
 class Vector3Test : FreeSpec({
@@ -16,19 +15,19 @@ class Vector3Test : FreeSpec({
     val upLeft = Vector3(-1.0, 1.0, 0.0)
 
     "angleTowardsPositiveY" {
-        Math.toDegrees(up.angleFromPositiveY()) shouldBe 0.0
-        Math.toDegrees(upRight.angleFromPositiveY()) shouldBe 45.0
-        Math.toDegrees(right.angleFromPositiveY()) shouldBe 90.0
-        Math.toDegrees(downRight.angleFromPositiveY()) shouldBe 135.0
-        Math.toDegrees(down.angleFromPositiveY()) shouldBe 180.0
-        Math.toDegrees(downLeft.angleFromPositiveY()) shouldBe -135.0
-        Math.toDegrees(left.angleFromPositiveY()) shouldBe -90.0
-        Math.toDegrees(upLeft.angleFromPositiveY()) shouldBe -45.0
+        Math.toDegrees(up.clockwiseAngleFromPositiveY()) shouldBe 0.0
+        Math.toDegrees(upRight.clockwiseAngleFromPositiveY()) shouldBe 45.0
+        Math.toDegrees(right.clockwiseAngleFromPositiveY()) shouldBe 90.0
+        Math.toDegrees(downRight.clockwiseAngleFromPositiveY()) shouldBe 135.0
+        Math.toDegrees(down.clockwiseAngleFromPositiveY()) shouldBe 180.0
+        Math.toDegrees(downLeft.clockwiseAngleFromPositiveY()) shouldBe -135.0
+        Math.toDegrees(left.clockwiseAngleFromPositiveY()) shouldBe -90.0
+        Math.toDegrees(upLeft.clockwiseAngleFromPositiveY()) shouldBe -45.0
 
-        Math.toDegrees(Vector3(2.0, 1.0, 0.0).angleFromPositiveY()) shouldBe 63.43.plusOrMinus(0.01)
-        Math.toDegrees(Vector3(2.0, -1.0, 0.0).angleFromPositiveY()) shouldBe 116.57.plusOrMinus(0.01)
-        Math.toDegrees(Vector3(-2.0, 1.0, 0.0).angleFromPositiveY()) shouldBe (-63.43).plusOrMinus(0.01)
-        Math.toDegrees(Vector3(-2.0, -1.0, 0.0).angleFromPositiveY()) shouldBe (-116.57).plusOrMinus(0.01)
+        Math.toDegrees(Vector3(2.0, 1.0, 0.0).clockwiseAngleFromPositiveY()) shouldBe 63.43.plusOrMinus(0.01)
+        Math.toDegrees(Vector3(2.0, -1.0, 0.0).clockwiseAngleFromPositiveY()) shouldBe 116.57.plusOrMinus(0.01)
+        Math.toDegrees(Vector3(-2.0, 1.0, 0.0).clockwiseAngleFromPositiveY()) shouldBe (-63.43).plusOrMinus(0.01)
+        Math.toDegrees(Vector3(-2.0, -1.0, 0.0).clockwiseAngleFromPositiveY()) shouldBe (-116.57).plusOrMinus(0.01)
     }
 
     "starting up" - {
