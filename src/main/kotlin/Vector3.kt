@@ -73,7 +73,9 @@ data class Vector3(
         return this * (length / length2d)
     }
 
-    fun half(): Vector3 = this * 0.5
+    fun withLength(length: Double): Vector3 {
+        return this * (length / this.length)
+    }
 
     override fun toString() = "($x, $y, $z)"
 

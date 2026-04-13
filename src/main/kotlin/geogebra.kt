@@ -108,6 +108,19 @@ fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
     return sb.toString()
 }
 
+fun ggbClear() {
+    println("""ggbApplet.getAllObjectNames().forEach(o => ggbApplet.deleteObject(o));""")
+}
+fun ggbCmd(cmd: String) {
+    println("ggbApplet.evalCommand(\"$cmd\");")
+}
+fun ggbPoint(name: String, position: Vector3) {
+    ggbCmd("$name=Point({${position.x},${position.y}})")
+}
+fun ggbPoint3D(name: String, position: Vector3) {
+    ggbCmd("$name=Point({${position.x},${position.y},${position.z}})")
+}
+
 private fun IntStream.collectCodePointsToString(): String {
     return collect(
         { StringBuilder() },

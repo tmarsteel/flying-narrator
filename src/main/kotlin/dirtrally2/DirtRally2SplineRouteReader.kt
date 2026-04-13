@@ -33,25 +33,16 @@ class DirtRally2SplineRouteReader(
             .toList()
     }
 
+    val positionsOnCentralSpline by lazy {
+        HermiteSpline.interpolate(
+            routeCentralSpline.asSequence(),
+            TARGET_MAX_SEGMENT_LENGTH_METERS,
+        )
+            .toList()
+    }
+
     private val route by lazy {
-        routeCentralSpline
-            .asSequence()
-            .zipWithNextAndEmitLast(
-                zipMapper = { a, b ->
-                    val distance = (b.position - a.position).length2d
-                    val step = TARGET_MAX_SEGMENT_LENGTH_METERS / distance
-                    var t = step
-                    sequence {
-                        yield(a.position)
-                        while (t < 1.0) {
-                            yield(HermiteSpline.interpolate(a, b, t))
-                            t += step
-                        }
-                    }
-                },
-                mapLast = { sequenceOf(it.position) },
-            )
-            .flatten()
+        positionsOnCentralSpline
             .zipWithNext { pos1, pos2 ->
                 pos2 - pos1
             }
@@ -97,4 +88,3 @@ class DirtRally2SplineRouteReader(
             .build()
     }
 }
-
