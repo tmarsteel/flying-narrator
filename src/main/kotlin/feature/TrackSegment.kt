@@ -61,7 +61,7 @@ data class TrackSegment(
             }.toList()
 
             segments
-                .windowsWhere { it.sumOf { it.arcLength } >= CORNER_RADIUS_AVERAGE_WINDOW_SIZE }
+                .windowsWhere { w -> w.sumOf { it.arcLength } >= CORNER_RADIUS_AVERAGE_WINDOW_SIZE }
                 .forEach { avgWindow ->
                     val windowLength = avgWindow.sumOf { it.arcLength }
                     val exactWindowCenterDistance = avgWindow.first().startsAtDistance + windowLength / 2.0
