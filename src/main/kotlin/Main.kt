@@ -1,32 +1,25 @@
 package io.github.tmarsteel.flyingnarrator
 
-import io.github.tmarsteel.flyingnarrator.easportswrc.EASportsWRCCleanGhostRouteReader
-import io.github.tmarsteel.flyingnarrator.feature.Feature
-import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
-import io.github.tmarsteel.flyingnarrator.pacenote.derivePacenotes
+import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2SplineRouteReader
 import java.nio.file.Paths
-import kotlin.io.path.readText
-import kotlin.math.absoluteValue
-import kotlin.math.roundToInt
 
 fun main(args: Array<String>) {
-    val route = EASportsWRCCleanGhostRouteReader(Paths.get("./easports-wrc-tracks/22.cleanghost.json").readText())
-        .read()
+    val reader = DirtRally2SplineRouteReader(Paths.get(args[0]))
 
-    val features = Feature.discoverIn(route)
-
-    features
-        .filterIsInstance<Feature.Corner>()
-        .forEach { f ->
-            val t = f.segments.maxOf { it.turnyness.absoluteValue }
-            val r = f.segments.compoundRadius
-            val d = f.segments.sumOf { it.arcLength }
-            val a = Math.toDegrees(f.totalAngle.absoluteValue)
-            println("$t;$r;$d;$a")
-        }
-
-
-    features.derivePacenotes().forEach { (d, i) ->
-        println("${d.roundToInt()}m: $i")
+    ggbClear()
+    reader.splineDto.leftSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
+        ggbPoint3D("l$index", cp.position, 0xFF0000)
+    }
+    reader.splineDto.centreLeftSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
+        ggbPoint3D("cl$index", cp.position, 0xFF8C00)
+    }
+    reader.splineDto.centralSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
+        ggbPoint3D("c$index", cp.position, 0x000000)
+    }
+    reader.splineDto.centreRightSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
+        ggbPoint3D("cr$index", cp.position, 0xFF8C00)
+    }
+    reader.splineDto.rightSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
+        ggbPoint3D("r$index", cp.position, 0xFF0000)
     }
 }

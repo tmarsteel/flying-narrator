@@ -117,10 +117,19 @@ fun ggbCmd(cmd: String) {
 fun ggbPoint(name: String, position: Vector3) {
     ggbCmd("$name=Point({${position.x},${position.y}})")
 }
-fun ggbPoint3D(name: String, position: Vector3) {
+fun ggbPoint3D(
+    name: String,
+    position: Vector3,
+    color: Int? = null,
+) {
     ggbCmd("$name=Point({${position.x},${position.y},${position.z}})")
+    if (color != null) {
+        ggbColor(name, color)
+    }
 }
-
+fun ggbColor(name: String, color: Int) {
+    println("""ggbApplet.setColor("$name", ${(color shr 16) and 0xFF}, ${(color shr 8) and 0xFF}, ${color and 0xFF});""")
+}
 private fun IntStream.collectCodePointsToString(): String {
     return collect(
         { StringBuilder() },
