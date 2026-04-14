@@ -29,6 +29,12 @@ data class DR2TrackSplineControlPoint(
     @JsonProperty("forZ")
     val forwardZ: Double,
 
+    /*
+     * The upX, upY and upZ should, theoretically, describe a normal vector onto the track giving information
+     * about track inclination. As observed in `germany_01/route_0` and `usa_01/route_3`, this vector is always
+     * (0, 1, 0) though (so always pointing straight up).
+     */
+
     @XmlAttribute
     @JsonProperty("upX")
     val upwardsX: Double,
