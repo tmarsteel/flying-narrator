@@ -3,8 +3,6 @@ package io.github.tmarsteel.flyingnarrator.dirtrally2
 import io.github.tmarsteel.flyingnarrator.HermiteSpline
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
-import io.github.tmarsteel.flyingnarrator.Vector3
-import io.github.tmarsteel.flyingnarrator.zipWithNextAndEmitLast
 import tools.jackson.databind.MapperFeature
 import tools.jackson.dataformat.xml.XmlFactory
 import tools.jackson.dataformat.xml.XmlMapper
@@ -19,27 +17,10 @@ class DirtRally2SplineRouteReader(
         objectMapper.readValue(xmlSource, DR2TrackSplines::class.java)
     )
 
-    val routeCentralSpline by lazy {
-        splineDto.centralSplineOriginal.splines.asSequence()
-            .zipWithNextAndEmitLast(
-                zipMapper = this::withoutOverlap,
-                mapLast = { it.controlPoints },
-            )
-            .flatten()
-            .map { cp -> HermiteSpline.ControlPoint(
-                Vector3(cp.z, cp.x, cp.y),
-                Vector3(cp.forwardZ, cp.forwardX, cp.forwardY),
-            ) }
-            .toList()
-    }
-
-    val positionsOnCentralSpline by lazy {
-        HermiteSpline.interpolate(
-            routeCentralSpline.asSequence(),
-            TARGET_MAX_SEGMENT_LENGTH_METERS,
-        )
-            .toList()
-    }
+    val positionsOnCentralSpline = HermiteSpline.interpolate(
+        splineDto.centralSplineOriginal.controlPoints,
+        TARGET_MAX_SEGMENT_LENGTH_METERS,
+    )
 
     private val route by lazy {
         positionsOnCentralSpline
@@ -49,31 +30,9 @@ class DirtRally2SplineRouteReader(
             .toList()
     }
 
-    /**
-     * In the game data, sometimes controlpoints between two adjacent `<spline>`s overlap (e.g. in germany/route_0,
-     * `<CentralSplineOriginal>` the second `<spline>` repeats the last 4 control points of the first `<spline>`).
-     *
-     * @return a view of the [DR2TrackSplineControlPoint]s from [splineDto] except those that are
-     * also contained in [nextSpline].
-     */
-    private fun withoutOverlap(splineDto: DR2TrackSpline, nextSplineDto: DR2TrackSpline): List<DR2TrackSplineControlPoint> {
-        val idxOfOverlapEndInNext = nextSplineDto.controlPoints.indexOf(splineDto.controlPoints.last())
-        if (idxOfOverlapEndInNext == -1) {
-            return splineDto.controlPoints
-        }
 
-        for (idxInNext in idxOfOverlapEndInNext - 1 downTo 0) {
-            if (splineDto.controlPoints[splineDto.controlPoints.size - idxOfOverlapEndInNext - 1 + idxInNext] != nextSplineDto.controlPoints[idxInNext]) {
-                // overlap is not perfect
-                throw DirtRally2RouteReadingException(
-                    "[WARN] non-perfect overlap detected between splines; overlapping control point: ${nextSplineDto.controlPoints[idxOfOverlapEndInNext]}"
-                )
-            }
-        }
 
-        // overlap proven identical
-        return splineDto.controlPoints.subList(0, splineDto.controlPoints.size - idxOfOverlapEndInNext - 1)
-    }
+
 
     override fun read(): Route {
         return route
