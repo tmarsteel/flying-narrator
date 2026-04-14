@@ -101,7 +101,7 @@ private fun extendCornersInPlaceOnSingleTransition(features: MutableList<Feature
     var endExtendSegments = 0
     var endExtendDistanceCarry = 0.0
     var minObservedAngle: Triple<Double, Int, Int>? = null
-    while (startExtendSegments + endExtendSegments < extendableSegments.size) {
+    while (startExtendSegments + endExtendSegments + 2 < extendableSegments.size) {
         val startCornerEndSegment = extendableSegments[startExtendSegments]
         val endCornerStartSegment = extendableSegments[extendableSegments.lastIndex - endExtendSegments]
         val cornerToCornerAngle = startCornerEndSegment.roadSegment.angleTo(endCornerStartSegment.roadSegment)
