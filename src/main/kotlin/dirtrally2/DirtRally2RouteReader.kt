@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
 import io.github.tmarsteel.flyingnarrator.HermiteSpline
+import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
 import tools.jackson.databind.MapperFeature
@@ -54,7 +55,9 @@ class DirtRally2RouteReader(
             }
         }
 
-        allVectors.subList(idxBeforeStart, idxAfterFinish)
+        allVectors
+            .subList(idxBeforeStart, idxAfterFinish)
+            .map(::RoadSegment)
     }
 
     override fun read(): Route {

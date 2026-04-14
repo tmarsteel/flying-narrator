@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.easportswrc
 
+import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
 import io.github.tmarsteel.flyingnarrator.Vector3
@@ -22,7 +23,7 @@ class EASportsWRCCleanGhostRouteReader(
             .player
     )
 
-    private val vectors by lazy {
+    private val route by lazy {
         val launchSequenceLength = ghost.distances
             .asSequence()
             .takeWhile { it == 0.0 }
@@ -41,11 +42,12 @@ class EASportsWRCCleanGhostRouteReader(
                 )
             }
             .map { it * GAME_COORDINATE_UNITS_OVER_DISTANCE }
+            .map(::RoadSegment)
             .toList()
     }
 
     override fun read(): Route {
-        return vectors
+        return route
     }
 
     companion object {

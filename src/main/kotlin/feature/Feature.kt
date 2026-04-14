@@ -1,8 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
+import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
-import io.github.tmarsteel.flyingnarrator.tryMergeConsecutive
+import io.github.tmarsteel.flyingnarrator.consecutiveRuns
 import kotlin.math.absoluteValue
+import kotlin.math.sign
 
 sealed interface Feature {
     val startsAtTrackDistance: Double
@@ -11,26 +13,26 @@ sealed interface Feature {
     fun tryMergeWithSuccessor(successor: Feature): Feature?
 
     data class Straight(
-        val segments: List<TrackSegment>,
+        val segments: List<RoadSegment>,
+        override val startsAtTrackDistance: Double,
     ) : Feature {
-        override val startsAtTrackDistance: Double = segments.first().startsAtDistance
-        override val length: Double = segments.sumOf { it.arcLength }
-        val angleFirstToLast: Double = segments.first().roadSegment.angleTo(segments.last().roadSegment)
+        override val length: Double = segments.sumOf { it.length }
+        val angleFirstToLast: Double = segments.first().forward.angleTo(segments.last().forward)
 
         override fun tryMergeWithSuccessor(successor: Feature): Feature? {
             if (successor !is Straight) {
                 return null
             }
-            return Straight(segments + (successor as Straight).segments)
+            return Straight(segments + (successor as Straight).segments, startsAtTrackDistance)
         }
     }
 
     class Corner(
-        val segments: List<TrackSegment>,
+        val segments: List<RoadSegment>,
+        override val startsAtTrackDistance: Double,
     ) : Feature {
-        override val startsAtTrackDistance: Double = segments.first().startsAtDistance
-        val totalAngle: Double = segments.sumOf { it.angleToNext }
-        override val length: Double by lazy { segments.sumOf { it.arcLength } }
+        val totalAngle: Double = segments.totalAngle
+        override val length: Double by lazy { segments.sumOf { it.length } }
 
         val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
 
@@ -39,7 +41,7 @@ sealed interface Feature {
                 return null
             }
 
-            return Corner(segments + successor.segments)
+            return Corner(segments + successor.segments, startsAtTrackDistance)
         }
 
         override fun toString(): String {
@@ -58,27 +60,37 @@ sealed interface Feature {
     }
 
     companion object {
+        private val SEVERE_CORNER_ANGLE_DELTA_THRESHOLD = 0.0025 // TODO: move to config
+
         fun discoverIn(route: Route): List<Feature> {
-            val segments = TrackSegment.fromRoute(route)
-            val buffer = ArrayDeque<TrackSegment>()
+            val tmpSegments = TmpSegment.fromRoute(route)
+            val avgWindows = AvgWindow.fromTmpSegments(tmpSegments)
             val features = mutableListOf<Feature>()
-            var state: FeatureDetectionState = FeatureDetectionState.Straight
-            for (segment in segments) {
-                buffer.add(segment)
-                state = state.process(buffer, features)
-            }
 
-            if (buffer.isNotEmpty()) {
-                state.finish(buffer, features)
-            }
+            avgWindows
+                .asSequence()
+                .windowed(size = 2, step = 1)
+                .consecutiveRuns { (a, b) ->
+                    a.deltaAngle.absoluteValue > SEVERE_CORNER_ANGLE_DELTA_THRESHOLD
+                        && b.deltaAngle.absoluteValue > SEVERE_CORNER_ANGLE_DELTA_THRESHOLD
+                        && a.deltaAngle.sign == b.deltaAngle.sign
+                }
+                .map { (_, windowPairs) -> windowPairs.map { it.first() } }
+                .map { windowsInOneCorner ->
+                    val startsAt = windowsInOneCorner.first().tmpSegments.first().startsAtTrackDistance
+                    val segments = route.subList(
+                        windowsInOneCorner.first().tmpSegments.first().roadSegmentIndex,
+                        windowsInOneCorner.last().tmpSegments.last().roadSegmentIndex + 1,
+                    )
+                    Feature.Corner(segments, startsAt)
+                }
+                .forEach { feature ->
+                    features.add(feature)
+                }
 
-            val mergedFeatures = features
-                .tryMergeConsecutive(Feature::tryMergeWithSuccessor)
-                .toMutableList()
-
-            extendCornersInPlace(mergedFeatures)
-
-            return mergedFeatures
+            return features
+                //.tryMergeConsecutive(Feature::tryMergeWithSuccessor)
+                .toList()
         }
     }
 }
@@ -104,7 +116,7 @@ private fun extendCornersInPlaceOnSingleTransition(features: MutableList<Feature
     while (startExtendSegments + endExtendSegments + 2 < extendableSegments.size) {
         val startCornerEndSegment = extendableSegments[startExtendSegments]
         val endCornerStartSegment = extendableSegments[extendableSegments.lastIndex - endExtendSegments]
-        val cornerToCornerAngle = startCornerEndSegment.roadSegment.angleTo(endCornerStartSegment.roadSegment)
+        val cornerToCornerAngle = startCornerEndSegment.forward.angleTo(endCornerStartSegment.forward)
             .absoluteValue
         if (minObservedAngle == null || minObservedAngle.first > cornerToCornerAngle) {
             minObservedAngle = Triple(cornerToCornerAngle, startExtendSegments, endExtendSegments)
@@ -116,25 +128,25 @@ private fun extendCornersInPlaceOnSingleTransition(features: MutableList<Feature
 
         val startExtensionCandidate = extendableSegments[startExtendSegments + 1]
         val endExtensionCandidate = extendableSegments[extendableSegments.lastIndex - endExtendSegments - 1]
-        val canExtendStart = startExtendDistanceCarry + startExtensionCandidate.arcLength < CORNER_EXTENSION_MAX_DISTANCE
-        val canExtendEnd = endExtendDistanceCarry + endExtensionCandidate.arcLength < CORNER_EXTENSION_MAX_DISTANCE
+        val canExtendStart = startExtendDistanceCarry + startExtensionCandidate.length < CORNER_EXTENSION_MAX_DISTANCE
+        val canExtendEnd = endExtendDistanceCarry + endExtensionCandidate.length < CORNER_EXTENSION_MAX_DISTANCE
         when {
             canExtendStart && canExtendEnd -> {
-                if (startExtendDistanceCarry + startExtensionCandidate.arcLength < endExtendDistanceCarry + endExtensionCandidate.arcLength) {
+                if (startExtendDistanceCarry + startExtensionCandidate.length < endExtendDistanceCarry + endExtensionCandidate.length) {
                     startExtendSegments++
-                    startExtendDistanceCarry += startExtensionCandidate.arcLength
+                    startExtendDistanceCarry += startExtensionCandidate.length
                 } else {
                     endExtendSegments++
-                    endExtendDistanceCarry += endExtensionCandidate.arcLength
+                    endExtendDistanceCarry += endExtensionCandidate.length
                 }
             }
             canExtendStart -> {
                 startExtendSegments++
-                startExtendDistanceCarry += startExtensionCandidate.arcLength
+                startExtendDistanceCarry += startExtensionCandidate.length
             }
             canExtendEnd -> {
                 endExtendSegments++
-                endExtendDistanceCarry += endExtensionCandidate.arcLength
+                endExtendDistanceCarry += endExtensionCandidate.length
             }
             else -> break
         }
@@ -148,11 +160,14 @@ private fun extendCornersInPlaceOnSingleTransition(features: MutableList<Feature
     }
 
     val newStart = if (startExtendSegments == 0) startCorner else {
-        Feature.Corner(startCorner.segments + extendableSegments.subList(1, startExtendSegments + 1))
+        Feature.Corner(startCorner.segments + extendableSegments.subList(1, startExtendSegments + 1), startCorner.startsAtTrackDistance)
     }
-    val newStraight = Feature.Straight(extendableSegments.subList(startExtendSegments + 1, extendableSegments.size - endExtendSegments - 1))
+    val newStraightStartsAt = straight.startsAtTrackDistance + extendableSegments.subList(0, startExtendSegments + 1).sumOf { it.length } // TODO: test whether this is correct
+    val newStraight = Feature.Straight(extendableSegments.subList(startExtendSegments + 1, extendableSegments.size - endExtendSegments - 1), newStraightStartsAt)
     val newEnd = if (endExtendSegments == 0) endCorner else {
-        Feature.Corner(extendableSegments.subList(extendableSegments.lastIndex - endExtendSegments - 1, extendableSegments.size - 2) + endCorner.segments)
+        val newEndExtraSegments = extendableSegments.subList(extendableSegments.lastIndex - endExtendSegments - 1, extendableSegments.size - 2)
+        val newEndStartsAt = endCorner.startsAtTrackDistance - newEndExtraSegments.sumOf { it.length }
+        Feature.Corner( newEndExtraSegments + endCorner.segments, newEndStartsAt)
     }
     check(startCorner.segments.size + straight.segments.size + endCorner.segments.size == newStart.segments.size + newStraight.segments.size + newEnd.segments.size)  {
         "buggy code :("

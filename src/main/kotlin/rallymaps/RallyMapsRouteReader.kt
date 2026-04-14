@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
 import de.micromata.opengis.kml.v_2_2_0.Coordinate
+import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
 import io.github.tmarsteel.flyingnarrator.euclideanVectorTo
@@ -64,6 +65,7 @@ class RallyMapsRouteSource(
                     val b3 = Coordinate(b.longitude, b.latitude)
                     a3.euclideanVectorTo(b3)
                 }
+                .map(::RoadSegment)
                 .toList()
         }
     }

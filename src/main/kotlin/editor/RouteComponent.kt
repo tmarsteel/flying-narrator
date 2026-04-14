@@ -49,8 +49,8 @@ class RouteComponent(
             var maxX = Double.NEGATIVE_INFINITY
             var minY = Double.POSITIVE_INFINITY
             var maxY = Double.NEGATIVE_INFINITY
-            route.fold(Vector3.ORIGIN) { carryPt, vec ->
-                val nextCarry = carryPt + vec
+            route.fold(Vector3.ORIGIN) { carryPt, segment ->
+                val nextCarry = carryPt + segment.forward
                 minX = minX.coerceAtMost(nextCarry.x)
                 maxX = maxX.coerceAtLeast(nextCarry.x)
                 minY = minY.coerceAtMost(nextCarry.y)
@@ -156,8 +156,8 @@ class RouteComponent(
         var distanceSinceLastMarker = 0.0
         var activeFeature: Feature? = null
         val currentFeaturePoints = ArrayList<Pair<Int, Int>>()
-        for (vec in route) {
-            carryPoint += vec
+        for (segment in route) {
+            carryPoint += segment.forward
 
             val imageX = routeCoordinateSystem.routeToBaseImageX(carryPoint.x)
             val imageY = routeCoordinateSystem.routeToBaseImageY(carryPoint.y)
@@ -197,8 +197,8 @@ class RouteComponent(
                     ceil(lineThickness + 1).toInt(),
                 )
             }
-            distanceCarry += vec.length
-            distanceSinceLastMarker += vec.length
+            distanceCarry += segment.length
+            distanceSinceLastMarker += segment.length
             if (distanceSinceLastMarker >= distanceMarkersEveryMeters && distanceMarkerColor != null) {
                 distanceSinceLastMarker = 0.0
                 g.color = distanceMarkerColor
@@ -340,8 +340,6 @@ class RouteComponent(
                 }
 
                 is Feature.Corner -> {
-                    val minTurnyness = feature.segments.minOf { it.turnyness }
-                    val maxTurnyness = feature.segments.maxOf { it.turnyness }
                     text.append("Ør=")
                     text.append(feature.segments.compoundRadius.roundToInt())
                     text.append("m<br>")
@@ -351,11 +349,6 @@ class RouteComponent(
                     text.append("d=")
                     text.append(feature.length.toInt())
                     text.append("m<br>")
-                    text.append("turnyness ")
-                    text.append(String.format("%.4f", minTurnyness))
-                    text.append("..")
-                    text.append(String.format("%.4f", maxTurnyness))
-                    text.append("<br>")
                     val pacenote = cornerFeatureToPacenoteItem(feature)
                     text.append(pacenote.toString())
                 }

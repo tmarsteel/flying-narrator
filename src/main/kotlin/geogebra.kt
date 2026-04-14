@@ -1,10 +1,8 @@
 package io.github.tmarsteel.flyingnarrator
 
-import io.github.tmarsteel.flyingnarrator.DropLastSequence.Companion.dropLast
-import io.github.tmarsteel.flyingnarrator.feature.TrackSegment
 import java.util.stream.IntStream
 
-fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
+fun List<RoadSegment>.toGeogebraSyntax(): String {
     fun pointName(index: Int) = index
         // avoid using X, Y and Z because reserved in geogebra
         .toString(23)
@@ -26,13 +24,13 @@ fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
         ggbApplet.setLayer("${pointName(0)}", 1);
     """.trimIndent()
     )
-    this.forEachIndexed { index, vec ->
+    this.forEachIndexed { index, segment ->
         val prevPointName = pointName(index)
         val pointName = pointName(index + 1)
         val vecName = vecName(index)
         sb.appendLine(
             """
-            ggbApplet.evalCommand("$pointName=$prevPointName+Vector((${vec.roadSegment.x},${vec.roadSegment.y}))");
+            ggbApplet.evalCommand("$pointName=$prevPointName+Vector((${segment.forward.x},${segment.forward.y}))");
             ggbApplet.evalCommand("$vecName=Vector($prevPointName,$pointName)");
             ggbApplet.setLayer("$pointName", 1);
             ggbApplet.setLayer("$vecName", 0);
@@ -75,7 +73,8 @@ fun Sequence<TrackSegment>.toGeogebraSyntax(): String {
         val nextPointName = pointName(index + 1)
         val arcName = arcName(index)
         val radiusName = radiusName(index)
-        if (segment.angleToNext < 0.0) {
+        val angleToNext = segment.forward.angleTo(this[index + 1].forward)
+        if (angleToNext < 0.0) {
             sb.appendLine(
                 """
                 ggbApplet.evalCommand("$arcName=CircularArc($centerPointName, $pointName, $nextPointName)");

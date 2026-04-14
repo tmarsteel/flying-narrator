@@ -1,0 +1,44 @@
+package io.github.tmarsteel.flyingnarrator.feature
+
+import io.github.tmarsteel.flyingnarrator.weightedAverageOf
+import io.github.tmarsteel.flyingnarrator.windowsWhere
+import kotlin.math.pow
+import kotlin.properties.Delegates
+
+data class AvgWindow(
+    val tmpSegments: List<TmpSegment>,
+    val length: Double,
+    val angle: Double,
+) {
+    var deltaAngle by Delegates.notNull<Double>()
+
+    companion object {
+        fun avgWeight(progressIntoWindow: Double) = -(2.0 * progressIntoWindow - 1.0).pow(2) + 1.0
+
+        fun fromTmpSegments(tmpSegments: List<TmpSegment>): List<AvgWindow> {
+            val avgWindows = tmpSegments
+                .windowsWhere(yieldCopies = true) { w -> w.sumOf { it.roadSegment.length } > 20.0 }
+                .map { w ->
+                    val windowStartAt = w.first().startsAtTrackDistance
+                    val windowLength = (w.last().let { it.startsAtTrackDistance + it.roadSegment.length } - windowStartAt)
+                    val weightedAvg = w.asSequence().weightedAverageOf(
+                        value = { it.angleToStart },
+                        weight = {
+                            val progressIntoWindow = (it.center - windowStartAt) / windowLength
+                            check(progressIntoWindow in 0.0 .. 1.0)
+                            avgWeight(progressIntoWindow)
+                        }
+                    )
+                    AvgWindow(w, windowLength, weightedAvg)
+                }
+                .toList()
+
+            avgWindows.zipWithNext().forEach { (a, b) ->
+                b.deltaAngle = ((b.angle - a.angle) / a.length)
+            }
+            avgWindows.first().deltaAngle = 0.0
+
+            return avgWindows
+        }
+    }
+}

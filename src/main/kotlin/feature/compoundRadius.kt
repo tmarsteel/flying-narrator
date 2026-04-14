@@ -1,16 +1,29 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
+import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Vector3
 import kotlin.math.absoluteValue
 
-val List<TrackSegment>.compoundRadius: Double
+val Iterable<RoadSegment>.totalAngle: Double
     get() {
-        if (size == 1) {
-            return single().radiusToNext
+        val iterator = iterator()
+        if (!iterator.hasNext()) {
+            return 0.0
+        }
+        val acc = AngleAccumulator(iterator.next().forward)
+        while (iterator.hasNext()) {
+            acc.add(iterator.next().forward)
         }
 
-        val totalAngle = sumOf { it.angleToNext }
-        if (totalAngle.absoluteValue > 2.793) {
+        return acc.currentAngle
+    }
+
+val List<RoadSegment>.compoundRadius: Double
+    get() {
+        check(size > 1)
+
+        val lTotalAngle = totalAngle
+        if (lTotalAngle.absoluteValue > 2.793) {
             /** the perpendicular-line-intersection algo only works reliably for coners considerably less than 180° */
             val cutIndex = size / 2
             val part1 = subList(0, cutIndex).compoundRadius
@@ -25,9 +38,9 @@ val List<TrackSegment>.compoundRadius: Double
         }
 
         val cornerStartsAt = Vector3.Companion.ORIGIN
-        val cornerStart = first().roadSegment
-        val cornerEndsAt = map { it.roadSegment }.reduce { acc, segment -> acc + segment }
-        val cornerEnd = last().roadSegment
+        val cornerStart = first().forward
+        val cornerEndsAt = map { it.forward }.reduce { acc, segment -> acc + segment }
+        val cornerEnd = last().forward
         val line1 = MLine(cornerStartsAt, cornerStart.rotate2d90degCounterClockwise())
         val line2 = MLine(cornerEndsAt, cornerEnd.rotate2d90degCounterClockwise())
         val center = line1.intersect2d(line2) ?: return Double.POSITIVE_INFINITY

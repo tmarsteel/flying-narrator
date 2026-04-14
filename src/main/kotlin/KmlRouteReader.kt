@@ -38,7 +38,7 @@ class KmlRouteReader(
             .asSequence()
             .windowed(size = 2, step = 1)
             .map { (a, b) ->
-                a.euclideanVectorTo(b)
+                RoadSegment(a.euclideanVectorTo(b))
             }
             .toList()
     }

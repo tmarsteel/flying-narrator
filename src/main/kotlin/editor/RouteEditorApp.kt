@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
-import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2SplineRouteReader
+import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import java.awt.BorderLayout
 import java.nio.file.Paths
@@ -24,12 +24,12 @@ class RouteEditorApp {
                 exitProcess(1)
             }
 
-            val route = DirtRally2SplineRouteReader(Paths.get(inputFilePath)).read()
+            val route = DirtRally2RouteReader(Paths.get(inputFilePath)).read()
 
             val features = Feature.discoverIn(route)
 
             val routeComponent = ScrollableRouteComponent(RouteComponent(route, features).also {
-
+                it.distanceMarkersEveryMeters = 100.0
             })
             val window = JFrame()
             window.layout = BorderLayout()

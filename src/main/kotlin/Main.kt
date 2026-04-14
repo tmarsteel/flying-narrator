@@ -1,25 +1,23 @@
 package io.github.tmarsteel.flyingnarrator
 
-import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2SplineRouteReader
+import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
+import io.github.tmarsteel.flyingnarrator.feature.AvgWindow
+import io.github.tmarsteel.flyingnarrator.feature.Feature
+import io.github.tmarsteel.flyingnarrator.feature.TmpSegment
 import java.nio.file.Paths
+import kotlin.io.path.writer
 
 fun main(args: Array<String>) {
-    val reader = DirtRally2SplineRouteReader(Paths.get(args[0]))
+    val reader = DirtRally2RouteReader(Paths.get(args[0]))
+    val tmpSegments = TmpSegment.fromRoute(reader.read())
+    val avgWindows = AvgWindow.fromTmpSegments(tmpSegments)
 
-    ggbClear()
-    reader.splineDto.leftSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
-        ggbPoint3D("l$index", cp.position, 0xFF0000)
-    }
-    reader.splineDto.centreLeftSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
-        ggbPoint3D("cl$index", cp.position, 0xFF8C00)
-    }
-    reader.splineDto.centralSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
-        ggbPoint3D("c$index", cp.position, 0x000000)
-    }
-    reader.splineDto.centreRightSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
-        ggbPoint3D("cr$index", cp.position, 0xFF8C00)
-    }
-    reader.splineDto.rightSplineOriginal.controlPoints.drop(20).take(50).forEachIndexed { index, cp ->
-        ggbPoint3D("r$index", cp.position, 0xFF0000)
+    Feature.discoverIn(reader.read())
+
+    Paths.get("vis.csv").writer().use { writer ->
+        writer.write("d,angle,delta\n")
+        avgWindows.forEach {
+            writer.write("${it.tmpSegments.first().startsAtTrackDistance},${it.angle},${it.deltaAngle}\n")
+        }
     }
 }
