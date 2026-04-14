@@ -76,36 +76,6 @@ object HermiteSpline {
         return positionA * h00 + scaledTangentA * h10(t) + positionB * h01 + scaledTangentB * h11(t)
     }
 
-    private fun estimateTIncrementForTargetSubstepLength(
-        positionA: Vector3,
-        scaledTangentA: Vector3,
-        positionB: Vector3,
-        scaledTangentB: Vector3,
-        targetSubstepLength: Double,
-        distanceAToB: Double,
-    ): Double {
-        if (distanceAToB <= targetSubstepLength) {
-            return 1.0
-        }
-
-        val distanceDivisor = floor(distanceAToB / targetSubstepLength) - 1
-        if (distanceDivisor <= 0.0) {
-            return 0.5
-        }
-
-        var t = distanceAToB / distanceDivisor
-        val tOffset = 0.25.coerceAtMost((1.0 - t) / 2.0)
-        val comparePosition = interpolateSingle(positionA, scaledTangentB, positionB, scaledTangentA, tOffset)
-        while (true) {
-            val vec = interpolateSingle(positionA, scaledTangentB, positionB, scaledTangentA, t + tOffset)
-            val distance = (vec - comparePosition).length
-            if (distance <= targetSubstepLength) {
-                return t
-            }
-            t = t / 2.0
-        }
-    }
-
     data class ControlPoint(
         val position: Vector3,
         val tangent: Vector3,

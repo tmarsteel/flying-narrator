@@ -4,6 +4,7 @@ import io.github.tmarsteel.flyingnarrator.HermiteSpline
 import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
+import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import tools.jackson.databind.MapperFeature
 import tools.jackson.dataformat.xml.XmlFactory
 import tools.jackson.dataformat.xml.XmlMapper
@@ -31,7 +32,7 @@ class DirtRally2RouteReader(
 
     val positionsOnCentralSpline = HermiteSpline.interpolate(
         splineDto.centralSplineOriginal.controlPoints,
-        TARGET_MAX_SEGMENT_LENGTH_METERS,
+        OPTIMAL_ROAD_SEGMENT_LENGTH,
     )
 
     private val route by lazy {
@@ -65,7 +66,6 @@ class DirtRally2RouteReader(
     }
 
     private companion object {
-        private const val TARGET_MAX_SEGMENT_LENGTH_METERS = 5.0
         val objectMapper: XmlMapper = XmlMapper.Builder(XmlFactory())
             .addModule(kotlinModule())
             .addModule(JaxbAnnotationModule())

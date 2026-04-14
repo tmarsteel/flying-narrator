@@ -61,6 +61,10 @@ data class Vector3(
         return Vector3(-y, x, z)
     }
 
+    fun rotate2d90degClockwise(): Vector3 {
+        return Vector3(y, -x, z)
+    }
+
     fun rotate2dCounterClockwise(angle: Double): Vector3 {
         return Vector3(
             x = cos(angle) * x - sin(angle) * y,

@@ -116,6 +116,14 @@ fun ggbCmd(cmd: String) {
 fun ggbPoint(name: String, position: Vector3) {
     ggbCmd("$name=Point({${position.x},${position.y}})")
 }
+fun ggbVector(name: String, vector: Vector3, position: Vector3 = Vector3.ORIGIN) {
+    if (position == Vector3.ORIGIN) {
+        ggbCmd("$name=Vector((${vector.x},${vector.y}))")
+    } else {
+        val end = position + vector
+        ggbCmd("$name=Vector((${position.x},${position.y}),(${end.x},${end.y}))")
+    }
+}
 fun ggbPoint3D(
     name: String,
     position: Vector3,

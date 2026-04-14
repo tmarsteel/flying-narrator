@@ -5,6 +5,7 @@ import de.micromata.opengis.kml.v_2_2_0.Document
 import de.micromata.opengis.kml.v_2_2_0.Kml
 import de.micromata.opengis.kml.v_2_2_0.LineString
 import de.micromata.opengis.kml.v_2_2_0.Placemark
+import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import jakarta.xml.bind.JAXBContext
 import org.glassfish.jaxb.runtime.v2.runtime.JAXBContextImpl
 import java.nio.file.Path
@@ -37,9 +38,9 @@ class KmlRouteReader(
         return lineString.coordinates
             .asSequence()
             .windowed(size = 2, step = 1)
-            .map { (a, b) ->
-                RoadSegment(a.euclideanVectorTo(b))
-            }
+            .map { (a, b) -> a.euclideanVectorTo(b) }
+            .map(::RoadSegment)
+            .oversample(OPTIMAL_ROAD_SEGMENT_LENGTH)
             .toList()
     }
 

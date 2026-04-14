@@ -1,5 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
+const val OPTIMAL_ROAD_SEGMENT_LENGTH = 5.0
+
 /**
  * The [TrackSegment.radiusToNext] is capped to this value
  */
