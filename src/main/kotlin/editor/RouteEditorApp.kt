@@ -1,13 +1,12 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
-import io.github.tmarsteel.flyingnarrator.easportswrc.EASportsWRCCleanGhostRouteReader
+import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2SplineRouteReader
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import java.awt.BorderLayout
 import java.nio.file.Paths
 import javax.swing.JFrame
 import javax.swing.JOptionPane
 import javax.swing.UIManager
-import kotlin.io.path.readText
 import kotlin.system.exitProcess
 
 class RouteEditorApp {
@@ -25,12 +24,13 @@ class RouteEditorApp {
                 exitProcess(1)
             }
 
-            val route = EASportsWRCCleanGhostRouteReader(Paths.get(inputFilePath).readText())
-                .read()
+            val route = DirtRally2SplineRouteReader(Paths.get(inputFilePath)).read()
 
             val features = Feature.discoverIn(route)
 
-            val routeComponent = ScrollableRouteComponent(RouteComponent(route, features))
+            val routeComponent = ScrollableRouteComponent(RouteComponent(route, features).also {
+
+            })
             val window = JFrame()
             window.layout = BorderLayout()
             window.add(routeComponent, BorderLayout.CENTER)
