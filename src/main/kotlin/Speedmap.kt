@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
 
 /**
  * A recording/map of how fast a racetrack throughout the route. Used to improve prediction of where the care
@@ -60,9 +61,38 @@ class Speedmap private constructor(
         return previousCp.atTime + (distanceAfterPreviousCp / velocity).seconds
     }
 
+    /**
+     * @return the estimated position on the track in meters after time [time]
+     */
+    fun estimatePositionAtTime(time: Duration): Double {
+        require(time >= Duration.ZERO)
+
+        var cpIdx = controlPoints.binarySearchBy(ControlPoint::atTime, time)
+        if (cpIdx >= 0) {
+            return controlPoints[cpIdx].distanceAlongTrack
+        }
+
+        cpIdx = -cpIdx - 1
+        check(cpIdx > 0) // this can't happen due to the invariants and preconditions
+        if (cpIdx == controlPoints.size) {
+            val lastCp = controlPoints.last()
+            val velocity = velocityBetweenControlPoints(controlPoints[controlPoints.lastIndex - 1], lastCp)
+            val timeAfterLastCp = time - lastCp.atTime
+            val distanceAfterLastCp = velocity * timeAfterLastCp.toDouble(DurationUnit.SECONDS)
+            return lastCp.distanceAlongTrack + distanceAfterLastCp
+        }
+
+        val previousCp = controlPoints[cpIdx - 1]
+        val nextCp = controlPoints[cpIdx]
+        val velocity = velocityBetweenControlPoints(previousCp, nextCp)
+        val timeAfterPreviousCp = time - previousCp.atTime
+        val distanceAfterPreviousCp = velocity * timeAfterPreviousCp.toDouble(DurationUnit.SECONDS)
+        return previousCp.distanceAlongTrack + distanceAfterPreviousCp
+    }
+
     private fun velocityBetweenControlPoints(cpA: ControlPoint, cpB: ControlPoint): Double {
         val distanceBetween = cpB.distanceAlongTrack - cpA.distanceAlongTrack
-        val velocity = (distanceBetween / (cpB.atTime - cpA.atTime).inWholeMilliseconds.toDouble()) * 1000.0
+        val velocity = distanceBetween / (cpB.atTime - cpA.atTime).toDouble(DurationUnit.SECONDS)
         return velocity
     }
 

@@ -113,6 +113,8 @@ class RouteComponent(
         g.font = g.font.deriveFont(Font.PLAIN, 14.0f)
         g.drawString("100m", 10, height - 10 - (lineThickness * 2.0f).toInt())
 
+        paintCarMarker(g)
+
         if (hoveredInspectable != null) {
             g.color = Color(0x8020FF00.toInt(), true)
             g.fill(hoveredInspectable!!.displayShape)
@@ -121,6 +123,72 @@ class RouteComponent(
 
     override fun paintChildren(g: Graphics?) {
         super.paintChildren(g)
+    }
+
+    var carPositionOnTrack: Double = -1.0
+        set(value) {
+            field = value
+            updateCarMarkerState()
+            repaint()
+        }
+    private var carMarkerPositionInTrackCoords: Vector3 = Vector3.ORIGIN
+    private var carMarkerOrientation: Double = 0.0
+    private fun updateCarMarkerState() {
+        if (carPositionOnTrack < 0.0) {
+            return
+        }
+        var distanceCarry = 0.0
+        var positionCarry = Vector3.ORIGIN
+        for (segment in route) {
+            val nextDistanceCarry = distanceCarry + segment.length
+            if (carPositionOnTrack in distanceCarry..nextDistanceCarry) {
+                carMarkerPositionInTrackCoords = positionCarry + segment.forward.withLength(carPositionOnTrack - distanceCarry)
+                carMarkerOrientation = segment.forward.clockwiseAngleFromPositiveY()
+                break
+            }
+
+            positionCarry += segment.forward
+            distanceCarry = nextDistanceCarry
+        }
+    }
+    var carMarkerColor: Color = Color(0xEC003D)
+        set(value) {
+            field = value
+            repaint()
+        }
+    private val carMarkerShape = Polygon(
+        intArrayOf(
+            5, 10, 5, 0
+        ),
+        intArrayOf(
+            0, 10, 8, 10
+        ),
+        4
+    )
+    private fun paintCarMarker(g: Graphics2D) {
+        if (carPositionOnTrack < 0.0) {
+            return
+        }
+
+        val carMarkerG = g.create() as Graphics2D
+        carMarkerG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        try {
+            carMarkerG.translate(
+                routeCoordinateSystem.routeToBaseImageX(carMarkerPositionInTrackCoords.x),
+                routeCoordinateSystem.routeToBaseImageY(carMarkerPositionInTrackCoords.y),
+            )
+            carMarkerG.rotate(carMarkerOrientation)
+            carMarkerG.scale(1.5, 1.5)
+            carMarkerG.translate(-carMarkerShape.bounds.width / 2, -carMarkerShape.bounds.height / 2)
+            carMarkerG.color = carMarkerColor
+            carMarkerG.fillPolygon(carMarkerShape)
+            carMarkerG.color = Color.BLACK
+            carMarkerG.stroke = BasicStroke(1.5f)
+            carMarkerG.drawPolygon(carMarkerShape)
+        }
+        finally {
+            carMarkerG.dispose()
+        }
     }
 
     private lateinit var baseImage: BufferedImage
