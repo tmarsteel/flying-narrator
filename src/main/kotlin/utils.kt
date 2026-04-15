@@ -154,6 +154,25 @@ fun <T> Sequence<T>.consecutiveRuns(
     }
 }
 
+/**
+ * Copy-pasta from [java.util.Arrays.binarySearch], but comparing the value given by [selector]
+ * instead of the elements themselves
+ */
+fun <T, C : Comparable<C>> Array<T>.binarySearchBy(selector: (T) -> C, key: C): Int {
+    var low = 0
+    var high = lastIndex
+
+    while (low <= high) {
+        val mid = StrictMath.addExact(low, high) ushr 1
+        val midVal = selector(this[mid])
+
+        if (midVal < key) low = mid + 1
+        else if (midVal > key) high = mid - 1
+        else return mid // key found
+    }
+    return -(low + 1) // key not found.
+}
+
 fun <T, M> Sequence<T>.zipWithNextAndEmitLast(
     zipMapper: (T, T) -> M,
     mapLast: (T) -> M,

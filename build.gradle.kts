@@ -26,6 +26,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jsoup:jsoup:1.22.1")
 
+    implementation("org.bytedeco:javacv-platform:1.5.11")
+
     testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-assertions-core:6.1.5")
     testImplementation("io.kotest:kotest-framework-engine:6.1.5")
