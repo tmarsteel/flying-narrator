@@ -1,5 +1,7 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.io.CompactObjectListSerializer
+import io.github.tmarsteel.flyingnarrator.io.KotlinDurationAsMillisecondsSerializer
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -10,16 +12,12 @@ import kotlin.time.DurationUnit
  * will encounter certain features on the track so that the pacenotes/callouts can be timed better.
  */
 @Serializable
-class Speedmap private constructor(
-    val controlPoints: Array<ControlPoint>,
+class Speedmap(
+    @Serializable(with = CompactObjectListSerializer::class)
+    val controlPoints: List<ControlPoint>,
 ) {
-    constructor(controlPoints: List<ControlPoint>) : this(Unit.run {
-        val asArray = controlPoints.toTypedArray()
-        asArray.sortWith(compareBy(ControlPoint::distanceAlongTrack))
-        asArray
-    })
-
     init {
+        require(controlPoints is RandomAccess) { "the control points must be random access, otherwise the speed suffers greatly" }
         require(controlPoints.size >= 2) { "speedmap must have at least two control points" }
         require(controlPoints.first().distanceAlongTrack == 0.0) { "first control point must have distanceAlongTrack == 0.0" }
         check(
@@ -40,7 +38,7 @@ class Speedmap private constructor(
     fun estimateDurationUntilDistance(distanceAlongTrack: Double): Duration {
         require(distanceAlongTrack >= 0.0)
 
-        var cpIdx = controlPoints.binarySearchBy(ControlPoint::distanceAlongTrack, distanceAlongTrack)
+        var cpIdx = controlPoints.binarySearchBy(distanceAlongTrack, selector = ControlPoint::distanceAlongTrack)
         if (cpIdx >= 0) {
             return controlPoints[cpIdx].atTime
         }
@@ -67,7 +65,7 @@ class Speedmap private constructor(
     fun estimatePositionAtTime(time: Duration): Double {
         require(time >= Duration.ZERO)
 
-        var cpIdx = controlPoints.binarySearchBy(ControlPoint::atTime, time)
+        var cpIdx = controlPoints.binarySearchBy(time, selector = ControlPoint::atTime)
         if (cpIdx >= 0) {
             return controlPoints[cpIdx].distanceAlongTrack
         }
@@ -102,7 +100,7 @@ class Speedmap private constructor(
      *
      */
     fun compress(timeTolerance: Double = 0.5): Speedmap {
-        val cpCopy = controlPoints.toMutableList()
+        val cpCopy = ArrayList(controlPoints)
         var compressIndexStart = 1
         while (compressIndexStart < cpCopy.size - 1) {
             val firstCp = cpCopy[compressIndexStart]
@@ -138,7 +136,7 @@ class Speedmap private constructor(
             }
         }
 
-        return Speedmap(cpCopy.toTypedArray())
+        return Speedmap(cpCopy)
     }
 
     @Serializable
@@ -151,21 +149,7 @@ class Speedmap private constructor(
         /**
          * accumulative time when reaching [distanceAlongTrack]
          */
+        @Serializable(with = KotlinDurationAsMillisecondsSerializer::class)
         val atTime: Duration,
     )
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as Speedmap
-
-        if (!controlPoints.contentEquals(other.controlPoints)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return controlPoints.contentHashCode()
-    }
 }
