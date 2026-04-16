@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
 import io.github.tmarsteel.flyingnarrator.dirtrally2.StageProgressReporter.Companion.OPTIMAL_SAMPLING_INTERVAL
+import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import kotlin.math.absoluteValue
 import kotlin.math.ceil
@@ -11,7 +12,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * Analyzes live screen captures while playing (or screenshots) for the on-screen progress indicator
  * in the game and deduces progress through the stage.
  *
- * You should feed game frames to [getStageProgressFromFrame] every [OPTIMAL_SAMPLING_INTERVAL] for the highest
+ * You should feed game frames to [getStageProgressFromGameFrame] every [OPTIMAL_SAMPLING_INTERVAL] for the highest
  * resolution.
  *
  * This will provide between 0.466 and 1.396 discrete progress values per vertical pixel of screen resolution;
@@ -35,21 +36,28 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 class StageProgressReporter {
     /**
-     * @return progress through the stage between `0.0` and `1.0`, or `-1.0` if the progress cannot
-     * be determined reliably.
+     * @param width the width of a full game frame
+     * @param height the height of a full game frame
+     * @return the area that contains the progress indicator, so you can pass exactly that data to [getProgressFromProgressIndicatorInGameFrame]
+     * (see [BufferedImage.getSubimage])
      */
-    fun getStageProgressFromFrame(frame: BufferedImage): Double {
-        val indicatorImage = frame.getSubimage(
-            ceil(frame.width.toDouble() * PROGRESS_INDICATOR_OFFSET_X_PROPORTION).toInt(),
-            ceil(frame.height.toDouble() * PROGRESS_INDICATOR_OFFSET_Y_PROPORTION).toInt(),
-            floor(frame.width.toDouble() * PROGRESS_INDICATOR_WIDTH_PROPORTION).toInt(),
-            floor(frame.height.toDouble() * PROGRESS_INDICATOR_HEIGHT_PROPORTION).toInt(),
+    fun getCropAreaForFrameSize(width: Int, height: Int): Rectangle {
+        return Rectangle(
+            ceil(width.toDouble() * PROGRESS_INDICATOR_OFFSET_X_PROPORTION).toInt(),
+            ceil(height.toDouble() * PROGRESS_INDICATOR_OFFSET_Y_PROPORTION).toInt(),
+            floor(width.toDouble() * PROGRESS_INDICATOR_WIDTH_PROPORTION).toInt(),
+            floor(height.toDouble() * PROGRESS_INDICATOR_HEIGHT_PROPORTION).toInt(),
         )
-        return analyzeProgressIndicator(indicatorImage)
     }
 
     private lateinit var pixelBuffer: IntArray
-    private fun analyzeProgressIndicator(indicatorImage: BufferedImage): Double {
+
+    /**
+     * @param indicatorImage a game frame cropped exactly to the indicator
+     * @return progress through the stage between `0.0` and `1.0`, or `-1.0` if the progress cannot
+     *         be determined reliably.
+     */
+    fun getProgressFromProgressIndicatorInGameFrame(indicatorImage: BufferedImage): Double {
         val pixelBufferSize = indicatorImage.width * indicatorImage.height
         if (!::pixelBuffer.isInitialized || pixelBuffer.size != pixelBufferSize) {
             pixelBuffer = IntArray(pixelBufferSize)
@@ -117,7 +125,7 @@ class StageProgressReporter {
     companion object {
         /**
          * this is a bit faster than the resolution provided by the games progress
-         * indicator. It will sometimes result in two consecutive calls to [getStageProgressFromFrame] will
+         * indicator. It will sometimes result in two consecutive calls to [getStageProgressFromGameFrame] will
          * report the same number.
          */
         val OPTIMAL_SAMPLING_INTERVAL = 100.milliseconds

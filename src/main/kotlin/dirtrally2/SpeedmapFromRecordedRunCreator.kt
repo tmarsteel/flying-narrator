@@ -29,6 +29,7 @@ class SpeedmapFromRecordedRunCreator(
             var lastReportTimestamp = -StageProgressReporter.OPTIMAL_SAMPLING_INTERVAL
             var nFramesReported = 0
             val progressReporter = StageProgressReporter()
+            val cropArea = progressReporter.getCropAreaForFrameSize(grabber.imageWidth, grabber.imageHeight)
             val controlPoints = mutableListOf<Speedmap.ControlPoint>(
                 Speedmap.ControlPoint(0.0, 0.seconds)
             )
@@ -39,7 +40,7 @@ class SpeedmapFromRecordedRunCreator(
                     continue
                 }
                 val image = converter.convert(frame)
-                val progressFraction = progressReporter.getStageProgressFromFrame(image)
+                val progressFraction = progressReporter.getProgressFromProgressIndicatorInGameFrame(image.getSubimage(cropArea.x, cropArea.y, cropArea.width, cropArea.height))
                 if (progressFraction >= 0.0 && progressFraction > progressFractionCarry) {
                     controlPoints.add(
                         Speedmap.ControlPoint(
