@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.doubles.shouldBeWithinPercentageOf
 import javax.imageio.ImageIO
 
@@ -12,7 +13,7 @@ class StageProgressReporterTest : FreeSpec({
         val crop = reporter.getCropAreaForFrameSize(frame.width, frame.height)
         val cropped = frame.getSubimage(crop.x, crop.y, crop.width, crop.height)
         val progress = reporter.getProgressFromProgressIndicatorInGameFrame(cropped)
-        progress.shouldBeWithinPercentageOf(0.3153, 0.5)
+        progress.shouldBeWithinPercentageOf(0.3171, 0.5)
     }
 
     "with negative-delta split and close-in ghost" {
@@ -27,9 +28,15 @@ class StageProgressReporterTest : FreeSpec({
         progress.shouldBeWithinPercentageOf(0.3544, 0.5)
     }
 
-    "tricky" {
-        val cropped = ImageIO.read(StageProgressReporterTest::class.java.getResourceAsStream("indicator_tricky.png"))
+    "regression 1" {
+        val cropped = ImageIO.read(StageProgressReporterTest::class.java.getResourceAsStream("indicator_regression_1.png"))
         val progress = reporter.getProgressFromProgressIndicatorInGameFrame(cropped)
         progress.shouldBeWithinPercentageOf(0.2633, 0.5)
+    }
+
+    "regression 2 - at stage start" {
+        val cropped = ImageIO.read(StageProgressReporterTest::class.java.getResourceAsStream("indicator_at_stage_start.png"))
+        val progress = reporter.getProgressFromProgressIndicatorInGameFrame(cropped)
+        progress.shouldBeBetween(0.0, 0.0001, 0.0001)
     }
 })

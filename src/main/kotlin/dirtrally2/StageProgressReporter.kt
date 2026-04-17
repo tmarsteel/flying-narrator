@@ -89,7 +89,7 @@ class StageProgressReporter {
 
         var bestMatch = 0.0
         var bestMatchAtY = 0
-        for (indicatorImageY in indicatorImage.height - 1 - playerIndicatorSize.height downTo 0) {
+        for (indicatorImageY in indicatorImage.height - playerIndicatorSize.height downTo 0) {
             val matchQuality = evaluateImageMatch(
                 haystackImagePixels = progressIndicatorPixelBuffer,
                 haystackPosX = 0,
@@ -128,7 +128,7 @@ class StageProgressReporter {
         const val PROGRESS_INDICATOR_OFFSET_X_PROPORTION = 0.0390625
         const val PROGRESS_INDICATOR_WIDTH_PROPORTION = 0.00859375
         const val PROGRESS_INDICATOR_OFFSET_Y_PROPORTION = 0.2208333333
-        const val PROGRESS_INDICATOR_HEIGHT_PROPORTION = 0.7173611111
+        const val PROGRESS_INDICATOR_HEIGHT_PROPORTION = 0.71875
 
         /**
          * the player indicator is considered to be found with confidence when [evaluateImageMatch]
