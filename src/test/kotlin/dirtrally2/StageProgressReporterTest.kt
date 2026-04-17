@@ -12,12 +12,18 @@ class StageProgressReporterTest : FreeSpec({
         val crop = reporter.getCropAreaForFrameSize(frame.width, frame.height)
         val cropped = frame.getSubimage(crop.x, crop.y, crop.width, crop.height)
         val progress = reporter.getProgressFromProgressIndicatorInGameFrame(cropped)
-        progress.shouldBeWithinPercentageOf(0.3218, 0.5)
+        progress.shouldBeWithinPercentageOf(0.3153, 0.5)
+    }
+
+    "with negative-delta split and close-in ghost" {
+        val cropped = ImageIO.read(StageProgressReporterTest::class.java.getResourceAsStream("indicator_negative_delta_split_close_ghost.png"))
+        val progress = reporter.getProgressFromProgressIndicatorInGameFrame(cropped)
+        progress.shouldBeWithinPercentageOf(0.1821, 0.5)
     }
 
     "with negative-delta splits" {
-        val cropped = ImageIO.read(StageProgressReporterTest::class.java.getResourceAsStream("indicator_with_negative_delta_split.png"))
+        val cropped = ImageIO.read(StageProgressReporterTest::class.java.getResourceAsStream("indicator_negative_delta_split.png"))
         val progress = reporter.getProgressFromProgressIndicatorInGameFrame(cropped)
-        progress.shouldBeWithinPercentageOf(0.3218, 0.5)
+        progress.shouldBeWithinPercentageOf(0.3544, 0.5)
     }
 })

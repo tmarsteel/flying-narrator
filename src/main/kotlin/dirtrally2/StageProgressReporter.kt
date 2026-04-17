@@ -1,12 +1,26 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
 import io.github.tmarsteel.flyingnarrator.dirtrally2.StageProgressReporter.Companion.OPTIMAL_SAMPLING_INTERVAL
+import io.github.tmarsteel.flyingnarrator.dirtrally2.StageProgressReporter.Companion.PROGRESS_INDICATOR_HEIGHT_PROPORTION
+import java.awt.BasicStroke
+import java.awt.Color
+import java.awt.Dimension
+import java.awt.Graphics2D
+import java.awt.Polygon
 import java.awt.Rectangle
+import java.awt.RenderingHints
+import java.awt.Shape
 import java.awt.image.BufferedImage
+import java.awt.image.ConvolveOp
+import java.awt.image.Kernel
 import kotlin.math.absoluteValue
 import kotlin.math.ceil
+import kotlin.math.exp
 import kotlin.math.floor
+import kotlin.math.pow
+import kotlin.math.sqrt
 import kotlin.time.Duration.Companion.milliseconds
+
 
 /**
  * Analyzes live screen captures while playing (or screenshots) for the on-screen progress indicator
@@ -15,19 +29,18 @@ import kotlin.time.Duration.Companion.milliseconds
  * You should feed game frames to [getStageProgressFromGameFrame] every [OPTIMAL_SAMPLING_INTERVAL] for the highest
  * resolution.
  *
- * This will provide between 0.466 and 1.396 discrete progress values per vertical pixel of screen resolution;
- * so the accuracy is at resolution is like so:
+ * This will provide around [PROGRESS_INDICATOR_HEIGHT_PROPORTION] discrete progress values per vertical pixel
+ * of screen resolution; so the accuracy of this is `stageLength / screenHeight * PROGRESS_INDICATOR_HEIGHT_PROPORTION`
+ * meters. Some examples:
  *
- * | resolution | n discrete steps | delta on a 6km stage | delta on a 35km stage |
- * |------------|------------------|----------------------|-----------------------|
- * | 720x405    | 565              | 10.60m..31.81m       | 61.85m..185.55m       |
- * | 1024x768   | 1073             |  5.59m..16.77m       | 32.62m.. 97.85m       |
- * | 1280x800   | 1117             |  5.36m..16.10m       | 31.31m.. 93.93m       |
- * | 1680x1050  | 1467             |  4.09m..12.23m       | 23.86m.. 71.57m       |
- * | 1920x1200  | 1676             |  3.58m..10.74m       | 20.87m.. 62.62m       |
- * | 2560x1440  | 2011             |  2.98m..8.95m        | 17.40m.. 52.18m       |
- * | 3840x2160  | 3017             |  1.99m..5.95m        | 11.60m.. 34.79m       |
- * | 4096x2304  | 3219             |  1.86m..5.59m        | 10.87m.. 32.61m       |
+ * |stage length |screen height|accuracy|
+ * |-------------|-------------|--------|
+ * |5km          |1440px       | 4.8m   |
+ * |30km         |1440px       |29.0m   |
+ * |5km          |1080px       | 6.5m   |
+ * |30km         |1080px       |38.7m   |
+ * |5km          | 720px       | 9.6m   |
+ * |30km         | 720px       |58.1m   |
  *
  * **Keeping a single instance of this class through a stage run or game session will speed it up
  * by re-using memory between frames.**
@@ -50,7 +63,9 @@ class StageProgressReporter {
         )
     }
 
-    private lateinit var pixelBuffer: IntArray
+    private lateinit var progressIndicatorPixelBuffer: IntArray
+    private lateinit var playerIndicatorPixelBuffer: IntArray
+    private lateinit var playerIndicatorSize: Dimension
 
     /**
      * @param indicatorImage a game frame cropped exactly to the indicator
@@ -58,68 +73,44 @@ class StageProgressReporter {
      *         be determined reliably.
      */
     fun getProgressFromProgressIndicatorInGameFrame(indicatorImage: BufferedImage): Double {
-        val pixelBufferSize = indicatorImage.width * indicatorImage.height
-        if (!::pixelBuffer.isInitialized || pixelBuffer.size != pixelBufferSize) {
-            pixelBuffer = IntArray(pixelBufferSize)
+        val progressIndicatorPixelBufferSize = indicatorImage.width * indicatorImage.height
+        if (!::progressIndicatorPixelBuffer.isInitialized || progressIndicatorPixelBuffer.size != progressIndicatorPixelBufferSize) {
+            progressIndicatorPixelBuffer = IntArray(progressIndicatorPixelBufferSize)
         }
-        indicatorImage.getRGB(0, 0, indicatorImage.width, indicatorImage.height, pixelBuffer, 0, indicatorImage.width)
+        indicatorImage.getRGB(0, 0, indicatorImage.width, indicatorImage.height, progressIndicatorPixelBuffer, 0, indicatorImage.width)
 
-        var startAtY = -1
-        var endAtY = 0
-        rows@for (row in indicatorImage.height - 1 downTo 0) {
-            for (col in 0 until indicatorImage.width) {
-                val pixel = pixelBuffer[row * indicatorImage.width + col]
-                if (colorDifference(pixel, PLAYER_INDICATOR_COLOR) > PLAYER_INDICATOR_COLOR_TOLERANCE) {
-                    if (startAtY != -1) {
-                        endAtY = row
-                        break@rows
-                    } else {
-                        continue@rows
-                    }
-                }
-            }
+        if (!::playerIndicatorPixelBuffer.isInitialized || playerIndicatorSize.width != indicatorImage.width) {
+            val playerIndicatorImage = renderPlayerIndicator(indicatorImage.width)
+            playerIndicatorPixelBuffer = IntArray(playerIndicatorImage.width * playerIndicatorImage.height)
+            playerIndicatorImage.getRGB(0, 0, playerIndicatorImage.width, playerIndicatorImage.height, playerIndicatorPixelBuffer, 0, playerIndicatorImage.width)
+            playerIndicatorSize = Dimension(playerIndicatorImage.width, playerIndicatorImage.height)
+        }
+        check(playerIndicatorSize.width <= indicatorImage.width)
 
-            if (startAtY == -1) {
-                // we found the start of the indicator dot
-                startAtY = row
+        var bestMatch = 0.0
+        var bestMatchAtY = 0
+        for (indicatorImageY in indicatorImage.height - 1 - playerIndicatorSize.height downTo 0) {
+            val matchQuality = evaluateImageMatch(
+                haystackImagePixels = progressIndicatorPixelBuffer,
+                haystackPosX = 0,
+                haystackPosY = indicatorImageY,
+                haystackWidth = indicatorImage.width,
+                needlePixels = playerIndicatorPixelBuffer,
+                needleWidth = playerIndicatorSize.width,
+                needleHeight = playerIndicatorSize.height,
+            )
+            if (matchQuality > bestMatch) {
+                bestMatch = matchQuality
+                bestMatchAtY = indicatorImageY
             }
         }
 
-        if (startAtY == -1) {
-            // found no indicator dot
+        if (bestMatch < PLAYER_INDICATOR_MIN_MATCH_QUALITY) {
             return -1.0
         }
 
-        val indicatorHeight = startAtY - endAtY
-        if (indicatorHeight.toDouble() / indicatorImage.height.toDouble() > PLAYER_INDICATOR_MAX_HEIGHT_PROPORTION) {
-            return -1.0
-        }
-
-        if (startAtY == indicatorImage.height - 1) {
-            // at the very start of the stage
-            return 0.0
-        }
-        val minProgress = (indicatorImage.height - startAtY).toDouble() / (indicatorImage.height.toDouble() - 1.0)
-        val maxProgress = (indicatorImage.height - endAtY).toDouble() / (indicatorImage.height.toDouble() - 1.0)
-        return minProgress + (maxProgress - minProgress) / 2.0
-    }
-
-    /**
-     * @param color1 RGB, alpha is ignored
-     * @param color2 RGB, alpha is ignored
-     * @return difference of the two colors, component wise: `0.0` = identical colors, `1.0` = complement colors
-     */
-    private fun colorDifference(color1: Int, color2: Int): Double {
-        val r1 = (color1 shr 16) and 0xFF
-        val g1 = (color1 shr 8) and 0xFF
-        val b1 = color1 and 0xFF
-        val r2 = (color2 shr 16) and 0xFF
-        val g2 = (color2 shr 8) and 0xFF
-        val b2 = color2 and 0xFF
-        val dr = (r1 - r2).absoluteValue.toDouble()
-        val dg = (g1 - g2).absoluteValue.toDouble()
-        val db = (b1 - b2).absoluteValue.toDouble()
-        return (dr + dg + db) / 3.0 / 255.0
+        val progress = 1.0 - bestMatchAtY.toDouble() / (indicatorImage.height - playerIndicatorSize.height).toDouble()
+        return progress
     }
 
     companion object {
@@ -134,12 +125,152 @@ class StageProgressReporter {
         At 2560x1440, the indicator starts at 107x334 and occupies 8x1007 pixels
         The maximum measured height for the indicator was 6px
          */
-        const val PROGRESS_INDICATOR_OFFSET_X_PROPORTION = 0.041796875
-        const val PROGRESS_INDICATOR_WIDTH_PROPORTION = 0.002734375
-        const val PROGRESS_INDICATOR_OFFSET_Y_PROPORTION = 0.2319444444
-        const val PROGRESS_INDICATOR_HEIGHT_PROPORTION = 0.7
-        const val PLAYER_INDICATOR_COLOR = 0xEC003D
-        const val PLAYER_INDICATOR_COLOR_TOLERANCE = 0.15
-        const val PLAYER_INDICATOR_MAX_HEIGHT_PROPORTION = 0.006951340616
+        const val PROGRESS_INDICATOR_OFFSET_X_PROPORTION = 0.0390625
+        const val PROGRESS_INDICATOR_WIDTH_PROPORTION = 0.00859375
+        const val PROGRESS_INDICATOR_OFFSET_Y_PROPORTION = 0.2208333333
+        const val PROGRESS_INDICATOR_HEIGHT_PROPORTION = 0.7173611111
+
+        /**
+         * the player indicator is considered to be found with confidence when [evaluateImageMatch]
+         * returns a value of this or greater
+         */
+        const val PLAYER_INDICATOR_MIN_MATCH_QUALITY = 0.71
     }
+}
+
+private fun evaluateImageMatch(
+    haystackImagePixels: IntArray,
+    haystackPosX: Int,
+    haystackPosY: Int,
+    haystackWidth: Int,
+    needlePixels: IntArray,
+    needleWidth: Int,
+    needleHeight: Int,
+): Double {
+    var totalDelta = 0.0
+    for (needleX in 0 until needleWidth) {
+        for (needleY in 0 until needleHeight) {
+            val needlePixel = needlePixels[needleY * needleWidth + needleX]
+            val haystackPixel = haystackImagePixels[(haystackPosY + needleY) * haystackWidth + haystackPosX + needleX]
+            totalDelta += 1 - colorDistance(needlePixel, haystackPixel)
+        }
+    }
+
+    return totalDelta / (needleWidth * needleHeight).toDouble()
+}
+
+/**
+ * @param color1 RGB, alpha is ignored
+ * @param color2 RGB, alpha is ignored
+ * @return distance between the two colors, component wise: `0.0` = identical colors, `1.0` = complement colors
+ */
+private fun colorDistance(color1: Int, color2: Int): Double {
+    // https://en.wikipedia.org/wiki/Color_difference
+    val r1 = (color1 shr 16) and 0xFF
+    val g1 = (color1 shr 8) and 0xFF
+    val b1 = color1 and 0xFF
+    val r2 = (color2 shr 16) and 0xFF
+    val g2 = (color2 shr 8) and 0xFF
+    val b2 = color2 and 0xFF
+
+    val dR = (r1 - r2).toDouble()
+    val dG = (g1 - g2).toDouble()
+    val dB = (b1 - b2).toDouble()
+    val invR = (r1 + r2) / 2.0
+    val delta = sqrt(
+        (2.0 + invR / 256.0) * dR.pow(2.0) +
+        4.0 * dG.pow(2.0) +
+        (2.0 + (255.0 - invR) / 256.0) * dB.pow(2.0)
+    )
+
+    return delta.absoluteValue / 764.8339663572415
+}
+
+/**
+ * Renders an image that is very similar to the the 45°-tilted square that indicates the progress through the stage to
+ * the left of the screen.
+ * @return the indicator, as a RGBA image
+ */
+private fun renderPlayerIndicator(width: Int): BufferedImage {
+    // choose borderWidth and cWidth so that borderWidth/2 AND sqrt(2)*cWidth-borderWidth/2 are both as close
+    // to being integer as possible
+    val borderWidth = 4
+    val cWidth = 29
+    val inset = borderWidth / 2
+    val center = cWidth / 2
+    val shape = Polygon(intArrayOf(center, cWidth-inset, center, 0), intArrayOf(0, center, cWidth-inset, center), 4)
+
+    val image = BufferedImage(width, width, BufferedImage.TYPE_INT_ARGB)
+    val g = image.createGraphics()
+    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+    // adjust to the actual width we're rendering for to avoid math with the coordinates below
+    g.translate(1, 0)
+    ((width - 1).toDouble() / cWidth.toDouble()).let {
+        g.scale(it, it)
+    }
+
+    g.color = Color(0xFF003E)
+    g.fill(shape)
+
+    g.stroke = BasicStroke(borderWidth.toFloat() * 1.2f)
+    g.color = Color.BLACK.withAlpha(200)
+    /*g.clip = shape
+    g.drawDropShadowOf(shape, borderWidth)
+    g.clip = null*/
+    g.stroke = BasicStroke(borderWidth.toFloat() * 0.8f)
+    g.color = Color.WHITE
+    g.draw(shape)
+
+    g.dispose()
+
+    return image
+}
+
+private fun Color.withAlpha(alpha: Int): Color {
+    return Color(red, green, blue, alpha)
+}
+
+private fun Graphics2D.drawDropShadowOf(
+    shape: Shape,
+    shadowBlurRadius: Int,
+) {
+    // Bounding Box + Blur-Rand
+    val bounds = shape.bounds
+    val shadowWidth = bounds.width + shadowBlurRadius * 4
+    val shadowHeight = bounds.height + shadowBlurRadius * 4
+
+    val sharpShadowImage = BufferedImage(shadowWidth, shadowHeight, BufferedImage.TYPE_INT_ARGB)
+    val g = sharpShadowImage.createGraphics()
+    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+    g.translate(-bounds.x + shadowBlurRadius * 2, -bounds.y + shadowBlurRadius * 2)
+    g.stroke = this.stroke
+    g.color = this.color
+    g.draw(shape)
+    g.dispose()
+
+    val op = ConvolveOp(
+        makeGaussianBlurKernel(shadowBlurRadius),
+        ConvolveOp.EDGE_NO_OP,
+        null
+    )
+    val blurredShadowImage = op.filter(sharpShadowImage, null)
+
+    this.drawImage(blurredShadowImage, bounds.x - shadowBlurRadius * 2, bounds.y - shadowBlurRadius * 2, null)
+}
+
+private fun makeGaussianBlurKernel(radius: Int): Kernel {
+    val size = radius * 2 + 1
+    val kernel = FloatArray(size * size)
+    val sigma = radius / 3.0f
+    var sum = 0f
+    for (y in -radius..radius) {
+        for (x in -radius..radius) {
+            val value = exp((-(x * x + y * y) / (2 * sigma * sigma)).toDouble()).toFloat()
+            kernel[(y + radius) * size + (x + radius)] = value
+            sum += value
+        }
+    }
+
+    for (i in kernel.indices) kernel[i] /= sum
+    return Kernel(size, size, kernel)
 }
