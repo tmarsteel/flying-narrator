@@ -134,7 +134,7 @@ class StageProgressReporter {
          * the player indicator is considered to be found with confidence when [evaluateImageMatch]
          * returns a value of this or greater
          */
-        const val PLAYER_INDICATOR_MIN_MATCH_QUALITY = 0.71
+        const val PLAYER_INDICATOR_MIN_MATCH_QUALITY = 0.8
     }
 }
 
@@ -147,16 +147,23 @@ private fun evaluateImageMatch(
     needleWidth: Int,
     needleHeight: Int,
 ): Double {
-    var totalDelta = 0.0
+    var totalDifference = 0.0
+    var nSignificantPixels = 0
     for (needleX in 0 until needleWidth) {
         for (needleY in 0 until needleHeight) {
             val needlePixel = needlePixels[needleY * needleWidth + needleX]
+            val needlePixelAlpha = needlePixel.toUInt() shr 24
+            if (needlePixelAlpha != 255u) {
+                continue
+            }
             val haystackPixel = haystackImagePixels[(haystackPosY + needleY) * haystackWidth + haystackPosX + needleX]
-            totalDelta += 1 - colorDistance(needlePixel, haystackPixel)
+            val pixelDistance = colorDistance(needlePixel, haystackPixel)
+            totalDifference += pixelDistance
+            nSignificantPixels++
         }
     }
 
-    return totalDelta / (needleWidth * needleHeight).toDouble()
+    return 1 - (totalDifference / nSignificantPixels.toDouble())
 }
 
 /**
