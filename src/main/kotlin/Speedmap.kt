@@ -2,7 +2,13 @@ package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.io.CompactObjectListSerializer
 import io.github.tmarsteel.flyingnarrator.io.KotlinDurationAsMillisecondsSerializer
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.modules.SerializersModule
+import java.nio.file.Path
+import kotlin.io.path.inputStream
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
@@ -38,25 +44,20 @@ class Speedmap(
     fun estimateDurationUntilDistance(distanceAlongTrack: Double): Duration {
         require(distanceAlongTrack >= 0.0)
 
-        var cpIdx = controlPoints.binarySearchBy(distanceAlongTrack, selector = ControlPoint::distanceAlongTrack)
-        if (cpIdx >= 0) {
-            return controlPoints[cpIdx].atTime
+        return when (val location = getLocationBy(distanceAlongTrack, ControlPoint::distanceAlongTrack)) {
+            is TrackLocation.AtControlPoint -> location.controlPoint.atTime
+            is TrackLocation.BetweenControlPoints -> {
+                val velocity = velocityBetweenControlPoints(location.previous, location.next)
+                val distanceAfterPreviousCp = distanceAlongTrack - location.previous.distanceAlongTrack
+                return location.previous.atTime + (distanceAfterPreviousCp / velocity).seconds
+            }
+            is TrackLocation.AtOrAfterLastControlPoint -> {
+                val lastCp = controlPoints.last()
+                val velocity = velocityBetweenControlPoints(controlPoints[controlPoints.lastIndex - 1], lastCp)
+                val distanceAfterLastCp = distanceAlongTrack - lastCp.distanceAlongTrack
+                return lastCp.atTime + (distanceAfterLastCp / velocity).seconds
+            }
         }
-
-        cpIdx = -cpIdx - 1
-        check(cpIdx > 0) // this can't happen due to the invariants and preconditions
-        if (cpIdx == controlPoints.size) {
-            val lastCp = controlPoints.last()
-            val velocity = velocityBetweenControlPoints(controlPoints[controlPoints.lastIndex - 1], lastCp)
-            val distanceAfterLastCp = distanceAlongTrack - lastCp.distanceAlongTrack
-            return lastCp.atTime + (distanceAfterLastCp / velocity).seconds
-        }
-
-        val previousCp = controlPoints[cpIdx - 1]
-        val nextCp = controlPoints[cpIdx]
-        val velocity = velocityBetweenControlPoints(previousCp, nextCp)
-        val distanceAfterPreviousCp = distanceAlongTrack - previousCp.distanceAlongTrack
-        return previousCp.atTime + (distanceAfterPreviousCp / velocity).seconds
     }
 
     /**
@@ -65,27 +66,41 @@ class Speedmap(
     fun estimatePositionAtTime(time: Duration): Double {
         require(time >= Duration.ZERO)
 
-        var cpIdx = controlPoints.binarySearchBy(time, selector = ControlPoint::atTime)
-        if (cpIdx >= 0) {
-            return controlPoints[cpIdx].distanceAlongTrack
+        return when(val location = getLocationBy(time, ControlPoint::atTime)) {
+            is TrackLocation.AtControlPoint -> location.controlPoint.distanceAlongTrack
+            is TrackLocation.BetweenControlPoints -> {
+                val velocity = velocityBetweenControlPoints(location.previous, location.next)
+                val timeAfterPreviousCp = time - location.previous.atTime
+                val distanceAfterPreviousCp = velocity * timeAfterPreviousCp.toDouble(DurationUnit.SECONDS)
+                return location.previous.distanceAlongTrack + distanceAfterPreviousCp
+            }
+            is TrackLocation.AtOrAfterLastControlPoint -> {
+                val lastCp = controlPoints.last()
+                val velocity = velocityBetweenControlPoints(controlPoints[controlPoints.lastIndex - 1], lastCp)
+                val timeAfterLastCp = time - lastCp.atTime
+                val distanceAfterLastCp = velocity * timeAfterLastCp.toDouble(DurationUnit.SECONDS)
+                return lastCp.distanceAlongTrack + distanceAfterLastCp
+            }
         }
+    }
 
-        cpIdx = -cpIdx - 1
-        check(cpIdx > 0) // this can't happen due to the invariants and preconditions
-        if (cpIdx == controlPoints.size) {
-            val lastCp = controlPoints.last()
-            val velocity = velocityBetweenControlPoints(controlPoints[controlPoints.lastIndex - 1], lastCp)
-            val timeAfterLastCp = time - lastCp.atTime
-            val distanceAfterLastCp = velocity * timeAfterLastCp.toDouble(DurationUnit.SECONDS)
-            return lastCp.distanceAlongTrack + distanceAfterLastCp
+    fun estimateVelocityAtDistance(distanceAlongTrack: Double): Double {
+        require(distanceAlongTrack >= 0.0)
+
+        return when (val location = getLocationBy(distanceAlongTrack, ControlPoint::distanceAlongTrack)) {
+            is TrackLocation.AtControlPoint -> {
+                val cp = location.controlPoint
+                return if (location.index > 0) {
+                    val velocityBefore = velocityBetweenControlPoints(controlPoints[location.index - 1], cp)
+                    val velocityAfter = velocityBetweenControlPoints(controlPoints[location.index + 1], cp)
+                    (velocityAfter + velocityBefore) / 2.0
+                } else {
+                    velocityBetweenControlPoints(location.controlPoint, controlPoints[location.index + 1])
+                }
+            }
+            is TrackLocation.BetweenControlPoints -> velocityBetweenControlPoints(location.previous, location.next)
+            is TrackLocation.AtOrAfterLastControlPoint -> velocityBetweenControlPoints(controlPoints[controlPoints.lastIndex - 1], controlPoints.last())
         }
-
-        val previousCp = controlPoints[cpIdx - 1]
-        val nextCp = controlPoints[cpIdx]
-        val velocity = velocityBetweenControlPoints(previousCp, nextCp)
-        val timeAfterPreviousCp = time - previousCp.atTime
-        val distanceAfterPreviousCp = velocity * timeAfterPreviousCp.toDouble(DurationUnit.SECONDS)
-        return previousCp.distanceAlongTrack + distanceAfterPreviousCp
     }
 
     private fun velocityBetweenControlPoints(cpA: ControlPoint, cpB: ControlPoint): Double {
@@ -93,7 +108,34 @@ class Speedmap(
         val velocity = distanceBetween / (cpB.atTime - cpA.atTime).toDouble(DurationUnit.SECONDS)
         return velocity
     }
+    
+    private inline fun <T : Comparable<T>> getLocationBy(key: T, crossinline selector: (ControlPoint) -> T): TrackLocation {
+        var cpIdx = controlPoints.binarySearchBy(key, selector = selector)
+        if (cpIdx >= 0) {
+            return if (cpIdx == controlPoints.lastIndex) {
+                TrackLocation.AtOrAfterLastControlPoint
+            } else {
+                TrackLocation.AtControlPoint(controlPoints[cpIdx], cpIdx)
+            }
+        }
 
+        cpIdx = -cpIdx - 1
+        check(cpIdx > 0) // this can't happen due to the invariants and preconditions
+        if (cpIdx == controlPoints.size) {
+            return TrackLocation.AtOrAfterLastControlPoint
+        }
+
+        val previousCp = controlPoints[cpIdx - 1]
+        val nextCp = controlPoints[cpIdx]
+        return TrackLocation.BetweenControlPoints(previousCp, nextCp)
+    }
+
+    private sealed interface TrackLocation {
+        class AtControlPoint(val controlPoint: ControlPoint, val index: Int) : TrackLocation
+        class BetweenControlPoints(val previous: ControlPoint, val next: ControlPoint) : TrackLocation
+        object AtOrAfterLastControlPoint : TrackLocation
+    }
+    
     /**
      * @return a compressed version of this [Speedmap], where a call to [estimateDurationUntilDistance] is at most
      * [timeTolerance] seconds off.
@@ -152,4 +194,19 @@ class Speedmap(
         @Serializable(with = KotlinDurationAsMillisecondsSerializer::class)
         val atTime: Duration,
     )
+
+    companion object {
+        val JSON_FORMAT = Json {
+            serializersModule = SerializersModule {
+                include(CompactObjectListSerializer.MODULE)
+            }
+        }
+
+        @OptIn(ExperimentalSerializationApi::class)
+        fun fromFile(file: Path): Speedmap {
+            return file.inputStream().use { inStream ->
+                JSON_FORMAT.decodeFromStream(inStream)
+            }
+        }
+    }
 }
