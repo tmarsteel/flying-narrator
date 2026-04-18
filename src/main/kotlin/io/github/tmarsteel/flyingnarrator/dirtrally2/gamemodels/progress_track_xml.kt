@@ -1,13 +1,94 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonValue
 import tools.jackson.core.JsonParser
 import tools.jackson.core.JsonToken
 import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.annotation.JsonDeserialize
 import tools.jackson.databind.exc.MismatchedInputException
+import tools.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper
 import javax.xml.bind.annotation.XmlAttribute
 import javax.xml.bind.annotation.XmlElement
+import javax.xml.bind.annotation.XmlRootElement
+
+/**
+ * Model for the `progress_track.xml` file - found in the `*.nefs` files in `$GAME_DIR/locations`, at sub-path
+ * `tracks/locations/$location/$location_rally_$number/route_$stageNumber/progress_track.xml`.
+ */
+@XmlRootElement(name = "progress_track_data")
+class DR2ProgressTrackData(
+    @XmlAttribute
+    @JsonProperty("exporter_version")
+    val exporterVersion: String,
+
+    @XmlElement
+    @JacksonXmlElementWrapper(useWrapping = true)
+    val routes: List<DR2ProgressRoute>,
+
+    @XmlElement
+    @JacksonXmlElementWrapper(useWrapping = true)
+    val gates: List<DR2ProgressGate>,
+)
+
+class DR2ProgressRouteSplit(
+    @XmlAttribute
+    val id: Long,
+
+    @XmlAttribute
+    val type: Type,
+
+    @XmlAttribute(name = "gate")
+    val gateId: Long,
+) {
+    enum class Type(@JsonValue val jsonValue: String) {
+        START("start"),
+        TIME("time"),
+        FINISH("finish"),
+        ;
+
+        companion object {
+            @JvmStatic
+            @JsonCreator
+            fun fromJsonValue(jsonValue: String): DR2ProgressRoute.Direction = enumValues<DR2ProgressRoute.Direction>()
+                .firstOrNull { it.jsonValue == jsonValue }
+                ?: throw IllegalArgumentException("Unknown direction: $jsonValue")
+        }
+    }
+}
+
+class DR2ProgressRoute(
+    @XmlAttribute
+    val id: Long,
+
+    @XmlAttribute
+    val direction: Direction,
+
+    @XmlAttribute
+    @JsonProperty("num_splits")
+    val numSplits: Int,
+
+    @XmlElement(name = "split")
+    @JsonProperty("split")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    val splits: List<DR2ProgressRouteSplit>
+) {
+    enum class Direction(@JsonValue val jsonValue: String) {
+        FORWARDS("forwards"),
+        REVERSE("reverse"), // todo: is this right??
+        ;
+
+        companion object {
+            @JvmStatic
+            @JsonCreator
+            fun fromJsonValue(jsonValue: String): Direction = enumValues<Direction>()
+                .firstOrNull { it.jsonValue == jsonValue }
+                ?: throw IllegalArgumentException("Unknown direction: $jsonValue")
+        }
+    }
+}
 
 class DR2ProgressGate(
     @XmlAttribute
