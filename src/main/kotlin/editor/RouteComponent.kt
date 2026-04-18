@@ -199,8 +199,8 @@ class RouteComponent(
         }
         if (!this::baseImage.isInitialized || this.baseImage.width != routeCoordinateSystem.baseImageTargetWidthPx || this.baseImage.height != routeCoordinateSystem.baseImageTargetHeightPx) {
             baseImage = BufferedImage(
-                routeCoordinateSystem.baseImageTargetWidthPx,
-                routeCoordinateSystem.baseImageTargetHeightPx,
+                routeCoordinateSystem.baseImageTargetWidthPx.coerceAtLeast(1),
+                routeCoordinateSystem.baseImageTargetHeightPx.coerceAtLeast(1),
                 BufferedImage.TYPE_INT_RGB
             )
         }
