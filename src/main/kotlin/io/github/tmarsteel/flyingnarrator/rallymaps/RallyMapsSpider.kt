@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
 import de.micromata.opengis.kml.v_2_2_0.Coordinate
+import io.github.tmarsteel.flyingnarrator.rallymaps.RallyMapsSpider.extractElevationProfile
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup

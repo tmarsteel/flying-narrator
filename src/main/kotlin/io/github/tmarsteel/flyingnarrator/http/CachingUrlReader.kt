@@ -2,7 +2,6 @@ package io.github.tmarsteel.flyingnarrator.http
 
 import okio.FileNotFoundException
 import java.net.URL
-import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
