@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator.dirtrally2
+package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import tools.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper

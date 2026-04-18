@@ -4,6 +4,9 @@ import io.github.tmarsteel.flyingnarrator.HermiteSpline
 import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
+import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressRouteSplit
+import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressTrackData
+import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2TrackSplines
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import tools.jackson.databind.MapperFeature
 import tools.jackson.dataformat.xml.XmlFactory

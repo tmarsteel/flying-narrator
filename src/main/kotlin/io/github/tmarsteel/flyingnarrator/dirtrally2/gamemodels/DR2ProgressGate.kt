@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator.dirtrally2
+package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 
 import tools.jackson.core.JsonParser
 import tools.jackson.core.JsonToken
