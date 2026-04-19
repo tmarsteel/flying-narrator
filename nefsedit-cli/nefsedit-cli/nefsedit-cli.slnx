@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="../Ego-Engine-Modding/src/EgoEngineLibrary/EgoEngineLibrary.csproj" />
+  <Project Path="../ego.nefsedit/VictorBush.Ego.NefsLib/VictorBush.Ego.NefsLib.csproj" />
+  <Project Path="nefsedit-cli.csproj" />
+</Solution>
