@@ -3,14 +3,8 @@ package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonValue
 import io.github.tmarsteel.flyingnarrator.io.JacksonDurationAsMillisecondsDeserializer
-import tools.jackson.databind.MapperFeature
 import tools.jackson.databind.annotation.JsonDeserialize
-import tools.jackson.dataformat.xml.XmlFactory
-import tools.jackson.dataformat.xml.XmlMapper
 import tools.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper
-import tools.jackson.module.jaxb.JaxbAnnotationModule
-import tools.jackson.module.kotlin.kotlinModule
-import java.nio.file.Paths
 import javax.xml.bind.annotation.XmlAttribute
 import javax.xml.bind.annotation.XmlElement
 import javax.xml.bind.annotation.XmlRootElement
@@ -31,24 +25,6 @@ data class DR2CodriverData(
     @JsonProperty("codriver_calls")
     val codriverCalls: List<DR2CodriverDataCall>
 )
-
-fun main() {
-    val file = Paths.get("""F:\Downloads\dr2data\tracks\locations\germany\germany_rally_01\route_0\codriver_data_annotated.xml""")
-    val objectMapper: XmlMapper = XmlMapper.Builder(XmlFactory())
-        .addModule(kotlinModule())
-        .addModule(JaxbAnnotationModule())
-        .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES)
-        .build()
-
-    val dto = objectMapper.readValue(file, DR2CodriverData::class.java)
-    dto.codriverCalls.forEach { call ->
-        call.subcalls
-            .filter { !it.canConcatModA || !it.canConcatModB }
-            .forEach {
-                println("@${call.distanceAlongTrack}")
-            }
-    }
-}
 
 /**
  * Models a callout obtained from an audio file, plus the visual icons
@@ -158,6 +134,9 @@ data class DR2CodriverDataSubcall(
 
         DIP(7),
 
+        /**
+         * not yet observed
+         */
         TYPE8(8),
 
         BUMP_OR_CREST_OR_JUMP(9),
