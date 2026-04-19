@@ -1,0 +1,8 @@
+[submodule "nefsedit-cli/ego.nefsedit"]
+	path = nefsedit-cli/ego.nefsedit
+	url = https://github.com/EgoEngineModding/ego.nefsedit
+	branch = 0.7.1
+[submodule "nefsedit-cli/Ego-Engine-Modding"]
+	path = nefsedit-cli/Ego-Engine-Modding
+	url = https://github.com/EgoEngineModding/Ego-Engine-Modding.git
+	branch = tags/EFC_4.1.0
