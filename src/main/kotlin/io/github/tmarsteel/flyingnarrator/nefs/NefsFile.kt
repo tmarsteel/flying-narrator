@@ -1,16 +1,12 @@
 @file:OptIn(ExperimentalSerializationApi::class)
 package io.github.tmarsteel.flyingnarrator.nefs
 
-import kotlinx.serialization.DeserializationStrategy
+import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
+import io.github.tmarsteel.flyingnarrator.nefs.protocol.itemOrNull
+import io.github.tmarsteel.flyingnarrator.nefs.protocol.listedItemsOrNull
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.serializer
-import java.io.BufferedReader
-import java.io.FileNotFoundException
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.lang.AutoCloseable
-import java.nio.file.Path
+import java.nio.ByteBuffer
 import java.nio.file.Paths
 
 class NefsFile(
@@ -20,61 +16,76 @@ class NefsFile(
         nefsEditCliBinary.toString(),
         "--file",
         (coordinates as NefsCoordinates.FileOnSystemDisk).path.toString(),
-        "commands-from-stdin"
     ))
         .redirectError(ProcessBuilder.Redirect.INHERIT)
         .start()
-
-    private val nefsProcessWriter = OutputStreamWriter(nefsEditCliProcess.outputStream, Charsets.UTF_8)
-    private val nefsProcessReader = BufferedReader(InputStreamReader(nefsEditCliProcess.inputStream, Charsets.UTF_8))
 
     private fun assureOpen() {
         check(nefsEditCliProcess.isAlive) { "nefsedit-cli process has died" }
     }
 
-    fun listFiles(): List<String> {
-        return execute(NefsCommand.EnumerateFiles(), serializer<NefsCommand.EnumerateFiles.Result>()).files
+    fun listFiles(recursive: Boolean, directory: NefsItemId? = null): List<NefsFileRef> {
+        val commandBuilder = Command.ListItemsCommand.newBuilder()
+            .setRecursive(recursive)
+        if (directory != null) {
+            commandBuilder.setDirectoryId(directory.id.toInt())
+        }
+
+        val toHelper = Command.ToNefsEdit.newBuilder()
+            .setListItems(commandBuilder.build())
+            .build()
+
+        val response = exchange(toHelper)
+        val protoItems = response.listedItemsOrNull
+            ?: throw NefsException("Improper response from nefsedit-cli; missing listedItems")
+
+        return protoItems.itemsList.map {
+            NefsFileRef(NefsItemId(it.id.toUInt()), it.size.toUInt(), it.fileName, it.fullPath)
+        }
     }
 
-    fun extractFile(nefsPath: String, destination: Path, decodeBinaryXML: Boolean) {
-        val response = execute(
-            NefsCommand.Extract(nefsPath, destination.toAbsolutePath(), decodeBinaryXML),
-            serializer<NefsCommand.Extract.Result>(),
-        )
-        if (!response.itemLocated) {
-            throw FileNotFoundException("$coordinates#$nefsPath")
-        }
-        if (!response.extractionSuccessful) {
-            throw RuntimeException("Could not extract $coordinates#$nefsPath")
-        }
+    fun readFile(id: NefsItemId): ByteBuffer {
+        val toHelper = Command.ToNefsEdit.newBuilder()
+            .setReadItem(Command.ReadItemCommand.newBuilder()
+                .setId(id.id.toInt())
+                .build())
+            .build()
+
+        val response = exchange(toHelper)
+        val protoItem = response.itemOrNull
+            ?: throw NefsException("Improper response from nefsedit-cli; missing item")
+
+        return protoItem.data.asReadOnlyByteBuffer()
     }
 
-    private fun <R> execute(command: NefsCommand, responseDeserializer: DeserializationStrategy<R>): R {
-        val commandAsString = CommandFormat.encodeToString(serializer<NefsCommand>(), command)
-        val responseString = synchronized(nefsEditCliProcess) {
+    private fun exchange(toHelper: Command.ToNefsEdit): Command.FromNefsEdit {
+        val response = synchronized(nefsEditCliProcess) {
             assureOpen()
-            nefsProcessWriter.write(commandAsString)
-            nefsProcessWriter.write("\n")
-            nefsProcessWriter.flush()
-            nefsProcessReader.readLine()
+            toHelper.writeDelimitedTo(nefsEditCliProcess.outputStream)
+            nefsEditCliProcess.outputStream.flush()
+            Command.FromNefsEdit.parseDelimitedFrom(nefsEditCliProcess.inputStream)
         }
-        return CommandFormat.decodeFromString(responseDeserializer, responseString)
+
+        if (response.hasError()) {
+            throw NefsException(response.error.message)
+        }
+
+        return response
     }
 
     override fun close() {
         if (!nefsEditCliProcess.isAlive) {
             return
         }
-        execute(NefsCommand.Exit(), serializer<Unit>())
+        exchange(
+            Command.ToNefsEdit.newBuilder()
+                .setExit(Command.ExitCommand.newBuilder().build())
+                .build()
+        )
         nefsEditCliProcess.waitFor()
     }
 
     companion object {
-        private val CommandFormat = Json {
-            prettyPrint = false
-            encodeDefaults = false
-            explicitNulls = false
-        }
         private val nefsEditCliBinary by lazy {
             Paths.get("""F:\CodingProjects\flying-narrator\nefsedit-cli\nefsedit-cli\bin\Debug\net10.0\nefsedit-cli.exe""")
         }

@@ -1,0 +1,51 @@
+edition = "2023";
+
+package NefsEditCLI.Protocol;
+option java_package = "io.github.tmarsteel.flyingnarrator.nefs.protocol";
+
+message ToNefsEdit {
+  oneof command {
+    ListItemsCommand list_items = 1;
+    ReadItemCommand read_item = 2;
+    ExitCommand exit = 200;
+  }
+}
+
+message FromNefsEdit {
+  oneof result {
+    ErrorResult error = 1;
+    ListItemsResult listed_items = 2;
+    ReadItemResult item = 3;
+  }
+}
+
+message ListItemsCommand {
+  uint32 directory_id = 1 [features.field_presence = EXPLICIT];
+  bool recursive = 2 [default = false];
+}
+
+message ReadItemCommand {
+  uint32 id = 1 [features.field_presence = IMPLICIT];
+}
+
+message ListItemsResult {
+  repeated ListedItem items = 1;
+}
+
+message ListedItem {
+  uint32 id = 1 [features.field_presence = IMPLICIT];
+  string full_path = 2 [features.field_presence = IMPLICIT];
+  string file_name = 3 [features.field_presence = IMPLICIT];
+  uint32 size = 4 [features.field_presence = IMPLICIT];
+  repeated uint32 ids_of_duplicates = 20;
+}
+
+message ReadItemResult {
+  bytes data = 1 [features.field_presence = LEGACY_REQUIRED];
+}
+
+message ExitCommand {}
+
+message ErrorResult {
+  string message = 1 [features.field_presence = LEGACY_REQUIRED];
+}

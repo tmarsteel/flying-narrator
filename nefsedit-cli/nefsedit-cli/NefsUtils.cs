@@ -40,4 +40,17 @@ public class NefsUtils
         return archive.Items.EnumerateItemChildren(directoryId)
             .SelectMany(child => DeepEnumerateItemOrChildren(archive, pathToDirectory, child));
     }
+    
+    public static string GetPathToItem(NefsArchive archive, NefsItemId itemId)
+    {
+        NefsItem? item = archive.Items.GetItem(itemId);
+        string path = item!.FileName;
+        while (item != null)
+        {
+            path = item.FileName + "/" + path;
+            item = archive.Items.GetItemParent(item.Id);
+        }
+
+        return "/" + path;
+    }
 }

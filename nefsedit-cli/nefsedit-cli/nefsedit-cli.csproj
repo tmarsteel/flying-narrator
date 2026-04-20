@@ -16,7 +16,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.34.1" />
+    <PackageReference Include="Grpc.Tools" Version="2.80.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="System.CommandLine" Version="3.0.0-preview.3.26207.106" />
   </ItemGroup>
-
+  
+  <ItemGroup>
+    <Protobuf Include="protobuf\*.proto" GrpcServices="None" />
+  </ItemGroup>
 </Project>

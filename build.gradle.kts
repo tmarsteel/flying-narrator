@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "2.2.20"
     kotlin("plugin.serialization") version "2.3.10"
     id("io.kotest").version("6.1.5")
+    id("com.google.protobuf").version("0.10.0")
 }
 
 group = "io.github.tmarsteel.flyingnarrator"
@@ -14,6 +15,7 @@ repositories {
     maven {
         url = URI("https://central.sonatype.com/repository/maven-snapshots/")
     }
+    gradlePluginPortal()
 }
 
 dependencies {
@@ -25,6 +27,7 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-jaxb-annotations:3.1.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jsoup:jsoup:1.22.1")
+    implementation("com.google.protobuf:protobuf-kotlin:4.31.1")
 
     implementation("org.bytedeco:javacv-platform:1.5.11")
 
@@ -32,6 +35,31 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:6.1.5")
     testImplementation("io.kotest:kotest-framework-engine:6.1.5")
     testImplementation("io.kotest:kotest-runner-junit5:6.1.5")
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir("nefsedit-cli/nefsedit-cli/protobuf")
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        // Download from repositories
+        artifact = "com.google.protobuf:protoc:4.29.5"
+    }
+
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("kotlin").apply {
+                    option("")
+                }
+            }
+        }
+    }
 }
 
 tasks.test {
