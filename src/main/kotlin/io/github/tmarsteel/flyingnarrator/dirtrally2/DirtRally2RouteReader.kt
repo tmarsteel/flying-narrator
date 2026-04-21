@@ -7,12 +7,8 @@ import io.github.tmarsteel.flyingnarrator.RouteReader
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressRouteSplit
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressTrackData
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2TrackSplines
+import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2XMLMapper
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
-import tools.jackson.databind.MapperFeature
-import tools.jackson.dataformat.xml.XmlFactory
-import tools.jackson.dataformat.xml.XmlMapper
-import tools.jackson.module.jaxb.JaxbAnnotationModule
-import tools.jackson.module.kotlin.kotlinModule
 import java.nio.file.Path
 
 class DirtRally2RouteReader(
@@ -20,8 +16,8 @@ class DirtRally2RouteReader(
     val progressDto: DR2ProgressTrackData,
 ) : RouteReader {
     constructor(sourceDir: Path) : this(
-        objectMapper.readValue(sourceDir.resolve("track_spline.xml"), DR2TrackSplines::class.java),
-        objectMapper.readValue(sourceDir.resolve("progress_track.xml"), DR2ProgressTrackData::class.java),
+        DR2XMLMapper.readValue(sourceDir.resolve("track_spline.xml"), DR2TrackSplines::class.java),
+        DR2XMLMapper.readValue(sourceDir.resolve("progress_track.xml"), DR2ProgressTrackData::class.java),
     )
 
     private val progressRoute = progressDto.routes.single()
@@ -66,13 +62,5 @@ class DirtRally2RouteReader(
 
     override fun read(): Route {
         return route
-    }
-
-    private companion object {
-        val objectMapper: XmlMapper = XmlMapper.Builder(XmlFactory())
-            .addModule(kotlinModule())
-            .addModule(JaxbAnnotationModule())
-            .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES)
-            .build()
     }
 }
