@@ -2,6 +2,11 @@ package io.github.tmarsteel.flyingnarrator.tts.ssml
 
 import org.w3c.dom.Document
 import org.w3c.dom.Element
+import tools.jackson.databind.MapperFeature
+import tools.jackson.dataformat.xml.XmlFactory
+import tools.jackson.dataformat.xml.XmlMapper
+import tools.jackson.module.jaxb.JaxbAnnotationModule
+import tools.jackson.module.kotlin.kotlinModule
 import java.util.Locale
 
 class SSMLDocument(
@@ -19,6 +24,16 @@ class SSMLDocument(
             )
             setAttribute("xml:lang", lang.toLanguageTag())
             elements.forEach { appendChild(it.toDOMNode(document)) }
+        }
+    }
+
+    companion object {
+        val SSML_MAPPER by lazy {
+            XmlMapper.Builder(XmlFactory())
+                .addModule(kotlinModule())
+                .addModule(JaxbAnnotationModule())
+                .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES)
+                .build()
         }
     }
 }

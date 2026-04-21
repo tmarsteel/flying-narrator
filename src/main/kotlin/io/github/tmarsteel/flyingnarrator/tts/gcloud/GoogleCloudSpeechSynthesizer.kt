@@ -5,8 +5,10 @@
 package io.github.tmarsteel.flyingnarrator.tts.gcloud
 
 import io.github.tmarsteel.flyingnarrator.io.ByteArrayBase64Serializer
+import io.github.tmarsteel.flyingnarrator.tts.InMemorySynthesizedSpeech
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesisException
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesizer
+import io.github.tmarsteel.flyingnarrator.tts.SynthesizedSpeech
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLDocument
 import io.github.tmarsteel.flyingnarrator.tts.ssml.ssmlToString
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -21,20 +23,18 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.ByteArrayInputStream
 import java.util.Locale
-import javax.sound.sampled.AudioInputStream
-import javax.sound.sampled.AudioSystem
+import kotlin.time.Duration.Companion.seconds
 
 class GoogleCloudSpeechSynthesizer(
     val baseUrl: HttpUrl = "https://texttospeech.googleapis.com/".toHttpUrl(),
     val httpClient: OkHttpClient = OkHttpClient(),
 ) : SpeechSynthesizer {
-    private val synthesizeUrl = baseUrl.newBuilder().addPathSegments("v1/text:synthesize").build()
-    private val listVoicesUrl = baseUrl.newBuilder().addPathSegments("v1/voices").build()
+    private val synthesizeUrl = baseUrl.newBuilder().addPathSegments("v1beta1/text:synthesize").build()
+    private val listVoicesUrl = baseUrl.newBuilder().addPathSegments("v1beta1/voices").build()
 
 
-    override fun synthesize(document: SSMLDocument): AudioInputStream {
+    override fun synthesize(document: SSMLDocument): SynthesizedSpeech {
         val requestDto = TextSynthesisRequestDto(
             SynthesisInputDto(
                 ssml = ssmlToString(document),
@@ -45,6 +45,7 @@ class GoogleCloudSpeechSynthesizer(
             AudioConfigDto(
                 audioEncoding = AudioConfigDto.AudioEncoding.LINEAR16,
             ),
+            TimePointingMode.SSML_MARK,
         )
         val request = Request.Builder()
             .url(synthesizeUrl)
@@ -55,7 +56,12 @@ class GoogleCloudSpeechSynthesizer(
             .build()
 
         val responseDto = execute<SynthesizeTextResponseDto>(request)
-        return AudioSystem.getAudioInputStream(ByteArrayInputStream(responseDto.audioContent))
+        return InMemorySynthesizedSpeech(
+            responseDto.audioContent,
+            responseDto.timepoints?.associate {
+                it.markName to it.timeSeconds.seconds
+            } ?: emptyMap()
+        )
     }
 
     fun listVoices(forLocale: Locale? = null): List<VoiceDto> {
@@ -92,7 +98,6 @@ class GoogleCloudSpeechSynthesizer(
     }
 
     companion object {
-
         private val jsonFormat = Json {
             explicitNulls = false
             ignoreUnknownKeys = true
@@ -107,7 +112,16 @@ private data class TextSynthesisRequestDto(
     @SerialName("voice")
     val voiceSelectionParams: VoiceSelectionParamsDto,
     val audioConfig: AudioConfigDto,
+    @SerialName("enableTimePointing")
+    val timePointingMode: TimePointingMode,
 )
+
+@Serializable
+private enum class TimePointingMode {
+    TIMEPOINT_TYPE_UNSPECIFIED,
+    SSML_MARK,
+    ;
+}
 
 @Serializable
 private data class SynthesisInputDto(
@@ -152,8 +166,15 @@ private data class AudioConfigDto(
 }
 
 @Serializable
+private data class Timepoint(
+    val markName: String,
+    val timeSeconds: Double,
+)
+
+@Serializable
 private class SynthesizeTextResponseDto(
     val audioContent: ByteArray,
+    val timepoints: List<Timepoint>? = null,
 )
 
 @Serializable

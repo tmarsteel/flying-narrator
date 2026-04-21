@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.pacenote
 
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
+import java.util.Locale
 
 /**
  * An _arbitrarily sized_ piece of information about the race route, which should be delivered to the driver
@@ -19,7 +20,15 @@ interface PacenoteAtom {
     val physicalFeaturesAtDistanceAlongRoute: Double
 
     /**
+     * From the locales supported for rendering (see [toSSML]), selects the one that best matches the users
+     * preferences. See also [Locale.filter].
+     */
+    fun selectLocale(localePreference: List<Locale.LanguageRange>): Locale
+
+    /**
+     * @param locale the locale to use for the text; is guaranteed to be one returned by [selectLocale], and in turn
+     * this method must either produce text in this locale or throw an [IllegalArgumentException].
      * @return a representation of this [PacenoteAtom] suitable for text-to-speech synthesis.
      */
-    fun toSSML(): SSMLElement
+    fun toSSML(locale: Locale): SSMLElement
 }
