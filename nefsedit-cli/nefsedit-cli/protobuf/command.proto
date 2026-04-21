@@ -39,6 +39,7 @@ message ListItemsResult {
 
 message ListedItem {
   uint32 id = 1 [features.field_presence = IMPLICIT];
+  bool is_directory = 5 [default = false];
   string full_path = 2 [features.field_presence = IMPLICIT];
   string file_name = 3 [features.field_presence = IMPLICIT];
   uint32 size = 4 [features.field_presence = IMPLICIT];

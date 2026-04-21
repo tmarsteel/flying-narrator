@@ -40,7 +40,13 @@ class NefsFile private constructor(
             ?: throw NefsException("Improper response from nefsedit-cli; missing listedItems")
 
         return protoItems.itemsList.map {
-            NefsFileRef(NefsItemId(it.id.toUInt()), it.size.toUInt(), it.fileName, it.fullPath)
+            NefsFileRef(
+                NefsItemId(it.id.toUInt()),
+                it.isDirectory,
+                it.size.toUInt(),
+                it.fileName,
+                it.fullPath,
+            )
         }
     }
 

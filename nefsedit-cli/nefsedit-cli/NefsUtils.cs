@@ -18,16 +18,14 @@ public class NefsUtils
     )
     {
         var pathToItem = pathToParent + "/" + item.FileName;
+        yield return KeyValuePair.Create(pathToItem, item);
+        
         if (item.Attributes.IsDirectory)
         {
             foreach (var subItem in DeepEnumerateDirectory(archive, pathToItem, item.Id))
             {
                 yield return subItem;
             }
-        }
-        else
-        {
-            yield return KeyValuePair.Create<string, NefsItem>(pathToItem, item);
         }
     }
 

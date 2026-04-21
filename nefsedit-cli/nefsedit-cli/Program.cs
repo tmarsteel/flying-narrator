@@ -289,6 +289,7 @@ namespace NefsEditCLI
                 {
                     var protoItem = new ListedItem();
                     protoItem.Id = item.Value.Id.Value;
+                    protoItem.IsDirectory = item.Value.Attributes.IsDirectory;
                     protoItem.FileName = item.Value.FileName;
                     protoItem.FullPath = item.Key;
                     protoItem.Size = item.Value.ExtractedSize;
