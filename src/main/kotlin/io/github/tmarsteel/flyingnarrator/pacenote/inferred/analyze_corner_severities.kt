@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator.pacenote
+package io.github.tmarsteel.flyingnarrator.pacenote.inferred
 
 import io.github.tmarsteel.flyingnarrator.averageAndStandardDeviationOf
 import java.nio.file.Paths

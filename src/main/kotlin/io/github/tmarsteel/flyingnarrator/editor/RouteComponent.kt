@@ -5,7 +5,7 @@ import io.github.tmarsteel.flyingnarrator.Vector3
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
 import io.github.tmarsteel.flyingnarrator.foldInto
-import io.github.tmarsteel.flyingnarrator.pacenote.cornerFeatureToPacenoteItem
+import io.github.tmarsteel.flyingnarrator.pacenote.inferred.cornerFeatureToPacenoteItem
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension
