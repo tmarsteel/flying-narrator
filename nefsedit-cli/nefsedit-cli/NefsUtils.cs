@@ -42,13 +42,13 @@ public class NefsUtils
     public static string GetPathToItem(NefsArchive archive, NefsItemId itemId)
     {
         NefsItem? item = archive.Items.GetItem(itemId);
-        string path = item!.FileName;
-        while (item != null)
+        string path = "";
+        do
         {
-            path = item.FileName + "/" + path;
+            path = "/" + item.FileName;
             item = archive.Items.GetItemParent(item.Id);
-        }
+        } while (item != null);
 
-        return "/" + path;
+        return path;
     }
 }
