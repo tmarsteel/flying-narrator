@@ -247,5 +247,12 @@ data class DR2CodriverDataSubcall(
          * * 150
          */
         HAIRPIN(360),
+
+        ;
+
+        companion object {
+            fun ofAngle(angle: Int): Severity = enumValues<Severity>().firstOrNull { it.maxAngle >= angle }
+                ?: throw IllegalArgumentException("Unsupported severity angle: $angle")
+        }
     }
 }
