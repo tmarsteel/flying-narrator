@@ -8,13 +8,13 @@ const val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
 
 /**
  * Straight sections with a length equal to or less than this (after rounding) value will be elided:
- * At the start and end of the stage, they're simply dropped, between corners they are replaced with [PacenoteItem.ShortTransition]
+ * At the start and end of the stage, they're simply dropped, between corners they are replaced with [PacenoteAtom.ShortTransition]
  */
 const val STRAIGHT_ELISION_DISTANCE_THRESHOLD = 20.0
 
 /**
  * Straight sections between two corners that are shorter than this distance will be replaced with
- * [PacenoteItem.ImmediateTransition] (instead of [PacenoteItem.ShortTransition])
+ * [PacenoteAtom.ImmediateTransition] (instead of [PacenoteAtom.ShortTransition])
  */
 const val IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD = 10.0
 
@@ -67,6 +67,6 @@ val HAIRPIN_TOTAL_ANGLE_RANGE = Math.toRadians(135.0)..Math.toRadians(225.0)
 
 /**
  * Corners with a total angle of [HAIRPIN_TOTAL_ANGLE_RANGE] but a severity higher than [HAIRPIN_MAX_SEVERITY]
- * will not be abbreviated to [PacenoteItem.Hairpin].
+ * will not be abbreviated to [PacenoteAtom.Hairpin].
  */
-val HAIRPIN_MAX_SEVERITY = PacenoteItem.Corner.Severity.THREE
+val HAIRPIN_MAX_SEVERITY = PacenoteAtom.Corner.Severity.THREE

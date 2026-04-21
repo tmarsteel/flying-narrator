@@ -2,13 +2,18 @@ package io.github.tmarsteel.flyingnarrator.pacenote
 
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 
-sealed interface PacenoteItem {
-    data class Straight(val distance: Int) : PacenoteItem {
+/**
+ * An _arbitrarily sized_ piece of information about the race route, which should be delivered to the driver
+ * uninterrupted. The decision how to piecemeal the entire route description is in the domain logic of a
+ * pacenote system and may vary as per driver preference.
+ */
+sealed interface PacenoteAtom {
+    data class Straight(val distance: Int) : PacenoteAtom {
         override fun toString(): String {
             return distance.toString(10)
         }
     }
-    interface Transition : PacenoteItem
+    interface Transition : PacenoteAtom
     data object ImmediateTransition : Transition {
         override fun toString(): String {
             return "into"
@@ -26,7 +31,7 @@ sealed interface PacenoteItem {
          */
         val isAtJunction: Boolean,
         val sections: List<Section>,
-    ) : PacenoteItem {
+    ) : PacenoteAtom {
         data class Section(
             val radiusStart: Double,
             val severityStart: Severity,
@@ -164,7 +169,7 @@ sealed interface PacenoteItem {
     data class Hairpin(
         val direction: Feature.Corner.Direction,
         val minSeverity: Corner.Severity,
-    ) : PacenoteItem {
+    ) : PacenoteAtom {
         override fun toString(): String {
             val sb = StringBuilder()
             if (minSeverity == Corner.Severity.THREE) {
