@@ -9,4 +9,9 @@ public static class CLIUtils
     {
         public bool HasOption(Option option) => commandResult.Children.OfType<OptionResult>().Any(o => o.Option == option);        
     }
+
+    extension(ParseResult parseResult)
+    {
+        public bool HasFlag(string name) => parseResult.GetResult(name) != null;
+    }
 }

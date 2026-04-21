@@ -106,7 +106,7 @@ namespace NefsEditCLI
             });
             
             var cliParseResult = rootCommand.Parse(args);
-            if (cliParseResult.GetResult("--help")?.Tokens?.Any() == true)
+            if (cliParseResult.HasFlag("--help") || cliParseResult.HasFlag("--version"))
             {
                 return await cliParseResult.InvokeAsync();
             }
