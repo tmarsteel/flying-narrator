@@ -1,13 +1,8 @@
 ﻿using System.CommandLine;
-using System.Diagnostics;
+using System.CommandLine.Help;
 using System.IO.Abstractions;
-using System.Runtime.CompilerServices;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Google.Protobuf;
 using NefsEditCLI.Protocol;
-using NefsEditCLI.Interface;
-using SharpGLTF.Runtime;
 using VictorBush.Ego.NefsLib;
 using VictorBush.Ego.NefsLib.IO;
 using VictorBush.Ego.NefsLib.Item;
@@ -19,11 +14,34 @@ namespace NefsEditCLI
     internal class Program
     {
         private static FileSystem fileSystem = new();
-        private static NefsTransformer t = new NefsTransformer(fileSystem);
+        private static NefsTransformer nefsTransformer = new NefsTransformer(fileSystem);
         
-        private static Option<FileInfo> fileOption = new("--file")
+        private static Option<FileInfo> fileCliOption = new("--file")
         {
-            Description = "Path to an NeFS file to read directly off disk"
+            Description = "Path to an NeFS file to read directly off disk",
+        };
+
+        private static Option<FileInfo> gameExecutableCliOption = new("--game-executable")
+        {
+            Description = "The game executable to search for NeFS headers",
+            Validators = { IsExistingFileValidator.make() },
+        };
+
+        private static Option<FileInfo> dataDirectoryCliOption = new("--data-directory")
+        {
+            Description = "Directory containing the .dat files as referenced from the game executable",
+            Validators = { IsExistingDirectoryValidator.make() },
+        };
+
+        private static Option<bool> fullHeaderSearchCliOption = new("--search-entire-executable")
+        {
+            Description = "If false, NeFS headers will only be searched in the .data/__data sections of the executable",
+            DefaultValueFactory = _ => false,
+        };
+
+        private static Option<string> dataFilePathCliOption = new("--data-file")
+        {
+            Description = "Path of the .dat file to load, relative to " + dataDirectoryCliOption.Name,
         };
 
         static async Task<int> Main(string[] args)
@@ -31,18 +49,78 @@ namespace NefsEditCLI
             var rootCommand =
                 new RootCommand(
                     "programmatically work with NeFS archives. You can talk to this app like to a server via STDIN/STDOUT using protobuf messages.");
-            rootCommand.Add(fileOption);
-            
-            var cliParseResult = rootCommand.Parse(args);
-            if (cliParseResult.Errors.Count > 0)
+            rootCommand.Add(fileCliOption);
+            rootCommand.Add(gameExecutableCliOption);
+            rootCommand.Add(dataDirectoryCliOption);
+            rootCommand.Add(fullHeaderSearchCliOption);
+            rootCommand.Add(dataFilePathCliOption);
+            rootCommand.Validators.Add(parseResult =>
             {
-                foreach (var parseError in cliParseResult.Errors)
+                var hasNefsOption = parseResult.HasOption(fileCliOption);
+                var hasExeOption = parseResult.HasOption(gameExecutableCliOption);
+                var hasDataDirOption = parseResult.HasOption(dataDirectoryCliOption);
+                var hasFullHeaderSearchOption = parseResult.HasOption(fullHeaderSearchCliOption);
+                var hasDataFileOption = parseResult.HasOption(dataFilePathCliOption);
+                if (!hasExeOption && !hasNefsOption)
                 {
-                    Console.Error.WriteLine(parseError.Message);
+                    parseResult.AddError("You must specify either " + fileCliOption.Name + " or " + gameExecutableCliOption.Name);
+                    return;
                 }
 
-                rootCommand.Parse("-h").Invoke();
-                
+                if (hasExeOption && hasNefsOption)
+                {
+                    parseResult.AddError("You may specify only one of " + fileCliOption.Name + " or " + gameExecutableCliOption.Name);
+                    return;
+                }
+
+                if (hasExeOption)
+                {
+                    if (!hasDataDirOption)
+                    {
+                        parseResult.AddError(gameExecutableCliOption.Name + " requires " + dataDirectoryCliOption.Name);
+                    }
+
+                    if (!hasDataFileOption)
+                    {
+                        parseResult.AddError(gameExecutableCliOption.Name + " requires " + dataFilePathCliOption.Name);
+                    }
+                }
+
+                if (hasNefsOption)
+                {
+                    if (hasDataDirOption)
+                    {
+                        parseResult.AddError(dataDirectoryCliOption.Name + " cannot be used  with " + fileCliOption.Name);
+                    }
+                    
+                    if (hasFullHeaderSearchOption)
+                    {
+                        parseResult.AddError(fullHeaderSearchCliOption.Name + " cannot be used  with " + fileCliOption.Name);
+                    }
+
+                    if (hasDataFileOption)
+                    {
+                        parseResult.AddError(dataFilePathCliOption.Name + " cannot be used  with " + fileCliOption.Name);
+                    }
+                }
+            });
+            
+            var cliParseResult = rootCommand.Parse(args);
+            if (cliParseResult.GetResult("--help")?.Tokens?.Any() == true)
+            {
+                return await cliParseResult.InvokeAsync();
+            }
+            
+            var inStream = Console.OpenStandardInput();
+            var outStream = Console.OpenStandardOutput();
+            
+            if (cliParseResult.Errors.Count > 0)
+            {
+                var response = new FromNefsEdit();
+                response.Error = new ErrorResult();
+                response.Error.Message = String.Join("\n", cliParseResult.Errors.Select(error => error.Message));
+                response.WriteDelimitedTo(outStream);
+                await outStream.FlushAsync();
                 return 1;
             }
 
@@ -53,18 +131,30 @@ namespace NefsEditCLI
             }
             catch (FileNotFoundException e)
             {
-                Console.Error.WriteLine("Could not find file " + e.FileName);
+                var response = new FromNefsEdit();
+                response.Error = new ErrorResult();
+                response.Error.Message = "Could not find file " + e.FileName;
+                response.WriteDelimitedTo(outStream);
+                await outStream.FlushAsync();
                 return 2;
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine("Error opening archive");
-                Console.Error.Write(e);
+                var response = new FromNefsEdit();
+                response.Error = new ErrorResult();
+                response.Error.Message = "Error opening archive: " + e.GetType().FullName + ": " + e.Message;
+                response.WriteDelimitedTo(outStream);
+                await outStream.FlushAsync();
                 return 3;
             }
 
-            var inStream = Console.OpenStandardInput();
-            var outStream = Console.OpenStandardOutput();
+            {
+                var ackResponse = new FromNefsEdit();
+                ackResponse.OpenAck = new FileOpenAcknowledgement();
+                ackResponse.OpenAck.Success = true;
+                ackResponse.WriteDelimitedTo(outStream);
+                await outStream.FlushAsync();
+            }
             
             while (true)
             {
@@ -108,19 +198,60 @@ namespace NefsEditCLI
             return 0;
         }
 
-        private static Task<NefsArchive> OpenArchive(ParseResult cliParseResult)
+        private static async Task<NefsArchive> OpenArchive(ParseResult cliParseResult)
         {
             var reader = new NefsReader(fileSystem);
             
-            var singleFilePath = cliParseResult.GetValue(fileOption);
+            var singleFilePath = cliParseResult.GetValue(fileCliOption);
             if (singleFilePath != null)
             {
-                return reader.ReadArchiveAsync(singleFilePath.FullName, new NefsProgress());
+                return await reader.ReadArchiveAsync(singleFilePath.FullName, new NefsProgress());
             }
-            else
+
+            var gameExePath = cliParseResult.GetValue(gameExecutableCliOption);
+            if (gameExePath != null)
             {
-                throw new ArgumentException("Found no source file spec in the command line");
+                var dataDirPath = cliParseResult.GetRequiredValue(dataDirectoryCliOption);
+                var fullSearch = cliParseResult.GetRequiredValue(fullHeaderSearchCliOption);
+                var relativeDataFilePath = cliParseResult.GetRequiredValue(dataFilePathCliOption);
+                var fullDataFilePath = Path.Combine(dataDirPath.FullName, relativeDataFilePath);
+                if (!fileSystem.FileInfo.New(fullDataFilePath).Exists)
+                {
+                    throw new NefsEditCliException("Data file " + fullDataFilePath + " does not exist");
+                }
+                
+                var headlessSources = await new NefsExeHeaderFinder(fileSystem).FindHeadersAsync(
+                    gameExePath.FullName,
+                    dataDirPath.FullName,
+                    fullSearch,
+                    new NefsProgress()
+                );
+
+                var matchingSources = headlessSources
+                    .Where(hs => hs.DataFilePath == fullDataFilePath)
+                    .ToList();
+                if (!matchingSources.Any())
+                {
+                    throw new NefsEditCliException("Data file " + relativeDataFilePath + " is not referenced from game executable " + gameExePath.FullName);
+                }
+                if (matchingSources.Count() > 1)
+                {
+                    throw new NefsEditCliException("Data file " + relativeDataFilePath + " is ambiguous in game executable " + gameExePath.FullName);
+                }
+
+                var source = matchingSources.Single();
+                return await reader.ReadGameDatArchiveAsync(
+                    fullDataFilePath,
+                    gameExePath.FullName,
+                    source.PrimaryOffset,
+                    source.PrimarySize,
+                    source.SecondaryOffset,
+                    source.SecondarySize,
+                    new NefsProgress()
+                );
             }
+            
+            throw new ArgumentException("Found no source file spec in the command line");
         }
         
         private static async Task<FromNefsEdit> ListItems(NefsArchive archive, ListItemsCommand command)
@@ -195,7 +326,7 @@ namespace NefsEditCLI
             using (var buffer = new MemoryStream())
             {
                 buffer.Capacity = (int) item.ExtractedSize;
-                await t.DetransformAsync(
+                await nefsTransformer.DetransformAsync(
                     itemRawInStream,
                     item.DataSource.Offset,
                     buffer,

@@ -13,6 +13,7 @@ message ToNefsEdit {
 
 message FromNefsEdit {
   oneof result {
+    FileOpenAcknowledgement open_ack = 4;
     ErrorResult error = 1;
     ListItemsResult listed_items = 2;
     ReadItemResult item = 3;
@@ -26,6 +27,10 @@ message ListItemsCommand {
 
 message ReadItemCommand {
   uint32 id = 1 [features.field_presence = IMPLICIT];
+}
+
+message FileOpenAcknowledgement {
+  bool success = 1 [features.field_presence = LEGACY_REQUIRED];
 }
 
 message ListItemsResult {

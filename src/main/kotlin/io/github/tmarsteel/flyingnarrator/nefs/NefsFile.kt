@@ -5,23 +5,23 @@ import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.itemOrNull
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.listedItemsOrNull
 import kotlinx.serialization.ExperimentalSerializationApi
+import okio.IOException
 import java.lang.AutoCloseable
 import java.nio.ByteBuffer
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
-class NefsFile(
-    val coordinates: NefsCoordinates,
+class NefsFile private constructor(
+    private val serviceProcess: Process,
 ) : AutoCloseable {
-    private val nefsEditCliProcess = ProcessBuilder(listOf(
-        nefsEditCliBinary.toString(),
-        "--file",
-        (coordinates as NefsCoordinates.FileOnSystemDisk).path.toString(),
-    ))
-        .redirectError(ProcessBuilder.Redirect.INHERIT)
-        .start()
-
     private fun assureOpen() {
-        check(nefsEditCliProcess.isAlive) { "nefsedit-cli process has died" }
+        check(serviceProcess.isAlive) { "nefsedit-cli process has died" }
+    }
+
+    init {
+        assureOpen()
     }
 
     fun listFiles(recursive: Boolean, directory: NefsItemId? = null): List<NefsFileRef> {
@@ -59,11 +59,11 @@ class NefsFile(
     }
 
     private fun exchange(toHelper: Command.ToNefsEdit): Command.FromNefsEdit {
-        val response = synchronized(nefsEditCliProcess) {
+        val response = synchronized(serviceProcess) {
             assureOpen()
-            toHelper.writeDelimitedTo(nefsEditCliProcess.outputStream)
-            nefsEditCliProcess.outputStream.flush()
-            Command.FromNefsEdit.parseDelimitedFrom(nefsEditCliProcess.inputStream)
+            toHelper.writeDelimitedTo(serviceProcess.outputStream)
+            serviceProcess.outputStream.flush()
+            Command.FromNefsEdit.parseDelimitedFrom(serviceProcess.inputStream)
         }
 
         if (response.hasError()) {
@@ -74,20 +74,84 @@ class NefsFile(
     }
 
     override fun close() {
-        if (!nefsEditCliProcess.isAlive) {
-            return
-        }
-        exchange(
-            Command.ToNefsEdit.newBuilder()
-                .setExit(Command.ExitCommand.newBuilder().build())
-                .build()
-        )
-        nefsEditCliProcess.waitFor()
+        tryCleanExitAndDestroyAfterTimeout(serviceProcess, 2.seconds)
     }
 
     companion object {
+        fun open(coordinates: NefsCoordinates): NefsFile {
+            val command = buildCommand(coordinates)
+            val serviceProcess = try {
+                ProcessBuilder(command)
+                    .redirectError(ProcessBuilder.Redirect.INHERIT)
+                    .start()
+            } catch (ex: IOException) {
+                throw NefsException("Failed to start service process", ex)
+            }
+
+            val firstOutput = try {
+                Command.FromNefsEdit.parseDelimitedFrom(serviceProcess.inputStream)
+            } catch (ex: IOException) {
+                tryCleanExitAndDestroyAfterTimeout(serviceProcess, 1.seconds)
+                throw NefsException("Failed to communicate with service process", ex)
+            }
+            if (firstOutput.hasError()) {
+                tryCleanExitAndDestroyAfterTimeout(serviceProcess, 1.seconds)
+                throw NefsException("The service process failed to open the file: " + firstOutput.error.message)
+            }
+            if (!firstOutput.hasOpenAck()) {
+                tryCleanExitAndDestroyAfterTimeout(serviceProcess, 1.seconds)
+                throw NefsException("Unsupported first response from nefsedit-cli; missing ${Command.FileOpenAcknowledgement::class.simpleName}")
+            }
+            if (!firstOutput.openAck.hasSuccess() || !firstOutput.openAck.success) {
+                tryCleanExitAndDestroyAfterTimeout(serviceProcess, 1.seconds)
+                throw NefsException("The service process did not acknowledge file opening")
+            }
+
+            return NefsFile(serviceProcess)
+        }
+
         private val nefsEditCliBinary by lazy {
             Paths.get("""F:\CodingProjects\flying-narrator\nefsedit-cli\nefsedit-cli\bin\Debug\net10.0\nefsedit-cli.exe""")
+        }
+
+        private fun buildCommand(coordinates: NefsCoordinates): List<String> {
+            return when(coordinates) {
+                is NefsCoordinates.FileOnSystemDisk -> listOf(
+                    nefsEditCliBinary.toString(),
+                    "--file",
+                    coordinates.path.toString(),
+                )
+                is NefsCoordinates.Headless -> listOf(
+                    nefsEditCliBinary.toString(),
+                    "--game-executable",
+                    coordinates.gameExecutable.toString(),
+                    "--data-directory",
+                    coordinates.dataDirectory.toString(),
+                    "--data-file",
+                    coordinates.dataFile.toString(),
+                    "--search-entire-executable",
+                    coordinates.searchEntireExecutable.toString(),
+                )
+            }
+        }
+
+        private fun tryCleanExitAndDestroyAfterTimeout(serviceProcess: Process, timeout: Duration) {
+            if (!serviceProcess.isAlive) {
+                return
+            }
+
+            try {
+                Command.ToNefsEdit.newBuilder()
+                    .setExit(Command.ExitCommand.newBuilder().build())
+                    .build()
+                    .writeDelimitedTo(serviceProcess.outputStream);
+                serviceProcess.outputStream.flush()
+                serviceProcess.waitFor(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+            }
+            catch (_: IOException) {}
+            catch (_: InterruptedException) { }
+
+            serviceProcess.destroy()
         }
     }
 }
