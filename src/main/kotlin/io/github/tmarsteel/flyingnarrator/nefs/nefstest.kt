@@ -1,8 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.nefs
 
+import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
 import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.file.Paths
+import kotlin.io.path.outputStream
 
 fun main() {
     val gameDir = Paths.get("""F:\Games\SteamGames\SteamApps\common\DiRT Rally 2.0""")
@@ -12,7 +14,7 @@ fun main() {
         Paths.get("game_1.dat"),
     )
     NefsFile.open(coords).use { archive ->
-        /*val firstXml = archive.listFiles(recursive = true)
+        val firstXml = archive.listFiles(recursive = true)
             .asSequence()
             .filter { it.fileName.endsWith(".xml") }
             .first()
@@ -20,12 +22,8 @@ fun main() {
         println(firstXml)
 
         Paths.get("first.xml").outputStream().use {
-            archive.readFile(firstXml.id).writeTo(it)
-        }*/
-
-        archive.listFiles(recursive = false)
-            .take(10)
-            .forEach(::println)
+            archive.readFile(firstXml.id, Command.Conversion.UNPACK_BINARY_XML).writeTo(it)
+        }
     }
 }
 

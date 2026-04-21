@@ -25,14 +25,11 @@ class NefsFile private constructor(
     }
 
     fun listFiles(recursive: Boolean, directory: NefsItemId? = null): List<NefsFileRef> {
-        val commandBuilder = Command.ListItemsCommand.newBuilder()
-            .setRecursive(recursive)
-        if (directory != null) {
-            commandBuilder.setDirectoryId(directory.id.toInt())
-        }
-
         val toHelper = Command.ToNefsEdit.newBuilder()
-            .setListItems(commandBuilder.build())
+            .setListItems(Command.ListItemsCommand.newBuilder()
+                .setRecursive(recursive)
+                .setNullableOptionalProto(Command.ListItemsCommand.Builder::setDirectoryId, directory?.id?.toInt())
+                .build())
             .build()
 
         val response = exchange(toHelper)
@@ -50,10 +47,11 @@ class NefsFile private constructor(
         }
     }
 
-    fun readFile(id: NefsItemId): ByteBuffer {
+    fun readFile(id: NefsItemId, convert: Command.Conversion? = null): ByteBuffer {
         val toHelper = Command.ToNefsEdit.newBuilder()
             .setReadItem(Command.ReadItemCommand.newBuilder()
                 .setId(id.id.toInt())
+                .setNullableOptionalProto(Command.ReadItemCommand.Builder::setConvert, convert)
                 .build())
             .build()
 

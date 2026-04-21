@@ -27,6 +27,14 @@ message ListItemsCommand {
 
 message ReadItemCommand {
   uint32 id = 1 [features.field_presence = IMPLICIT];
+  Conversion convert = 2 [features.field_presence = EXPLICIT];
+}
+
+enum Conversion {
+  UNPACK_BINARY_XML = 0;
+  LANGUAGE_FILE_TO_XML = 1;
+  PKG_TO_JSON = 2;
+  TPK_TO_DDS = 3;
 }
 
 message FileOpenAcknowledgement {

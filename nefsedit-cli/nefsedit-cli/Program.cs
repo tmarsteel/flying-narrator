@@ -1,8 +1,14 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Help;
 using System.IO.Abstractions;
+using System.Text;
+using EgoEngineLibrary.Data.Pkg;
+using EgoEngineLibrary.Formats.Tpk;
+using EgoEngineLibrary.Language;
+using EgoEngineLibrary.Xml;
 using Google.Protobuf;
 using NefsEditCLI.Protocol;
+using SharpGLTF.Schema2;
 using VictorBush.Ego.NefsLib;
 using VictorBush.Ego.NefsLib.IO;
 using VictorBush.Ego.NefsLib.Item;
@@ -338,17 +344,104 @@ namespace NefsEditCLI
                 );
                 buffer.Seek(0, SeekOrigin.Begin);
 
+                var converted = command.HasConvert ? Convert(buffer, command.Convert) : buffer; 
+
                 FromNefsEdit response = new FromNefsEdit();
                 response.Item = new ReadItemResult();
-                response.Item.Data = await ByteString.FromStreamAsync(buffer);
+                response.Item.Data = await ByteString.FromStreamAsync(converted);
                 return response;
             }
         }
 
-        private static Stream WrapBinaryXMLDecode(Stream rawIn)
+        private static Stream Convert(Stream rawIn, Conversion conversion)
         {
-            // TODO
-            return rawIn;
+            switch (conversion)
+            {
+                case Conversion.UnpackBinaryXml:
+                    return ConvertBinaryXmlToXml(rawIn);
+                case Conversion.LanguageFileToXml:
+                    return ConvertLanguageFileToXml(rawIn);
+                case Conversion.PkgToJson:
+                    return ConvertPkgFileToJson(rawIn);
+                case Conversion.TpkToDds:
+                    return ConvertTpkToDds(rawIn);
+                default:
+                    throw new NefsEditCliException("Unknown conversion " + conversion);
+            }
+        }
+
+        private static Stream ConvertBinaryXmlToXml(Stream rawIn)
+        {
+            var xmlMagic = PeekMagicBytes(rawIn, Encoding.UTF8).Substring(1);
+            if (xmlMagic != "\"Rr" && xmlMagic != "BXM")
+            {
+                return rawIn;
+            }
+            
+            var file = new XmlFile(rawIn);
+            var buffer = new MemoryStream();
+            file.Write(buffer, XmlType.Text);
+            buffer.Seek(0, SeekOrigin.Begin);
+            return buffer;
+        }
+        
+        private static Stream ConvertLanguageFileToXml(Stream rawIn)
+        {
+            string magic = PeekMagicBytes(rawIn, Encoding.UTF8);
+            if (magic != "LNGT")
+            {
+                throw new NefsEditCliException("Not a language file, cannot convert langauge file");
+            }
+            
+            var file = new LngFile(rawIn);
+            var buffer = new MemoryStream();
+            file.WriteXml(buffer);
+            buffer.Seek(0, SeekOrigin.Begin);
+            return buffer;
+        }
+        
+        private static Stream ConvertPkgFileToJson(Stream rawIn)
+        {
+            var file = PkgFile.ReadPkg(rawIn);
+            var buffer = new MemoryStream();
+            file.WriteJson(buffer);
+            buffer.Seek(0, SeekOrigin.Begin);
+            return buffer;
+        }
+        
+        private static Stream ConvertTpkToDds(Stream rawIn)
+        {
+            var tpk = new TpkFile();
+            tpk.Read(rawIn);
+            var dds = tpk.ToDds();
+            var buffer = new MemoryStream();
+            dds.Write(buffer, -1);
+            buffer.Seek(0, SeekOrigin.Begin);
+            return buffer;
+        }
+
+        private static string PeekMagicBytes(Stream inStream, Encoding encoding)
+        {
+            var startPosition = inStream.Position;
+            try
+            {
+                var magicBytes = new byte[4];
+                var nBytes = inStream.Read(magicBytes, 0, 4);
+                var endIndexExcl = nBytes;
+                for (var i = 0; i < endIndexExcl; i++)
+                {
+                    if (magicBytes[i] == 0x00)
+                    {
+                        endIndexExcl = i;
+                    }
+                }
+
+                return encoding.GetString(magicBytes, 0, endIndexExcl);
+            }
+            finally
+            {
+                inStream.Position = startPosition;
+            }
         }
     }
     
