@@ -2,6 +2,9 @@ package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.io.CompactObjectListSerializer
 import io.github.tmarsteel.flyingnarrator.io.KotlinDurationAsMillisecondsSerializer
+import io.github.tmarsteel.flyingnarrator.unit.Distance
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import io.github.tmarsteel.flyingnarrator.unit.Velocity
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -11,7 +14,6 @@ import java.nio.file.Path
 import kotlin.io.path.inputStream
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.DurationUnit
 
 /**
  * A recording/map of how fast a racetrack throughout the route. Used to improve prediction of where the care
@@ -25,7 +27,7 @@ class Speedmap(
     init {
         require(controlPoints is RandomAccess) { "the control points must be random access, otherwise the speed suffers greatly" }
         require(controlPoints.size >= 2) { "speedmap must have at least two control points" }
-        require(controlPoints.first().distanceAlongTrack == 0.0) { "first control point must have distanceAlongTrack == 0.0" }
+        require(controlPoints.first().distanceAlongTrack == 0.meters) { "first control point must have distanceAlongTrack == 0.0" }
         check(
             controlPoints.asSequence().zipWithNext()
                 .all { (cpA, cpB) ->
@@ -41,21 +43,21 @@ class Speedmap(
     /**
      * @return the estimated time it takes to go from the start of the track/race to the given [distanceAlongTrack]
      */
-    fun estimateDurationUntilDistance(distanceAlongTrack: Double): Duration {
-        require(distanceAlongTrack >= 0.0)
+    fun estimateDurationUntilDistance(distanceAlongTrack: Distance): Duration {
+        require(distanceAlongTrack >= 0.meters)
 
         return when (val location = getLocationBy(distanceAlongTrack, ControlPoint::distanceAlongTrack)) {
             is TrackLocation.AtControlPoint -> location.controlPoint.atTime
             is TrackLocation.BetweenControlPoints -> {
                 val velocity = velocityBetweenControlPoints(location.previous, location.next)
                 val distanceAfterPreviousCp = distanceAlongTrack - location.previous.distanceAlongTrack
-                return location.previous.atTime + (distanceAfterPreviousCp / velocity).seconds
+                return location.previous.atTime + (distanceAfterPreviousCp / velocity)
             }
             is TrackLocation.AtOrAfterLastControlPoint -> {
                 val lastCp = controlPoints.last()
                 val velocity = velocityBetweenControlPoints(controlPoints[controlPoints.lastIndex - 1], lastCp)
                 val distanceAfterLastCp = distanceAlongTrack - lastCp.distanceAlongTrack
-                return lastCp.atTime + (distanceAfterLastCp / velocity).seconds
+                return lastCp.atTime + (distanceAfterLastCp / velocity)
             }
         }
     }
@@ -63,7 +65,7 @@ class Speedmap(
     /**
      * @return the estimated position on the track in meters after time [time]
      */
-    fun estimatePositionAtTime(time: Duration): Double {
+    fun estimatePositionAtTime(time: Duration): Distance {
         require(time >= Duration.ZERO)
 
         return when(val location = getLocationBy(time, ControlPoint::atTime)) {
@@ -71,20 +73,20 @@ class Speedmap(
             is TrackLocation.BetweenControlPoints -> {
                 val velocity = velocityBetweenControlPoints(location.previous, location.next)
                 val timeAfterPreviousCp = time - location.previous.atTime
-                val distanceAfterPreviousCp = velocity * timeAfterPreviousCp.toDouble(DurationUnit.SECONDS)
+                val distanceAfterPreviousCp = velocity * timeAfterPreviousCp
                 return location.previous.distanceAlongTrack + distanceAfterPreviousCp
             }
             is TrackLocation.AtOrAfterLastControlPoint -> {
                 val lastCp = controlPoints.last()
                 val velocity = velocityBetweenControlPoints(controlPoints[controlPoints.lastIndex - 1], lastCp)
                 val timeAfterLastCp = time - lastCp.atTime
-                val distanceAfterLastCp = velocity * timeAfterLastCp.toDouble(DurationUnit.SECONDS)
+                val distanceAfterLastCp = velocity * timeAfterLastCp
                 return lastCp.distanceAlongTrack + distanceAfterLastCp
             }
         }
     }
 
-    fun estimateVelocityAtDistance(distanceAlongTrack: Double): Double {
+    fun estimateVelocityAtDistance(distanceAlongTrack: Double): Velocity {
         require(distanceAlongTrack >= 0.0)
 
         return when (val location = getLocationBy(distanceAlongTrack, ControlPoint::distanceAlongTrack)) {
@@ -103,9 +105,9 @@ class Speedmap(
         }
     }
 
-    private fun velocityBetweenControlPoints(cpA: ControlPoint, cpB: ControlPoint): Double {
+    private fun velocityBetweenControlPoints(cpA: ControlPoint, cpB: ControlPoint): Velocity {
         val distanceBetween = cpB.distanceAlongTrack - cpA.distanceAlongTrack
-        val velocity = distanceBetween / (cpB.atTime - cpA.atTime).toDouble(DurationUnit.SECONDS)
+        val velocity = distanceBetween / (cpB.atTime - cpA.atTime)
         return velocity
     }
     
@@ -154,8 +156,8 @@ class Speedmap(
                 val approxVelocity = velocityBetweenControlPoints(firstCp, lastCp)
                 val subDistance = lastCp.distanceAlongTrack - preLastCp.distanceAlongTrack
                 val approxDistance = lastCp.distanceAlongTrack - firstCp.distanceAlongTrack
-                val trueTime = (subDistance / trueVelocity).seconds
-                val estimatedTime = (approxDistance / approxVelocity).seconds
+                val trueTime = (subDistance / trueVelocity)
+                val estimatedTime = (approxDistance / approxVelocity)
                 val delta = estimatedTime - trueTime
                 if (delta.absoluteValue > timeTolerance.seconds) {
                     compressIndexEnd--
@@ -186,7 +188,7 @@ class Speedmap(
         /**
          * distance since start, in meters
          */
-        val distanceAlongTrack: Double,
+        val distanceAlongTrack: Distance,
 
         /**
          * accumulative time when reaching [distanceAlongTrack]

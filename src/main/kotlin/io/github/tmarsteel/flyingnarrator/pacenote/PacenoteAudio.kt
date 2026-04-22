@@ -35,13 +35,22 @@ data class PacenoteAudio(
 
     @Serializable
     data class CallData(
+        /**
+         * The duration within [PacenoteAudio.audioFile] at which the sound for this callout starts
+         */
         @Serializable(with = KotlinDurationAsMillisecondsSerializer::class)
         val startsAt: Duration,
 
+        /**
+         * The duration within [PacenoteAudio.audioFile] at which the sound for this callout ends
+         */
         @Serializable(with = KotlinDurationAsMillisecondsSerializer::class)
         val endsAt: Duration,
 
-        val physicalFeaturesAtDistanceAlongRoute: Double,
+        /**
+         * just copied from [PacenoteAtom]
+         */
+        val metadata: PacenoteAtom.Metadata,
     ) {
         val duration: Duration get() = endsAt - startsAt
         init {
@@ -79,7 +88,7 @@ data class PacenoteAudio(
                     CallData(
                         synthesized.ssmlMakers.getValue(startMark),
                         synthesized.ssmlMakers.getValue(endMark),
-                        atom.physicalFeaturesAtDistanceAlongRoute,
+                        atom.metadata,
                     )
                 }
 
