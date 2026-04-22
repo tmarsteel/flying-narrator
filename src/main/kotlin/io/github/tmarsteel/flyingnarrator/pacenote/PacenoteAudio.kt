@@ -39,22 +39,22 @@ data class PacenoteAudio(
          * The duration within [PacenoteAudio.audioFile] at which the sound for this callout starts
          */
         @Serializable(with = KotlinDurationAsMillisecondsSerializer::class)
-        val startsAt: Duration,
+        val callAudioStartsAt: Duration,
 
         /**
          * The duration within [PacenoteAudio.audioFile] at which the sound for this callout ends
          */
         @Serializable(with = KotlinDurationAsMillisecondsSerializer::class)
-        val endsAt: Duration,
+        val callAudioEndsAt: Duration,
 
         /**
          * just copied from [PacenoteAtom]
          */
         val metadata: PacenoteAtom.Metadata,
     ) {
-        val duration: Duration get() = endsAt - startsAt
+        val duration: Duration get() = callAudioEndsAt - callAudioStartsAt
         init {
-            require(endsAt > startsAt)
+            require(callAudioEndsAt > callAudioStartsAt)
         }
     }
 

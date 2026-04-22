@@ -2,10 +2,15 @@ package io.github.tmarsteel.flyingnarrator.narrator
 
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.Speedmap
+import io.github.tmarsteel.flyingnarrator.audio.ClipQueue
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.dirtrally2.RaceProgressListener
 import io.github.tmarsteel.flyingnarrator.dirtrally2.RaceProgressMonitor
 import io.github.tmarsteel.flyingnarrator.editor.RouteComponent
+import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
+import io.github.tmarsteel.flyingnarrator.pacenote.CuedPacenoteAudio
+import io.github.tmarsteel.flyingnarrator.pacenote.Lookahead
+import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAudio
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.times
@@ -23,6 +28,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.UIManager
+import kotlin.io.path.readText
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -35,6 +41,8 @@ class CodriverApp(
     private val route: Route
     private val routeLength by lazy { route.sumOf { it.length } }
     private val speedmap: Speedmap
+    private val pacenotes: CuedPacenoteAudio
+    private val codriverClipQueue = ClipQueue()
     init {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
@@ -43,6 +51,10 @@ class CodriverApp(
 
         route = DirtRally2RouteReader(Paths.get(args[0])).read()
         speedmap = Speedmap.fromFile(Paths.get(args[1]))
+        val pacenoteAudio = FlyingNarratorJsonFormat.decodeFromString<PacenoteAudio>(
+            Paths.get(args[2]).readText(Charsets.UTF_8)
+        )
+        pacenotes = CuedPacenoteAudio.cueue(pacenoteAudio, routeLength, speedmap, Lookahead.ofConstantDistance(0.meters))
 
         routeComponent = RouteComponent(route, emptyList())
         routeComponent.distanceMarkersEvery = 500.meters
@@ -93,6 +105,10 @@ class CodriverApp(
             override fun activate() {
                 progressMonitor.addProgressListener(this)
                 progressMonitor.start()
+                codriverClipQueue.stop()
+                for (introCall in pacenotes.intro) {
+                    codriverClipQueue.queue(introCall.clip)
+                }
             }
 
             override fun deactivate() {
@@ -133,22 +149,6 @@ class CodriverApp(
 
     private val raceInProgressState by lazy {
         object : AppState, RaceProgressListener {
-            val clips = Paths.get("C:/Users/tobia/Desktop/Pacenote Fiddle.wav").loadClips(
-                mapOf<Double, Duration>(
-                    0.0 to 0.38.seconds,
-                    0.1 to 1.65.seconds,
-                    0.2 to 2.70.seconds,
-                    0.3 to 3.95.seconds,
-                    0.4 to 5.36.seconds,
-                    0.5 to 6.70.seconds,
-                    0.6 to 7.80.seconds,
-                    0.7 to 8.93.seconds,
-                    0.8 to 10.3.seconds,
-                    0.9 to 11.8.seconds,
-                    0.98 to 13.15.seconds,
-                )
-            )
-
             override val controlPanel = JPanel()
             private val timeLabel: JLabel
             init {
@@ -182,6 +182,7 @@ class CodriverApp(
             fun startNewRace(firstProgress: Double = 0.0) {
                 racingSince = TimeSource.Monotonic.markNow() - speedmap.estimateDurationUntilDistance(firstProgress * routeLength)
                 raceTimeBeforeLastPause = 0.seconds
+                codriverClipQueue.stop()
             }
 
             init {
@@ -209,8 +210,11 @@ class CodriverApp(
                 previousProgress = fraction
                 SwingUtilities.invokeLater {
                     routeComponent.carPositionOnTrack = fraction * routeLength
-                    clips.entries.find { it.key in progressBeforeUpdate..fraction }?.let { (_, clip) ->
-                        clip.start()
+                    if (progressBeforeUpdate < fraction) {
+                        pacenotes.findTriggeredCues(progressBeforeUpdate * routeLength, fraction * routeLength)
+                            .forEach {
+                                codriverClipQueue.queue(it.clip)
+                            }
                     }
                     controlPanel.repaint()
                 }

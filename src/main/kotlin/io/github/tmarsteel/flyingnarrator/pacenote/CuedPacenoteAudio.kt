@@ -1,11 +1,16 @@
 package io.github.tmarsteel.flyingnarrator.pacenote
 
 import io.github.tmarsteel.flyingnarrator.Speedmap
+import io.github.tmarsteel.flyingnarrator.audio.readIntoClip
+import io.github.tmarsteel.flyingnarrator.audio.skip
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.util.Collections
 import java.util.LinkedList
 import java.util.TreeMap
+import javax.sound.sampled.AudioSystem
+import javax.sound.sampled.Clip
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * A [PacenoteAudio], but the cues are now concrete progress values (0-1), which can be directly utilized to play
@@ -14,10 +19,12 @@ import java.util.TreeMap
  */
 class CuedPacenoteAudio private constructor(
     val baseAudio: PacenoteAudio,
+    val intro: List<CuedCallout>,
     val cues: TreeMap<Distance, CuedCallout>,
 ) {
-    constructor(baseAudio: PacenoteAudio, cues: List<CuedCallout>) : this(
+    constructor(baseAudio: PacenoteAudio, intro: List<CuedCallout>, cues: List<CuedCallout>) : this(
         baseAudio,
+        intro,
         TreeMap(cues.associateBy { it.triggerAtDistanceAlongRoute })
     )
 
@@ -26,7 +33,8 @@ class CuedPacenoteAudio private constructor(
      * was passed to [toPositionInclusive] in the invocation directly prior.** Otherwise, some triggers may be missed.
      * This function is thread-safe.
      *
-     * @param fromPositionExclusive the previously investigated position on the track, or `0m` at the start of the race
+     * @param fromPositionExclusive the previously investigated position on the track, or negative [Double.MIN_VALUE]
+     *                              at the start of the race
      * @param toPositionInclusive the current position on track
      * @return the callouts that have been triggered while the car traversed the route between [fromPositionExclusive]
      * and [toPositionInclusive], in ascending order of trigger location/time
@@ -44,6 +52,8 @@ class CuedPacenoteAudio private constructor(
         val triggerAtDistanceAlongRoute: Distance
 
         val callData: PacenoteAudio.CallData
+
+        val clip: Clip
     }
 
     private class CuedCalloutImpl(
@@ -57,12 +67,14 @@ class CuedPacenoteAudio private constructor(
          */
         val finishesAtDistanceAlongRoute: Distance,
 
-        override val callData: PacenoteAudio.CallData
-    ) : CuedCallout
+        override val callData: PacenoteAudio.CallData,
+    ) : CuedCallout {
+        override lateinit var clip: Clip
+    }
 
     companion object {
         /**
-         * Default cueing algorithm, but more details/vartiety/customizability might be needed.
+         * Default cueing algorithm, but more details/variety/customizability might be needed.
          *
          * @param pacenotes the pacenotes to play back; must start at the start line and may extend beyond the finish
          *                  line
@@ -83,10 +95,12 @@ class CuedPacenoteAudio private constructor(
                 it == finishLineCallout || it.metadata.physicalFeaturesAtDistanceAlongRoute > lastImportantPoint
             }
 
+            val intro = LinkedList<CuedCalloutImpl>()
             val cues = LinkedList<CuedCalloutImpl>()
 
             cueCalloutsAvoidingOverlapBackwards(
                 pacenotes.markers.subList(0, indexOfLastImportantCallout + 1),
+                intro,
                 cues,
                 speedmap,
                 lookahead,
@@ -99,19 +113,30 @@ class CuedPacenoteAudio private constructor(
                 lookahead,
             )
 
-            return CuedPacenoteAudio(pacenotes, cues)
+            fillClips(intro, pacenotes)
+            fillClips(cues, pacenotes)
+
+            return CuedPacenoteAudio(pacenotes, intro, cues)
         }
 
         private fun cueCalloutsAvoidingOverlapBackwards(
             calls: List<PacenoteAudio.CallData>,
+            introOut: MutableList<CuedCalloutImpl>,
             cuesOut: MutableList<CuedCalloutImpl>,
             speedmap: Speedmap,
             lookahead: Lookahead,
         ) {
             for (call in calls.asReversed()) {
                 val desiredCalloutEndAt = lookahead.determineCalloutLocation(call, speedmap)
-                check(desiredCalloutEndAt >= call.metadata.physicalFeaturesAtDistanceAlongRoute) {
+                check(desiredCalloutEndAt <= call.metadata.physicalFeaturesAtDistanceAlongRoute) {
                     "Negative Lookahead (\"look behind\") on callout $call; occurs at ${call.metadata.physicalFeaturesAtDistanceAlongRoute} but should be voiced by $desiredCalloutEndAt"
+                }
+                if (desiredCalloutEndAt < 0.meters) {
+                    introOut.addFirst(CuedCalloutImpl(
+                        -(1.meters),
+                        -(1.meters),
+                        call,
+                    ))
                 }
                 val nextCalloutStartsAt = cuesOut.firstOrNull()?.triggerAtDistanceAlongRoute ?: Double.POSITIVE_INFINITY.meters
                 // TODO: customize handling when callouts overlap?
@@ -119,6 +144,14 @@ class CuedPacenoteAudio private constructor(
                 val calloutActualEndAt = desiredCalloutEndAt.coerceAtMost(nextCalloutStartsAt)
                 val calloutEndTime = speedmap.estimateDurationUntilDistance(calloutActualEndAt)
                 val calloutStartTime = calloutEndTime - call.duration
+                if (calloutStartTime < 0.seconds) {
+                    introOut.addFirst(CuedCalloutImpl(
+                        -(1.meters),
+                        -(1.meters),
+                        call,
+                    ))
+                    continue
+                }
                 val calloutStartAt = speedmap.estimatePositionAtTime(calloutStartTime)
 
                 cuesOut.addFirst(CuedCalloutImpl(
@@ -135,17 +168,31 @@ class CuedPacenoteAudio private constructor(
             speedmap: Speedmap,
             lookahead: Lookahead,
         ) {
-            for (calloutAfterFinish in calls) {
+            for (call in calls) {
                 val previousCalloutEndedAt = cuesOut.lastOrNull()?.triggerAtDistanceAlongRoute ?: 0.meters
-                val triggerAt = lookahead.determineCalloutLocation(calloutAfterFinish, speedmap).coerceAtLeast(previousCalloutEndedAt)
+                val triggerAt = lookahead.determineCalloutLocation(call, speedmap).coerceAtLeast(previousCalloutEndedAt)
                 val triggerAtTime = speedmap.estimateDurationUntilDistance(triggerAt)
-                val endsAt = speedmap.estimatePositionAtTime(triggerAtTime + calloutAfterFinish.duration)
+                val endsAt = speedmap.estimatePositionAtTime(triggerAtTime + call.duration)
 
                 cuesOut.addLast(CuedCalloutImpl(
                     triggerAt,
                     endsAt,
-                    calloutAfterFinish,
+                    call
                 ))
+            }
+        }
+
+        private fun fillClips(cues: List<CuedCalloutImpl>, pacenotes: PacenoteAudio) {
+            AudioSystem.getAudioInputStream(pacenotes.audioFile.toFile()).use { audioIn ->
+                var previousEndedAt = 0.seconds
+                for (cue in cues.sortedBy { it.callData.callAudioStartsAt }) {
+                    require(cue.callData.callAudioStartsAt >= previousEndedAt) {
+                        "overlapping pacenote atoms are not supported: $cue overlaps with previous clip"
+                    }
+                    audioIn.skip(cue.callData.callAudioStartsAt - previousEndedAt)
+                    cue.clip = audioIn.readIntoClip(cue.callData.duration)
+                    previousEndedAt = cue.callData.callAudioEndsAt
+                }
             }
         }
     }

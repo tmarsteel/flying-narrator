@@ -30,7 +30,6 @@ fun main(args: Array<String>) {
 
     val codriverData = DR2XMLMapper.readValue(ByteBufferBackedInputStream(codriverXml), DR2CodriverData::class.java)
     val pacenotes = codriverData.codriverCalls.map(::DirtRally2PacenoteAtomAdapter)
-        .take(10)
 
     val httpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
@@ -39,6 +38,7 @@ fun main(args: Array<String>) {
                 .build()
             chain.proceed(request)
         }
+        .callTimeout(java.time.Duration.ofSeconds(10))
         .build()
     val synthesizer = GoogleCloudSpeechSynthesizer(httpClient = httpClient)
 
