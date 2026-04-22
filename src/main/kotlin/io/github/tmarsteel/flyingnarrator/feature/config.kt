@@ -1,5 +1,8 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.degrees
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+
 const val OPTIMAL_ROAD_SEGMENT_LENGTH = 5.0
 
 /**
@@ -22,10 +25,10 @@ const val CORNER_RADIUS_AVERAGE_WINDOW_SIZE = 7.5
  * Corner extension will extend corners so that the angle between the corner exit and the following corner entry
  * is this or less.
  */
-val CORNER_EXTENSION_STRAIGHTISH_ANGLE: Double = Math.toRadians(2.5)
+val CORNER_EXTENSION_STRAIGHTISH_ANGLE = 2.5.degrees
 
 /**
  * Corner extension will extend corners no further than this amount of meters to make the [CORNER_EXTENSION_STRAIGHTISH_ANGLE]
  * work out.
  */
-const val CORNER_EXTENSION_MAX_DISTANCE = 10.0
+val CORNER_EXTENSION_MAX_DISTANCE = 10.0.meters

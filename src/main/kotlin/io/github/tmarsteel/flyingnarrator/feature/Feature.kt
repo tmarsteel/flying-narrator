@@ -3,38 +3,41 @@ package io.github.tmarsteel.flyingnarrator.feature
 import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.consecutiveRuns
-import kotlin.math.absoluteValue
-import kotlin.math.sign
+import io.github.tmarsteel.flyingnarrator.unit.Angle
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
+import io.github.tmarsteel.flyingnarrator.unit.Distance
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 
 sealed interface Feature {
-    val startsAtTrackDistance: Double
-    val length: Double
+    val startsAtTrackDistance: Distance
+    val length: Distance
 
     fun tryMergeWithSuccessor(successor: Feature): Feature?
 
     data class Straight(
         val segments: List<RoadSegment>,
-        override val startsAtTrackDistance: Double,
+        override val startsAtTrackDistance: Distance,
     ) : Feature {
-        override val length: Double = segments.sumOf { it.length }
-        val angleFirstToLast: Double = segments.first().forward.angleTo(segments.last().forward)
+        override val length: Distance = segments.sumOf { it.length }
+        val angleFirstToLast: Angle = segments.first().forward.angleTo(segments.last().forward)
 
         override fun tryMergeWithSuccessor(successor: Feature): Feature? {
             if (successor !is Straight) {
                 return null
             }
-            return Straight(segments + (successor as Straight).segments, startsAtTrackDistance)
+            return Straight(segments + successor.segments, startsAtTrackDistance)
         }
     }
 
     class Corner(
         val segments: List<RoadSegment>,
-        override val startsAtTrackDistance: Double,
+        override val startsAtTrackDistance: Distance,
     ) : Feature {
-        val totalAngle: Double = segments.totalAngle
-        override val length: Double by lazy { segments.sumOf { it.length } }
+        val totalAngle: Angle = segments.totalAngle
+        override val length: Distance by lazy { segments.sumOf { it.length } }
 
-        val direction get() = if (totalAngle > 0) Direction.RIGHT else Direction.LEFT
+        val direction get() = if (totalAngle > 0.radians) Direction.RIGHT else Direction.LEFT
 
         override fun tryMergeWithSuccessor(successor: Feature): Feature? {
             if (successor !is Corner || successor.direction != direction) {
@@ -60,7 +63,7 @@ sealed interface Feature {
     }
 
     companion object {
-        private val SEVERE_CORNER_ANGLE_DELTA_THRESHOLD = 0.0025 // TODO: move to config
+        private val SEVERE_CORNER_ANGLE_DELTA_THRESHOLD = 0.0025.radians // TODO: move to config
 
         fun discoverIn(route: Route): List<Feature> {
             val tmpSegments = TmpSegment.fromRoute(route)
@@ -71,9 +74,9 @@ sealed interface Feature {
                 .asSequence()
                 .windowed(size = 2, step = 1)
                 .consecutiveRuns { (a, b) ->
-                    a.deltaAngle.absoluteValue > SEVERE_CORNER_ANGLE_DELTA_THRESHOLD
-                        && b.deltaAngle.absoluteValue > SEVERE_CORNER_ANGLE_DELTA_THRESHOLD
-                        && a.deltaAngle.sign == b.deltaAngle.sign
+                    a.deltaAnglePerArcMeter.absoluteValue > SEVERE_CORNER_ANGLE_DELTA_THRESHOLD
+                        && b.deltaAnglePerArcMeter.absoluteValue > SEVERE_CORNER_ANGLE_DELTA_THRESHOLD
+                        && a.deltaAnglePerArcMeter.sign == b.deltaAnglePerArcMeter.sign
                 }
                 .map { (_, windowPairs) -> windowPairs.map { it.first() } }
                 .map { windowsInOneCorner ->
@@ -109,10 +112,10 @@ private fun extendCornersInPlaceOnSingleTransition(features: MutableList<Feature
     }
     val extendableSegments = listOf(startCorner.segments.last()) + straight.segments + listOf(endCorner.segments.first())
     var startExtendSegments = 0
-    var startExtendDistanceCarry = 0.0
+    var startExtendDistanceCarry = 0.meters
     var endExtendSegments = 0
-    var endExtendDistanceCarry = 0.0
-    var minObservedAngle: Triple<Double, Int, Int>? = null
+    var endExtendDistanceCarry = 0.meters
+    var minObservedAngle: Triple<Angle, Int, Int>? = null
     while (startExtendSegments + endExtendSegments + 2 < extendableSegments.size) {
         val startCornerEndSegment = extendableSegments[startExtendSegments]
         val endCornerStartSegment = extendableSegments[extendableSegments.lastIndex - endExtendSegments]

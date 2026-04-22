@@ -6,6 +6,10 @@ import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
 import io.github.tmarsteel.flyingnarrator.foldInto
 import io.github.tmarsteel.flyingnarrator.pacenote.inferred.cornerFeatureToPacenoteItem
+import io.github.tmarsteel.flyingnarrator.unit.Angle
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
+import io.github.tmarsteel.flyingnarrator.unit.Distance
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension
@@ -30,7 +34,7 @@ class RouteComponent(
     val features: List<Feature>,
 ) : JComponent() {
     var scale by RepaintBaseImageOnChange(0.4, alsoOnChange = { revalidate() })
-    var distanceMarkersEveryMeters by RepaintBaseImageOnChange(200.0)
+    var distanceMarkersEvery by RepaintBaseImageOnChange(200.meters)
     var distanceMarkerColor: Color? by RepaintBaseImageOnChange(Color.RED)
     var startMarkerColor by RepaintBaseImageOnChange(Color.RED)
     var finishMarkerColor by RepaintBaseImageOnChange(Color.GREEN)
@@ -125,24 +129,24 @@ class RouteComponent(
         super.paintChildren(g)
     }
 
-    var carPositionOnTrack: Double = -1.0
+    var carPositionOnTrack: Distance = -(1.meters)
         set(value) {
             field = value
             updateCarMarkerState()
             repaint()
         }
     private var carMarkerPositionInTrackCoords: Vector3 = Vector3.ORIGIN
-    private var carMarkerOrientation: Double = 0.0
+    private var carMarkerOrientation: Angle = 0.radians
     private fun updateCarMarkerState() {
-        if (carPositionOnTrack < 0.0) {
+        if (carPositionOnTrack < 0.meters) {
             return
         }
-        var distanceCarry = 0.0
+        var distanceCarry = 0.meters
         var positionCarry = Vector3.ORIGIN
         for (segment in route) {
             val nextDistanceCarry = distanceCarry + segment.length
             if (carPositionOnTrack in distanceCarry..nextDistanceCarry) {
-                carMarkerPositionInTrackCoords = positionCarry + segment.forward.withLength(carPositionOnTrack - distanceCarry)
+                carMarkerPositionInTrackCoords = positionCarry + segment.forward.withLength((carPositionOnTrack - distanceCarry).toDoubleInMeters())
                 carMarkerOrientation = segment.forward.clockwiseAngleFromPositiveY()
                 break
             }
@@ -166,7 +170,7 @@ class RouteComponent(
         4
     )
     private fun paintCarMarker(g: Graphics2D) {
-        if (carPositionOnTrack < 0.0) {
+        if (carPositionOnTrack < 0.meters) {
             return
         }
 
@@ -177,7 +181,7 @@ class RouteComponent(
                 routeCoordinateSystem.routeToBaseImageX(carMarkerPositionInTrackCoords.x),
                 routeCoordinateSystem.routeToBaseImageY(carMarkerPositionInTrackCoords.y),
             )
-            carMarkerG.rotate(carMarkerOrientation)
+            carMarkerG.rotate(carMarkerOrientation.toDoubleInRadians())
             carMarkerG.scale(1.5, 1.5)
             carMarkerG.translate(-carMarkerShape.bounds.width / 2, -carMarkerShape.bounds.height / 2)
             carMarkerG.color = carMarkerColor
@@ -220,8 +224,8 @@ class RouteComponent(
         var carryPoint = Vector3.ORIGIN
         var prevImageX = routeCoordinateSystem.routeToBaseImageX(carryPoint.x)
         var prevImageY = routeCoordinateSystem.routeToBaseImageY(carryPoint.y)
-        var distanceCarry = 0.0
-        var distanceSinceLastMarker = 0.0
+        var distanceCarry = 0.meters
+        var distanceSinceLastMarker = 0.meters
         var activeFeature: Feature? = null
         val currentFeaturePoints = ArrayList<Pair<Int, Int>>()
         for (segment in route) {
@@ -267,8 +271,8 @@ class RouteComponent(
             }
             distanceCarry += segment.length
             distanceSinceLastMarker += segment.length
-            if (distanceSinceLastMarker >= distanceMarkersEveryMeters && distanceMarkerColor != null) {
-                distanceSinceLastMarker = 0.0
+            if (distanceSinceLastMarker >= distanceMarkersEvery && distanceMarkerColor != null) {
+                distanceSinceLastMarker = 0.meters
                 g.color = distanceMarkerColor
                 g.drawString(distanceToString(distanceCarry), imageX + 30, imageY + 10)
             }
@@ -295,15 +299,15 @@ class RouteComponent(
             (startFinishMarkerRadius * 2 * scale).toInt()
         )
         g.color = segmentJointMarkerColor
-        val distanceText = String.format("%3.2f km", (distanceCarry / 1000.0))
+        val distanceText = String.format("%3.2f km", (distanceCarry.toDoubleInMeters() / 1000.0))
         g.drawString(distanceText, prevImageX, prevImageY + 10)
 
         g.dispose()
         baseImageNeedsRepaint = false
     }
 
-    private fun distanceToString(distance: Double): String {
-        return String.format("%3.2f km", (distance / 1000.0))
+    private fun distanceToString(distance: Distance): String {
+        return String.format("%3.2f km", (distance.toDoubleInMeters() / 1000.0))
     }
 
     private fun featurePointsToShape(points: List<Pair<Int, Int>>, thicknessPx: Double): Shape {
@@ -399,23 +403,23 @@ class RouteComponent(
             when (feature) {
                 is Feature.Straight -> {
                     text.append("d=")
-                    text.append(feature.length.toInt())
+                    text.append(feature.length.toDoubleInMeters().roundToInt())
                     text.append("m")
                     text.append("<br>")
                     text.append("∠=")
-                    text.append(Math.toDegrees(feature.angleFirstToLast).roundToInt())
+                    text.append(feature.angleFirstToLast.toDoubleInDegrees().roundToInt())
                     text.append("°")
                 }
 
                 is Feature.Corner -> {
                     text.append("Ør=")
-                    text.append(feature.segments.compoundRadius.roundToInt())
-                    text.append("m<br>")
+                    text.append(feature.segments.compoundRadius)
+                    text.append("<br>")
                     text.append("∠=")
-                    text.append(Math.toDegrees(feature.totalAngle).roundToInt())
-                    text.append("°<br>")
+                    text.append(feature.totalAngle)
+                    text.append("<br>")
                     text.append("d=")
-                    text.append(feature.length.toInt())
+                    text.append(feature.length.toDoubleInMeters().roundToInt())
                     text.append("m<br>")
                     val pacenote = cornerFeatureToPacenoteItem(feature)
                     text.append(pacenote.toString())

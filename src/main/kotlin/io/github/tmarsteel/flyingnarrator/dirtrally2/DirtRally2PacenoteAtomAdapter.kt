@@ -7,6 +7,7 @@ import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLBreak
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLSentence
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLText
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
 
@@ -17,9 +18,10 @@ import kotlin.time.Duration.Companion.seconds
 class DirtRally2PacenoteAtomAdapter(
     val call: DR2CodriverDataCall
 ) : PacenoteAtom {
-    override val physicalFeaturesAtDistanceAlongRoute: Double
-        get() = call.distanceAlongTrack.toDouble()
-
+    override val metadata = PacenoteAtom.Metadata(
+        call.distanceAlongTrack.meters,
+        if (call.subcalls.any { it.type == DR2CodriverDataSubcall.Type.FINISH }) 0.meters else -(1.meters),
+    )
 
     override fun selectLocale(localePreference: List<Locale.LanguageRange>): Locale {
         return Locale.ENGLISH

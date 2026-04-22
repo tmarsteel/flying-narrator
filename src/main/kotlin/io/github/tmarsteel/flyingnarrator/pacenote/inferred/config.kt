@@ -1,32 +1,34 @@
 package io.github.tmarsteel.flyingnarrator.pacenote.inferred
 
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+
 /**
  * Straight distances are rounded to _the next lower_ multiple of this value. E.g., `10` for 80, 90, 100, 110, 120.
  * Given `10`, `89` is reported as `80`; given `5`, `89` is reported as `85`.
  */
-const val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10
+val ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF = 10.meters
 
 /**
  * Straight sections with a length equal to or less than this (after rounding) value will be elided:
  * At the start and end of the stage, they're simply dropped, between corners they are replaced with [InferredPacenoteItem.ShortTransition]
  */
-const val STRAIGHT_ELISION_DISTANCE_THRESHOLD = 20.0
+val STRAIGHT_ELISION_DISTANCE_THRESHOLD = 20.0.meters
 
 /**
  * Straight sections between two corners that are shorter than this distance will be replaced with
  * [InferredPacenoteItem.ImmediateTransition] (instead of [InferredPacenoteItem.ShortTransition])
  */
-const val IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD = 10.0
+val IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD = 10.0.meters
 
 /**
  * Corners with an overall radius less than this can be considered "square"
  */
-const val SQUARE_MAX_COMPOUND_RADIUS = 35.0
+val SQUARE_MAX_COMPOUND_RADIUS = 35.0.meters
 
 /**
  * If a corner has a section with a radius smaller than this, it can be considered "square"
  */
-const val SQUARE_MAX_RADIUS = 10.0
+val SQUARE_MAX_RADIUS = 10.0.meters
 
 /**
  * If the length of track at a radius of [SQUARE_MAX_RADIUS] is this length or more, the corner can be considered "square".

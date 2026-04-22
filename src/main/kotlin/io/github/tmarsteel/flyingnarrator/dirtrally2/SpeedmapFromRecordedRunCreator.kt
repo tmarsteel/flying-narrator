@@ -1,6 +1,8 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
 import io.github.tmarsteel.flyingnarrator.Speedmap
+import io.github.tmarsteel.flyingnarrator.unit.Distance
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
@@ -17,7 +19,7 @@ import kotlin.time.Duration.Companion.seconds
  * Creates a [Speedmap] from a screenrecording of a race-pace run on the track.
  */
 class SpeedmapFromRecordedRunCreator(
-    val totalTrackDistance: Double,
+    val totalTrackDistance: Distance,
     val recordingVideoFile: Path,
     val startAt: Duration,
 ) {
@@ -31,7 +33,7 @@ class SpeedmapFromRecordedRunCreator(
             val progressReporter = StageProgressReporter()
             val cropArea = progressReporter.getCropAreaForFrameSize(grabber.imageWidth, grabber.imageHeight)
             val controlPoints = mutableListOf<Speedmap.ControlPoint>(
-                Speedmap.ControlPoint(0.0, 0.seconds)
+                Speedmap.ControlPoint(0.meters, 0.seconds)
             )
             var progressFractionCarry = 0.0
             while (true) {
@@ -64,7 +66,7 @@ class SpeedmapFromRecordedRunCreator(
         fun main(args: Array<String>) {
             val file = Paths.get(args[0])
             val startAt = args[1].toInt().milliseconds
-            val distance = args[2].toDouble()
+            val distance = args[2].toDouble().meters
             val speedmap = SpeedmapFromRecordedRunCreator(
                 distance,
                 file,

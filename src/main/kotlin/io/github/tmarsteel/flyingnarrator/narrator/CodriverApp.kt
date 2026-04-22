@@ -6,6 +6,9 @@ import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.dirtrally2.RaceProgressListener
 import io.github.tmarsteel.flyingnarrator.dirtrally2.RaceProgressMonitor
 import io.github.tmarsteel.flyingnarrator.editor.RouteComponent
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
+import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.times
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
@@ -42,7 +45,7 @@ class CodriverApp(
         speedmap = Speedmap.fromFile(Paths.get(args[1]))
 
         routeComponent = RouteComponent(route, emptyList())
-        routeComponent.distanceMarkersEveryMeters = 500.0
+        routeComponent.distanceMarkersEvery = 500.meters
         routeComponent.addComponentListener(object : ComponentListener {
             override fun componentResized(e: ComponentEvent) {
                 if (e.component != routeComponent) {

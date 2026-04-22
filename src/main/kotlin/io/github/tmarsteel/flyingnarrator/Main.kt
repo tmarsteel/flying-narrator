@@ -17,7 +17,7 @@ fun main(args: Array<String>) {
     Paths.get("vis.csv").writer().use { writer ->
         writer.write("d,angle,delta\n")
         avgWindows.forEach {
-            writer.write("${it.tmpSegments.first().startsAtTrackDistance},${it.angle},${it.deltaAngle}\n")
+            writer.write("${it.tmpSegments.first().startsAtTrackDistance},${it.angle},${it.deltaAnglePerArcMeter}\n")
         }
     }
 }

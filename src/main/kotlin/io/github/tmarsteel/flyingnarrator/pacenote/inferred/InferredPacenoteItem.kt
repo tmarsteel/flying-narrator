@@ -1,11 +1,13 @@
 package io.github.tmarsteel.flyingnarrator.pacenote.inferred
 
 import io.github.tmarsteel.flyingnarrator.feature.Feature
+import io.github.tmarsteel.flyingnarrator.unit.Distance
+import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 
 sealed interface InferredPacenoteItem {
-    data class Straight(val distance: Int) : InferredPacenoteItem {
+    data class Straight(val distance: Distance) : InferredPacenoteItem {
         override fun toString(): String {
-            return distance.toString(10)
+            return distance.toDoubleInMeters().toInt().toString(10)
         }
     }
     interface Transition : InferredPacenoteItem
@@ -28,29 +30,29 @@ sealed interface InferredPacenoteItem {
         val sections: List<Section>,
     ) : InferredPacenoteItem {
         data class Section(
-            val radiusStart: Double,
+            val radiusStart: Distance,
             val severityStart: Severity,
-            val radiusEnd: Double,
+            val radiusEnd: Distance,
             val severityEnd: Severity,
-            val length: Double,
+            val length: Distance,
             val modifiers: List<Modifier>,
         ) {
             override fun toString(): String {
                 val sb = StringBuilder()
                 sb.append(severityStart)
                 sb.append("(r=")
-                sb.append(radiusStart.toInt().toString())
-                sb.append("m)")
+                sb.append(radiusStart)
+                sb.append(")")
                 if (severityEnd != severityStart) {
                     sb.append("->")
                     sb.append(severityEnd)
                     sb.append("(r=")
-                    sb.append(radiusEnd.toInt().toString())
-                    sb.append("m)")
+                    sb.append(radiusEnd)
+                    sb.append(")")
                 }
                 sb.append("(d=")
-                sb.append(length.toInt().toString())
-                sb.append("m)")
+                sb.append(length)
+                sb.append(")")
                 for (modifier in modifiers) {
                     sb.append(" ")
                     sb.append(modifier.toString())
@@ -81,7 +83,7 @@ sealed interface InferredPacenoteItem {
                     sb.append(section.severityStart)
                 }
                 sb.append("(r=")
-                sb.append(section.radiusStart.toInt().toString())
+                sb.append(section.radiusStart)
                 sb.append("m)")
                 sb.append(' ')
                 if (!directionWritten) {
@@ -103,8 +105,8 @@ sealed interface InferredPacenoteItem {
                 if (severityChange != 0 && (severityChange > 0 || section.severityEnd < Severity.SLIGHT)) {
                     sb.append(section.severityEnd)
                     sb.append("(r=")
-                    sb.append(section.radiusEnd.toInt().toString())
-                    sb.append("m)")
+                    sb.append(section.radiusEnd)
+                    sb.append(")")
                     sb.append(' ')
                 }
 
@@ -117,8 +119,8 @@ sealed interface InferredPacenoteItem {
             }
 
             sb.append("(d=")
-            sb.append(sections.sumOf { it.length }.toInt().toString())
-            sb.append("m)")
+            sb.append(sections.sumOf { it.length })
+            sb.append(")")
 
             return sb.toString()
         }

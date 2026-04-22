@@ -1,5 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
+import io.github.tmarsteel.flyingnarrator.unit.Angle
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
+import io.github.tmarsteel.flyingnarrator.unit.Distance
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import io.github.tmarsteel.flyingnarrator.weightedAverageOf
 import io.github.tmarsteel.flyingnarrator.windowsWhere
 import kotlin.math.pow
@@ -7,17 +12,17 @@ import kotlin.properties.Delegates
 
 data class AvgWindow(
     val tmpSegments: List<TmpSegment>,
-    val length: Double,
-    val angle: Double,
+    val length: Distance,
+    val angle: Angle,
 ) {
-    var deltaAngle by Delegates.notNull<Double>()
+    var deltaAnglePerArcMeter by Delegates.notNull<Angle>()
 
     companion object {
         fun avgWeight(progressIntoWindow: Double) = -(2.0 * progressIntoWindow - 1.0).pow(2) + 1.0
 
         fun fromTmpSegments(tmpSegments: List<TmpSegment>): List<AvgWindow> {
             val avgWindows = tmpSegments
-                .windowsWhere(yieldCopies = true) { w -> w.sumOf { it.roadSegment.length } > 20.0 }
+                .windowsWhere(yieldCopies = true) { w -> w.sumOf { it.roadSegment.length } > 20.0.meters }
                 .map { w ->
                     val windowStartAt = w.first().startsAtTrackDistance
                     val windowLength = (w.last().let { it.startsAtTrackDistance + it.roadSegment.length } - windowStartAt)
@@ -34,9 +39,9 @@ data class AvgWindow(
                 .toList()
 
             avgWindows.zipWithNext().forEach { (a, b) ->
-                b.deltaAngle = ((b.angle - a.angle) / a.length)
+                b.deltaAnglePerArcMeter = ((b.angle - a.angle) / a.length.toDoubleInMeters())
             }
-            avgWindows.first().deltaAngle = 0.0
+            avgWindows.first().deltaAnglePerArcMeter = 0.radians
 
             return avgWindows
         }

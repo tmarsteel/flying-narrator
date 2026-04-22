@@ -3,6 +3,8 @@ package io.github.tmarsteel.flyingnarrator.editor
 import io.github.tmarsteel.flyingnarrator.Speedmap
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.feature.Feature
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import java.awt.BorderLayout
@@ -35,7 +37,7 @@ class RouteEditorApp {
             val features = Feature.discoverIn(route)
 
             val routeComponent = RouteComponent(route, features).also {
-                it.distanceMarkersEveryMeters = 500.0
+                it.distanceMarkersEvery = 500.meters
             }
             val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)
             val window = JFrame()
@@ -70,7 +72,7 @@ class RouteEditorApp {
                     thread(start = true) {
                         val totalDistance = route.sumOf { it.length }
                         while (true) {
-                            routeComponent.carPositionOnTrack = 0.0
+                            routeComponent.carPositionOnTrack = 0.meters
                             Thread.sleep(3000)
                             val startedAt = System.nanoTime().nanoseconds
                             while (routeComponent.carPositionOnTrack < totalDistance) {

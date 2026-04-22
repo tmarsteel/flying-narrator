@@ -1,5 +1,8 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.unit.Angle
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.degrees
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import kotlinx.serialization.Serializable
 import kotlin.math.PI
 import kotlin.math.absoluteValue
@@ -8,7 +11,6 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sign
 import kotlin.math.sin
-import kotlin.math.withSign
 
 private const val HALFPI = PI / 2.0
 
@@ -33,22 +35,22 @@ data class Vector3(
 
     operator fun unaryMinus(): Vector3 = Vector3(-x, -y, -z)
 
-    fun clockwiseAngleFromPositiveY(): Double = when {
-        y == 0.0 -> (PI / 2.0).withSign(x)
-        x == 0.0 -> if (y > 0) 0.0 else PI
+    fun clockwiseAngleFromPositiveY(): Angle = when {
+        y == 0.0 -> HALFPI.radians.withSign(x)
+        x == 0.0 -> if (y > 0) 0.radians else PI.radians
         else -> {
             // adapted atan2 calculation
-            val angleAwayFromPositiveXCCW = atan(y.absoluteValue / x.absoluteValue)
-            HALFPI.withSign(x) - angleAwayFromPositiveXCCW.withSign(x.sign * y.sign)
+            val angleAwayFromPositiveXCCW = atan(y.absoluteValue / x.absoluteValue).radians
+            HALFPI.degrees.withSign(x) - angleAwayFromPositiveXCCW.withSign(x.sign * y.sign)
         }
     }
 
-    fun angleTo(bent: Vector3): Double {
+    fun angleTo(bent: Vector3): Angle {
         var angle = bent.clockwiseAngleFromPositiveY() - this.clockwiseAngleFromPositiveY()
 
         when {
-            angle > PI -> angle -= PI * 2
-            angle < -PI -> angle += PI * 2
+            angle > PI.radians -> angle -= PI.radians * 2
+            angle < -PI.radians -> angle += PI.radians * 2
         }
 
         return angle
@@ -65,10 +67,10 @@ data class Vector3(
         return Vector3(y, -x, z)
     }
 
-    fun rotate2dCounterClockwise(angle: Double): Vector3 {
+    fun rotate2dCounterClockwise(angle: Angle): Vector3 {
         return Vector3(
-            x = cos(angle) * x - sin(angle) * y,
-            y = sin(angle) * x + cos(angle) * y,
+            x = cos(angle.toDoubleInRadians()) * x - sin(angle.toDoubleInRadians()) * y,
+            y = sin(angle.toDoubleInRadians()) * x + cos(angle.toDoubleInRadians()) * y,
             z = z,
         )
     }

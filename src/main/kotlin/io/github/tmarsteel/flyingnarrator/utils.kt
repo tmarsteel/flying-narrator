@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.unit.ScalarLike
 import kotlin.math.sqrt
 
 inline fun <T> Sequence<T>.averageOf(
@@ -17,10 +18,11 @@ inline fun <T> Sequence<T>.averageOf(
     return average
 }
 
-inline fun <T> Sequence<T>.weightedAverageOf(
+inline fun <T, A> Sequence<T>.weightedAverageOf(
     weight: (T) -> Double,
-    value: (T) -> Double,
-): Double {
+    value: (T) -> A,
+): A
+    where A : ScalarLike<A> {
     val iterator = this.iterator()
     if (!iterator.hasNext()) {
         throw NoSuchElementException()

@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import java.util.stream.IntStream
 
 fun List<RoadSegment>.toGeogebraSyntax(): String {
@@ -74,7 +75,7 @@ fun List<RoadSegment>.toGeogebraSyntax(): String {
         val arcName = arcName(index)
         val radiusName = radiusName(index)
         val angleToNext = segment.forward.angleTo(this[index + 1].forward)
-        if (angleToNext < 0.0) {
+        if (angleToNext < 0.radians) {
             sb.appendLine(
                 """
                 ggbApplet.evalCommand("$arcName=CircularArc($centerPointName, $pointName, $nextPointName)");

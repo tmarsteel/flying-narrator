@@ -86,8 +86,8 @@ class Speedmap(
         }
     }
 
-    fun estimateVelocityAtDistance(distanceAlongTrack: Double): Velocity {
-        require(distanceAlongTrack >= 0.0)
+    fun estimateVelocityAtDistance(distanceAlongTrack: Distance): Velocity {
+        require(distanceAlongTrack >= 0.meters)
 
         return when (val location = getLocationBy(distanceAlongTrack, ControlPoint::distanceAlongTrack)) {
             is TrackLocation.AtControlPoint -> {

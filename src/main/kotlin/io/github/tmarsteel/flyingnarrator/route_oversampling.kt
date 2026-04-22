@@ -1,5 +1,7 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
+
 fun Sequence<RoadSegment>.oversample(targetSegmentLength: Double): Sequence<RoadSegment> {
     return asIterable().oversample(targetSegmentLength)
 }
@@ -16,7 +18,7 @@ fun Iterable<RoadSegment>.oversample(targetSegmentLength: Double): Sequence<Road
         while (iterator.hasNext()) {
             val segment = iterator.next()
             val angleBisector = previousSegment.forward.angleBisectorWith(segment.forward)
-            val tangent = if (previousSegment.forward.angleTo(angleBisector) > 0) {
+            val tangent = if (previousSegment.forward.angleTo(angleBisector) > 0.radians) {
                 angleBisector.rotate2d90degCounterClockwise()
             } else {
                 angleBisector.rotate2d90degClockwise()
