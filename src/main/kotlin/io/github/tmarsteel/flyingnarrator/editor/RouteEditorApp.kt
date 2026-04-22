@@ -3,9 +3,9 @@ package io.github.tmarsteel.flyingnarrator.editor
 import io.github.tmarsteel.flyingnarrator.Speedmap
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.feature.Feature
+import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import java.awt.BorderLayout
 import java.nio.file.Paths
@@ -55,7 +55,7 @@ class RouteEditorApp {
                 ?.let { speedmapFile ->
                     try {
                         speedmapFile.inputStream().use {
-                            Json.decodeFromStream<Speedmap>(it)
+                            FlyingNarratorJsonFormat.decodeFromStream<Speedmap>(it)
                         }
                     } catch (ex: NoSuchFileException) {
                         ex.printStackTrace()

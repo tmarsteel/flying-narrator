@@ -3,12 +3,12 @@ package io.github.tmarsteel.flyingnarrator
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2PacenoteAtomAdapter
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverData
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2XMLMapper
+import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.nefs.NefsCoordinates
 import io.github.tmarsteel.flyingnarrator.nefs.NefsFile
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
 import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAudio
 import io.github.tmarsteel.flyingnarrator.tts.gcloud.GoogleCloudSpeechSynthesizer
-import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import tools.jackson.databind.util.ByteBufferBackedInputStream
 import java.nio.file.Paths
@@ -44,6 +44,6 @@ fun main(args: Array<String>) {
 
     val pacenoteAudio = PacenoteAudio.render(pacenotes, synthesizer)
         .withMappedAudioFilePath { it.moveTo(Paths.get("pacenotes.wav")) }
-    val savedAudio = Json.encodeToString(PacenoteAudio.serializer(), pacenoteAudio)
+    val savedAudio = FlyingNarratorJsonFormat.encodeToString(PacenoteAudio.serializer(), pacenoteAudio)
     Paths.get("pacenote-audio.json").writeText(savedAudio)
 }

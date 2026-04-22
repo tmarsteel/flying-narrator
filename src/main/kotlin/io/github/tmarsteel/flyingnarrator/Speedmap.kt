@@ -1,15 +1,14 @@
 package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.io.CompactObjectListSerializer
+import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.io.KotlinDurationAsMillisecondsSerializer
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.Velocity
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
-import kotlinx.serialization.modules.SerializersModule
 import java.nio.file.Path
 import kotlin.io.path.inputStream
 import kotlin.time.Duration
@@ -198,16 +197,10 @@ class Speedmap(
     )
 
     companion object {
-        val JSON_FORMAT = Json {
-            serializersModule = SerializersModule {
-                include(CompactObjectListSerializer.MODULE)
-            }
-        }
-
         @OptIn(ExperimentalSerializationApi::class)
         fun fromFile(file: Path): Speedmap {
             return file.inputStream().use { inStream ->
-                JSON_FORMAT.decodeFromStream(inStream)
+                FlyingNarratorJsonFormat.decodeFromStream(inStream)
             }
         }
     }
