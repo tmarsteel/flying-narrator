@@ -1,10 +1,13 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
+import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverData
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverDataCall
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverDataSubcall
 import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAtom
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLBreak
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
+import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLEmphasis
+import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLSayAs
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLSentence
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLText
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
@@ -16,6 +19,7 @@ import kotlin.time.Duration.Companion.seconds
  * [io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAtom]
  */
 class DirtRally2PacenoteAtomAdapter(
+    val previousCall: DR2CodriverDataCall?,
     val call: DR2CodriverDataCall
 ) : PacenoteAtom {
     override val metadata = PacenoteAtom.Metadata(
@@ -30,24 +34,39 @@ class DirtRally2PacenoteAtomAdapter(
     override fun toSSML(locale: Locale): SSMLElement {
         if (locale != Locale.ENGLISH) throw IllegalArgumentException("unsupported locale $locale")
 
+        val precedingSubcall = previousCall?.subcalls?.lastOrNull { !it.isNoop }
+        val subcallsWithPrevious = (listOf(precedingSubcall) + call.subcalls).filterNot { it?.isNoop == true }
+        val elements = subcallsWithPrevious
+            .windowed(size = 2, partialWindows = false)
+            .flatMap { (previous, subcall) ->
+                subcall!!.toWords(previous) + sequenceOf(
+                    SSMLText("; "),
+                    SSMLBreak(time = 0.75.seconds)
+                )
+            }
+
         return SSMLSentence(
-            SSMLText(
-                    call.subcalls.asSequence()
-                        .flatMap { it.toWords() }
-                        .joinToString(
-                            separator = " ",
-                            postfix = ".",
-                        )
-                ),
-            SSMLBreak(time = 0.5.seconds), // to make sure sentences don't flow into each other.
+            children = elements + SSMLText("."),
         )
     }
 
-    private fun DR2CodriverDataSubcall.toWords(): Sequence<String> {
-        val words = mutableListOf<String>()
+    private fun DR2CodriverDataSubcall.toWords(previousSubcall: DR2CodriverDataSubcall?): Sequence<SSMLElement> {
+        val words = mutableListOf<SSMLElement>()
+
+        when (previousSubcall?.distanceLink) {
+            DR2CodriverDataSubcall.DistanceLink.INTO -> {
+                words.add(SSMLText("into "))
+            }
+            DR2CodriverDataSubcall.DistanceLink.PLUS -> {
+                words.add(SSMLText("and "))
+            }
+            else -> {
+                // nothing to do
+            }
+        }
 
         if (DR2CodriverDataSubcall.Modifier.CAUTION in listOf(modifierA, modifierB)) {
-            words.add("caution")
+            words.add(SSMLText("caution "))
         }
 
         when (type) {
@@ -57,41 +76,39 @@ class DirtRally2PacenoteAtomAdapter(
             }
             DR2CodriverDataSubcall.Type.LEFT_TURN,
             DR2CodriverDataSubcall.Type.RIGHT_TURN -> {
-                words.add(DR2CodriverDataSubcall.Severity.ofAngle(angle).name.lowercase())
-                if (type == DR2CodriverDataSubcall.Type.LEFT_TURN) {
-                    words.add("left")
+                words.add(SSMLText(DR2CodriverDataSubcall.Severity.ofAngle(angle).name.lowercase()))
+                words.add(SSMLText(" " + if (type == DR2CodriverDataSubcall.Type.LEFT_TURN) {
+                    "left"
                 } else {
-                    words.add("right")
-                }
+                    "right"
+                }))
             }
             DR2CodriverDataSubcall.Type.BUMP_OR_CREST_OR_JUMP -> {
-                words.add("crest")
+                words.add(SSMLText(" crest "))
             }
             DR2CodriverDataSubcall.Type.DIP -> {
-                words.add("dip")
+                words.add(SSMLText(" dip "))
             }
             DR2CodriverDataSubcall.Type.FINISH -> {
-                words.add("over finish")
+                words.add(SSMLText(" over finish "))
             }
             else -> error("unsupported subcall $this")
         }
 
         if (DR2CodriverDataSubcall.Modifier.DONT_CUT in listOf(modifierA, modifierB)) {
-            words.add("don't cut")
+            words.add(SSMLEmphasis(level = SSMLEmphasis.Level.STRONG, children = listOf(SSMLText("don't cut"))))
         }
 
         when (distanceLink) {
             DR2CodriverDataSubcall.DistanceLink.OPENS -> {
-                words.add("opens")
+                words.add(SSMLText("opens"))
             }
             DR2CodriverDataSubcall.DistanceLink.TIGHTENS -> {
-                words.add("tightens")
+                words.add(SSMLText("tightens"))
             }
-            DR2CodriverDataSubcall.DistanceLink.INTO -> {
-                words.add("into")
-            }
+            DR2CodriverDataSubcall.DistanceLink.INTO,
             DR2CodriverDataSubcall.DistanceLink.PLUS -> {
-                words.add("and")
+                // is picked up by the next one
             }
             DR2CodriverDataSubcall.DistanceLink.NONE -> {
                 // nothing to do :)
@@ -100,10 +117,30 @@ class DirtRally2PacenoteAtomAdapter(
                 check(distanceLink.distanceInMeters != null) {
                     "unsupported distanceLink $distanceLink for subcall $this"
                 }
-                words.add(distanceLink.distanceInMeters.toString(10))
+                words.add(SSMLSayAs(
+                    interpretAs = SSMLSayAs.Interpretation.CARDINAL,
+                    SSMLText(distanceLink.distanceInMeters.toString(10))
+                ))
             }
         }
 
         return words.asSequence()
+    }
+
+    companion object {
+        fun adapt(codriverData: DR2CodriverData): List<DirtRally2PacenoteAtomAdapter> {
+            if (codriverData.codriverCalls.isEmpty()) return emptyList()
+            val first = DirtRally2PacenoteAtomAdapter(null, codriverData.codriverCalls.first())
+            val rest = codriverData.codriverCalls
+                .windowed(2, 1, partialWindows = false)
+                .map { (prev, next) ->
+                    DirtRally2PacenoteAtomAdapter(prev, next)
+                }
+
+            return listOf(first) + rest
+        }
+
+        private val DR2CodriverDataSubcall.isNoop: Boolean
+            get() = type == DR2CodriverDataSubcall.Type.EMPTY && distanceLink == DR2CodriverDataSubcall.DistanceLink.NONE
     }
 }

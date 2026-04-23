@@ -5,10 +5,17 @@ import org.w3c.dom.Element
 
 class SSMLSayAs(
     val interpretAs: Interpretation,
-    val format: String?,
-    val detail: Int?,
+    val format: String? = null,
+    val detail: Int? = null,
     val children: List<SSMLElement>,
 ) : SSMLElement {
+    constructor(interpretAs: Interpretation, vararg children: SSMLElement, format: String? = null, detail: Int? = null) : this(
+        interpretAs,
+        format,
+        detail,
+        children.toList(),
+    )
+
     override fun toDOMNode(document: Document): Element {
         val el = document.createElement("say-as")
 

@@ -4,6 +4,7 @@ import io.github.tmarsteel.flyingnarrator.io.CompactObjectListSerializer
 import io.github.tmarsteel.flyingnarrator.io.KotlinDurationAsMillisecondsSerializer
 import io.github.tmarsteel.flyingnarrator.io.SystemPathSerializer
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesizer
+import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLBreak
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLDocument
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLMark
@@ -79,6 +80,7 @@ data class PacenoteAudio(
                 ssmlElements.add(SSMLMark(endMarkerName))
                 ssmlMarkersByPacenoteAtom.add(Triple(atom, previousEndedAt, endMarkerName))
                 previousEndedAt = endMarkerName
+                ssmlElements.add(SSMLBreak(strength = SSMLBreak.Strength.MEDIUM)) // to prevent calls from flowing into each other
             }
 
             val synthesized = synthesizer.synthesize(SSMLDocument(locale, ssmlElements))

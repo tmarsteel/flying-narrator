@@ -29,7 +29,7 @@ fun main(args: Array<String>) {
     }
 
     val codriverData = DR2XMLMapper.readValue(ByteBufferBackedInputStream(codriverXml), DR2CodriverData::class.java)
-    val pacenotes = codriverData.codriverCalls.map(::DirtRally2PacenoteAtomAdapter)
+    val pacenotes = DirtRally2PacenoteAtomAdapter.adapt(codriverData).take(20)
 
     val httpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
