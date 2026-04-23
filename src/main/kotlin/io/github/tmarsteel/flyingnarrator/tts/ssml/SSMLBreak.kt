@@ -8,6 +8,8 @@ class SSMLBreak(
     val time: Duration? = null,
     val strength: Strength? = null,
 ) : SSMLElement {
+    override val isEmpty = true
+
     enum class Strength(val value: String) {
         NONE("none"),
         EXTRA_WEAK("x-weak"),

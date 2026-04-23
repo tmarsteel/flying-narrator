@@ -7,6 +7,7 @@ import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAtom
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLBreak
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLEmphasis
+import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLNullElement
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLSayAs
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLSentence
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLText
@@ -44,6 +45,10 @@ class DirtRally2PacenoteAtomAdapter(
                     SSMLBreak(time = 0.75.seconds)
                 )
             }
+
+        if (elements.isEmpty()) {
+            return SSMLNullElement
+        }
 
         return SSMLSentence(
             children = elements + SSMLText("."),

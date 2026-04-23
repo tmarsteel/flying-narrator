@@ -23,7 +23,8 @@ interface PacenoteAtom {
     /**
      * @param locale the locale to use for the text; is guaranteed to be one returned by [selectLocale], and in turn
      * this method must either produce text in this locale or throw an [IllegalArgumentException].
-     * @return a representation of this [PacenoteAtom] suitable for text-to-speech synthesis.
+     * @return a representation of this [PacenoteAtom] suitable for text-to-speech synthesis. The resulting SSML should
+     * be suitable to be synthesized on its own without depending on surrounding [PacenoteAtom.toSSML] data.
      */
     fun toSSML(locale: Locale): SSMLElement
 

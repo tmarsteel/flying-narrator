@@ -16,6 +16,8 @@ class SSMLSayAs(
         children.toList(),
     )
 
+    override val isEmpty get()= children.all { it.isEmpty }
+
     override fun toDOMNode(document: Document): Element {
         val el = document.createElement("say-as")
 

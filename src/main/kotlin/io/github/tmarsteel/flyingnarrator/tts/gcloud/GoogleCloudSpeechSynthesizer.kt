@@ -7,6 +7,7 @@ package io.github.tmarsteel.flyingnarrator.tts.gcloud
 import io.github.tmarsteel.flyingnarrator.io.ByteArrayBase64Serializer
 import io.github.tmarsteel.flyingnarrator.tts.InMemorySynthesizedSpeech
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesisException
+import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesisInputTooLongException
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesizer
 import io.github.tmarsteel.flyingnarrator.tts.SynthesizedSpeech
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLDocument
@@ -33,11 +34,14 @@ class GoogleCloudSpeechSynthesizer(
     private val synthesizeUrl = baseUrl.newBuilder().addPathSegments("v1beta1/text:synthesize").build()
     private val listVoicesUrl = baseUrl.newBuilder().addPathSegments("v1beta1/voices").build()
 
-
     override fun synthesize(document: SSMLDocument): SynthesizedSpeech {
+        val ssmlString = ssmlToString(document)
+        if (ssmlString.length > 5000) {
+            throw SpeechSynthesisInputTooLongException("Google Cloud Speech API only supports SSML documents up to 5000 characters long")
+        }
         val requestDto = TextSynthesisRequestDto(
             SynthesisInputDto(
-                ssml = ssmlToString(document),
+                ssml = ssmlString,
             ),
             VoiceSelectionParamsDto(
                 locale = document.lang,

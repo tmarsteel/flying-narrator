@@ -29,7 +29,7 @@ fun main(args: Array<String>) {
     }
 
     val codriverData = DR2XMLMapper.readValue(ByteBufferBackedInputStream(codriverXml), DR2CodriverData::class.java)
-    val pacenotes = DirtRally2PacenoteAtomAdapter.adapt(codriverData).take(20)
+    val pacenotes = DirtRally2PacenoteAtomAdapter.adapt(codriverData)
 
     val httpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
@@ -42,7 +42,7 @@ fun main(args: Array<String>) {
         .build()
     val synthesizer = GoogleCloudSpeechSynthesizer(httpClient = httpClient)
 
-    val pacenoteAudio = PacenoteAudio.render(pacenotes, synthesizer)
+    val pacenoteAudio = PacenoteAudio.renderToFile(pacenotes, synthesizer)
         .withMappedAudioFilePath { it.moveTo(Paths.get("pacenotes.wav")) }
     val savedAudio = FlyingNarratorJsonFormat.encodeToString(PacenoteAudio.serializer(), pacenoteAudio)
     Paths.get("pacenote-audio.json").writeText(savedAudio)

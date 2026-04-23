@@ -7,6 +7,8 @@ class SSMLEmphasis(
     val level: Level? = null,
     val children: List<SSMLElement>,
 ) : SSMLElement {
+    override val isEmpty get()= children.all { it.isEmpty }
+
     constructor(level: Level? = null, vararg children: SSMLElement) : this(
         level,
         children.toList(),

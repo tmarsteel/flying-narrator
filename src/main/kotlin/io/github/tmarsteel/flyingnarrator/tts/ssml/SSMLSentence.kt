@@ -8,6 +8,8 @@ class SSMLSentence(
 ) : SSMLElement {
     constructor(vararg children: SSMLElement) : this(children.toList())
 
+    override val isEmpty get()= children.all { it.isEmpty }
+
     override fun toDOMNode(document: Document): Element {
         val el = document.createElement("s")
         children.forEach { el.appendChild(it.toDOMNode(document)) }
