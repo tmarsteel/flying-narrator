@@ -1,14 +1,14 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
-import io.github.tmarsteel.flyingnarrator.RoadSegment
-import io.github.tmarsteel.flyingnarrator.Route
-import io.github.tmarsteel.flyingnarrator.RouteReader
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressRouteSplit
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressTrackData
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2TrackSplines
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2XMLMapper
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.geometry.HermiteSpline
+import io.github.tmarsteel.flyingnarrator.route.RoadSegment
+import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.RouteReader
 import java.nio.file.Path
 
 class DirtRally2RouteReader(

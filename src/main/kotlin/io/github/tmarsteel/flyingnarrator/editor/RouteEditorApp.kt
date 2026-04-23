@@ -1,9 +1,9 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
-import io.github.tmarsteel.flyingnarrator.Speedmap
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
+import io.github.tmarsteel.flyingnarrator.route.Speedmap
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import kotlinx.serialization.json.decodeFromStream

@@ -1,13 +1,13 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
 import de.micromata.opengis.kml.v_2_2_0.Coordinate
-import io.github.tmarsteel.flyingnarrator.RoadSegment
-import io.github.tmarsteel.flyingnarrator.Route
-import io.github.tmarsteel.flyingnarrator.RouteReader
 import io.github.tmarsteel.flyingnarrator.euclideanVectorTo
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.http.CachingUrlReader
-import io.github.tmarsteel.flyingnarrator.oversample
+import io.github.tmarsteel.flyingnarrator.route.RoadSegment
+import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.RouteReader
+import io.github.tmarsteel.flyingnarrator.route.oversample
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient

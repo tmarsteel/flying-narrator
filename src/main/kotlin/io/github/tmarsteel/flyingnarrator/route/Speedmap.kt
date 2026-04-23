@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator
+package io.github.tmarsteel.flyingnarrator.route
 
 import io.github.tmarsteel.flyingnarrator.io.CompactObjectListSerializer
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat

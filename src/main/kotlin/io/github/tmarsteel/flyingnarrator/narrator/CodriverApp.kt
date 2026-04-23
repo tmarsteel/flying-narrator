@@ -1,7 +1,5 @@
 package io.github.tmarsteel.flyingnarrator.narrator
 
-import io.github.tmarsteel.flyingnarrator.Route
-import io.github.tmarsteel.flyingnarrator.Speedmap
 import io.github.tmarsteel.flyingnarrator.audio.ClipQueue
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.dirtrally2.RaceProgressListener
@@ -11,6 +9,8 @@ import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.pacenote.CuedPacenoteAudio
 import io.github.tmarsteel.flyingnarrator.pacenote.Lookahead
 import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAudio
+import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.Speedmap
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.times

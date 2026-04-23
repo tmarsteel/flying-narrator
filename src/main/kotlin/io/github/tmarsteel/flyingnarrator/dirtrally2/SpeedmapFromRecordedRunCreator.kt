@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
-import io.github.tmarsteel.flyingnarrator.Speedmap
+import io.github.tmarsteel.flyingnarrator.route.Speedmap
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import kotlinx.serialization.ExperimentalSerializationApi

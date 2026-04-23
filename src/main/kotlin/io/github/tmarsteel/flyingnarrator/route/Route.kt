@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator
+package io.github.tmarsteel.flyingnarrator.route
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.unit.Distance

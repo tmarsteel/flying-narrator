@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.geometry
 
-import io.github.tmarsteel.flyingnarrator.RoadSegment
+import io.github.tmarsteel.flyingnarrator.route.RoadSegment
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import java.util.stream.IntStream
 

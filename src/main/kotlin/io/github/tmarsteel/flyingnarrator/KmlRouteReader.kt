@@ -7,6 +7,10 @@ import de.micromata.opengis.kml.v_2_2_0.LineString
 import de.micromata.opengis.kml.v_2_2_0.Placemark
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.route.RoadSegment
+import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.RouteReader
+import io.github.tmarsteel.flyingnarrator.route.oversample
 import jakarta.xml.bind.JAXBContext
 import org.glassfish.jaxb.runtime.v2.runtime.JAXBContextImpl
 import java.nio.file.Path

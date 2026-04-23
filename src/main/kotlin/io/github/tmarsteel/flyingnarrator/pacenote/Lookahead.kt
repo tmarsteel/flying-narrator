@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.pacenote
 
-import io.github.tmarsteel.flyingnarrator.Speedmap
+import io.github.tmarsteel.flyingnarrator.route.Speedmap
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 
 /**
