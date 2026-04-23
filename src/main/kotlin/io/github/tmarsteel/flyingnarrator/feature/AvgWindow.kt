@@ -5,8 +5,8 @@ import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
-import io.github.tmarsteel.flyingnarrator.weightedAverageOf
-import io.github.tmarsteel.flyingnarrator.windowsWhere
+import io.github.tmarsteel.flyingnarrator.utils.weightedAverageOf
+import io.github.tmarsteel.flyingnarrator.utils.windowsWhere
 import kotlin.math.pow
 import kotlin.properties.Delegates
 

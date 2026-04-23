@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator
+package io.github.tmarsteel.flyingnarrator.utils
 
 class DropLastSequence<T>(
     private val base: Sequence<T>,

@@ -1,5 +1,6 @@
-package io.github.tmarsteel.flyingnarrator
+package io.github.tmarsteel.flyingnarrator.geometry
 
+import io.github.tmarsteel.flyingnarrator.utils.zipWithNextAndEmitLast
 import kotlin.math.floor
 
 object HermiteSpline {

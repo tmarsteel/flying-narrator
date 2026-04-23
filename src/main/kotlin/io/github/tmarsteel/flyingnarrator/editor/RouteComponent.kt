@@ -1,15 +1,15 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
 import io.github.tmarsteel.flyingnarrator.Route
-import io.github.tmarsteel.flyingnarrator.Vector3
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
-import io.github.tmarsteel.flyingnarrator.foldInto
+import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.pacenote.inferred.cornerFeatureToPacenoteItem
 import io.github.tmarsteel.flyingnarrator.unit.Angle
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import io.github.tmarsteel.flyingnarrator.utils.foldInto
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension

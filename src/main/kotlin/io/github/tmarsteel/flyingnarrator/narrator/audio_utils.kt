@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.narrator
 
-import io.github.tmarsteel.flyingnarrator.zipWithNextAndEmitLast
+import io.github.tmarsteel.flyingnarrator.utils.zipWithNextAndEmitLast
 import java.nio.file.Path
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.Clip

@@ -7,7 +7,7 @@ import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.degrees
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
-import io.github.tmarsteel.flyingnarrator.zipWithNextAndEmitLast
+import io.github.tmarsteel.flyingnarrator.utils.zipWithNextAndEmitLast
 
 data class TmpSegment(
     val roadSegmentIndex: Int,

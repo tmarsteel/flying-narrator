@@ -3,7 +3,7 @@ package io.github.tmarsteel.flyingnarrator.easportswrc
 import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
 import io.github.tmarsteel.flyingnarrator.RouteReader
-import io.github.tmarsteel.flyingnarrator.Vector3
+import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json

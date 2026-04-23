@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator
+package io.github.tmarsteel.flyingnarrator.utils
 
 /**
  * A sequence that emits the first element twice before continuing with the second element,

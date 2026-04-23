@@ -1,5 +1,7 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.geometry.HermiteSpline
+import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 
 fun Sequence<RoadSegment>.oversample(targetSegmentLength: Double): Sequence<RoadSegment> {
@@ -24,7 +26,8 @@ fun Iterable<RoadSegment>.oversample(targetSegmentLength: Double): Sequence<Road
                 angleBisector.rotate2d90degClockwise()
             }
             val thisControlPoint = HermiteSpline.ControlPoint(previousControlPoint.position + previousSegment.forward, tangent)
-            yieldAll(HermiteSpline.interpolate(previousControlPoint, thisControlPoint, targetSegmentLength, aInclusive = true, bInclusive = !iterator.hasNext())
+            yieldAll(
+                HermiteSpline.interpolate(previousControlPoint, thisControlPoint, targetSegmentLength, aInclusive = true, bInclusive = !iterator.hasNext())
                 .map { pos -> Pair(pos, previousSegment) }
             )
 

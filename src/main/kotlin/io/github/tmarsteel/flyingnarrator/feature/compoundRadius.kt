@@ -1,7 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
 import io.github.tmarsteel.flyingnarrator.RoadSegment
-import io.github.tmarsteel.flyingnarrator.Vector3
+import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.unit.Angle
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.degrees
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians

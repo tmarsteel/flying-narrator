@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
+import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 

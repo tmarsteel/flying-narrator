@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator
+package io.github.tmarsteel.flyingnarrator.geometry
 
 import io.github.tmarsteel.flyingnarrator.unit.Angle
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians

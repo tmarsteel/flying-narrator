@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
-import io.github.tmarsteel.flyingnarrator.DropLastSequence.Companion.dropLast
+import io.github.tmarsteel.flyingnarrator.utils.DropLastSequence.Companion.dropLast
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 

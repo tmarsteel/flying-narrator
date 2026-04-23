@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.feature.AngleAccumulator
+import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 

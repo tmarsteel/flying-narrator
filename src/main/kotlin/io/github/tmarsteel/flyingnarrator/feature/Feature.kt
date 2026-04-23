@@ -2,12 +2,12 @@ package io.github.tmarsteel.flyingnarrator.feature
 
 import io.github.tmarsteel.flyingnarrator.RoadSegment
 import io.github.tmarsteel.flyingnarrator.Route
-import io.github.tmarsteel.flyingnarrator.consecutiveRuns
 import io.github.tmarsteel.flyingnarrator.unit.Angle
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
+import io.github.tmarsteel.flyingnarrator.utils.consecutiveRuns
 
 sealed interface Feature {
     val startsAtTrackDistance: Distance
@@ -85,7 +85,7 @@ sealed interface Feature {
                         windowsInOneCorner.first().tmpSegments.first().roadSegmentIndex,
                         windowsInOneCorner.last().tmpSegments.last().roadSegmentIndex + 1,
                     )
-                    Feature.Corner(segments, startsAt)
+                    Corner(segments, startsAt)
                 }
                 .forEach { feature ->
                     features.add(feature)

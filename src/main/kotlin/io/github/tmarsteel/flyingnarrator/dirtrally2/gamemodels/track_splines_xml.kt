@@ -1,10 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import io.github.tmarsteel.flyingnarrator.HermiteSpline
-import io.github.tmarsteel.flyingnarrator.Vector3
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReadingException
-import io.github.tmarsteel.flyingnarrator.zipWithNextAndEmitLast
+import io.github.tmarsteel.flyingnarrator.geometry.HermiteSpline
+import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.utils.zipWithNextAndEmitLast
 import tools.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper
 import javax.xml.bind.annotation.XmlAttribute
 import javax.xml.bind.annotation.XmlElement

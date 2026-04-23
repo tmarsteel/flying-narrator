@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
-import io.github.tmarsteel.flyingnarrator.RepeatFirstAndLastSequence.Companion.repeatFirstAndLast
+import io.github.tmarsteel.flyingnarrator.utils.RepeatFirstAndLastSequence.Companion.repeatFirstAndLast
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 

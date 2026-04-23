@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.pacenote.inferred
 
-import io.github.tmarsteel.flyingnarrator.averageAndStandardDeviationOf
+import io.github.tmarsteel.flyingnarrator.utils.averageAndStandardDeviationOf
 import java.nio.file.Paths
 import kotlin.io.path.readText
 import kotlin.io.path.writer

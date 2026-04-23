@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator
+package io.github.tmarsteel.flyingnarrator.utils
 
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike
 import kotlin.math.sqrt

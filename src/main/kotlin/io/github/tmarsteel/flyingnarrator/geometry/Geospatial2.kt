@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator
+package io.github.tmarsteel.flyingnarrator.geometry
 
 data class Geospatial2(
     val latitude: Double,

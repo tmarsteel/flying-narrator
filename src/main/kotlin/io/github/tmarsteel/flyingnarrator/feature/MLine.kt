@@ -1,6 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
-import io.github.tmarsteel.flyingnarrator.Vector3
+import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import kotlin.math.absoluteValue
 
 /**

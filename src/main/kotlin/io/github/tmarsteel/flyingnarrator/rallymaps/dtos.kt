@@ -1,7 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.rallymaps
 
 import de.micromata.opengis.kml.v_2_2_0.Coordinate
-import io.github.tmarsteel.flyingnarrator.Geospatial2
+import io.github.tmarsteel.flyingnarrator.geometry.Geospatial2
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
