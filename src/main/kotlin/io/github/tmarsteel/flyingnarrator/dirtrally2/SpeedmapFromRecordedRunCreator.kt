@@ -21,12 +21,10 @@ import kotlin.time.Duration.Companion.seconds
 class SpeedmapFromRecordedRunCreator(
     val totalTrackDistance: Distance,
     val recordingVideoFile: Path,
-    val startAt: Duration,
 ) {
     fun readFileAndCreateSpeedmap(): Speedmap {
         FFmpegFrameGrabber(recordingVideoFile.toFile()).use { grabber ->
             grabber.start()
-            grabber.setTimestamp(startAt.inWholeMicroseconds)
             val converter = Java2DFrameConverter()
             var lastReportTimestamp = -StageProgressReporter.OPTIMAL_SAMPLING_INTERVAL
             var nFramesReported = 0
@@ -35,23 +33,43 @@ class SpeedmapFromRecordedRunCreator(
             val controlPoints = mutableListOf<Speedmap.ControlPoint>(
                 Speedmap.ControlPoint(0.meters, 0.seconds)
             )
-            var progressFractionCarry = 0.0
+            var previousProgressFraction = 0.0
+            var previousProgressFractionAt = Duration.ZERO
+            var startAt = Duration.ZERO
             while (true) {
                 val frame = grabber.grabImage() ?: break
-                if (frame.timestamp.microseconds - lastReportTimestamp < StageProgressReporter.OPTIMAL_SAMPLING_INTERVAL) {
+                val frameTimestamp = frame.timestamp.microseconds
+                if (frameTimestamp - lastReportTimestamp < StageProgressReporter.OPTIMAL_SAMPLING_INTERVAL) {
                     continue
                 }
                 val image = converter.convert(frame)
                 val progressFraction = progressReporter.getProgressFromProgressIndicatorInGameFrame(image.getSubimage(cropArea.x, cropArea.y, cropArea.width, cropArea.height))
-                if (progressFraction >= 0.0 && progressFraction > progressFractionCarry) {
-                    controlPoints.add(
-                        Speedmap.ControlPoint(
-                            distanceAlongTrack = totalTrackDistance * progressFraction,
-                            frame.timestamp.microseconds - startAt,
+                if (previousProgressFraction == 0.0) {
+                    if (progressFraction > 0.0) {
+                        controlPoints.clear()
+                        controlPoints.add(
+                            Speedmap.ControlPoint(
+                                distanceAlongTrack = 0.meters,
+                                Duration.ZERO,
+                            )
                         )
-                    )
-                    progressFractionCarry = progressFraction
+                        startAt = previousProgressFractionAt
+                    }
+                    previousProgressFraction = progressFraction
+                    previousProgressFractionAt = frameTimestamp
+                } else {
+                    if (progressFraction > previousProgressFraction) {
+                        controlPoints.add(
+                            Speedmap.ControlPoint(
+                                distanceAlongTrack = totalTrackDistance * progressFraction,
+                                frameTimestamp - startAt,
+                            )
+                        )
+                        previousProgressFraction = progressFraction
+                        previousProgressFractionAt = frame.timestamp.microseconds
+                    }
                 }
+
                 lastReportTimestamp = frame.timestamp.microseconds
                 nFramesReported++
             }
@@ -70,7 +88,6 @@ class SpeedmapFromRecordedRunCreator(
             val speedmap = SpeedmapFromRecordedRunCreator(
                 distance,
                 file,
-                startAt,
             ).readFileAndCreateSpeedmap().compress()
             Json.encodeToStream(speedmap, System.out)
         }

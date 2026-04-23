@@ -142,7 +142,7 @@ class Speedmap(
      * [timeTolerance] seconds off.
      *
      */
-    fun compress(timeTolerance: Double = 0.5): Speedmap {
+    fun compress(timeTolerance: Duration = 0.5.seconds): Speedmap {
         val cpCopy = ArrayList(controlPoints)
         var compressIndexStart = 1
         while (compressIndexStart < cpCopy.size - 1) {
@@ -158,7 +158,7 @@ class Speedmap(
                 val trueTime = (subDistance / trueVelocity)
                 val estimatedTime = (approxDistance / approxVelocity)
                 val delta = estimatedTime - trueTime
-                if (delta.absoluteValue > timeTolerance.seconds) {
+                if (delta.absoluteValue > timeTolerance) {
                     compressIndexEnd--
                     break@findEnd
                 }
