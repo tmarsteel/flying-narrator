@@ -1,7 +1,6 @@
 package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.unit.Angle
-import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.degrees
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import kotlinx.serialization.Serializable
 import kotlin.math.PI
@@ -41,7 +40,7 @@ data class Vector3(
         else -> {
             // adapted atan2 calculation
             val angleAwayFromPositiveXCCW = atan(y.absoluteValue / x.absoluteValue).radians
-            HALFPI.degrees.withSign(x) - angleAwayFromPositiveXCCW.withSign(x.sign * y.sign)
+            HALFPI.radians.withSign(x) - angleAwayFromPositiveXCCW.withSign(x.sign * y.sign)
         }
     }
 
