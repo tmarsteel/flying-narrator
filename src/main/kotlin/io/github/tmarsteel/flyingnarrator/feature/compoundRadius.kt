@@ -47,6 +47,6 @@ val List<RoadSegment>.compoundRadius: Distance
         val cornerEnd = last().forward
         val line1 = MLine(cornerStartsAt, cornerStart.rotate2d90degCounterClockwise())
         val line2 = MLine(cornerEndsAt, cornerEnd.rotate2d90degCounterClockwise())
-        val center = line1.intersect2d(line2) ?: return Double.POSITIVE_INFINITY.meters
+        val center = line1.intersect2d(line2)?.first ?: return Double.POSITIVE_INFINITY.meters
         return (cornerEndsAt - center).length2d.meters
     }

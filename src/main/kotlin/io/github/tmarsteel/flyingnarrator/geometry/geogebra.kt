@@ -115,8 +115,11 @@ fun ggbClear() {
 fun ggbCmd(cmd: String) {
     println("ggbApplet.evalCommand(\"$cmd\");")
 }
-fun ggbPoint(name: String, position: Vector3) {
+fun ggbPoint(name: String, position: Vector3, color: Int? = null) {
     ggbCmd("$name=Point({${position.x},${position.y}})")
+    if (color != null) {
+        ggbColor(name, color)
+    }
 }
 fun ggbVector(name: String, vector: Vector3, position: Vector3 = Vector3.ORIGIN) {
     if (position == Vector3.ORIGIN) {

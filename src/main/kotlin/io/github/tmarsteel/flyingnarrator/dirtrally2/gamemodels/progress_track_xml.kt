@@ -31,6 +31,11 @@ class DR2ProgressTrackData(
     @XmlElement
     @JacksonXmlElementWrapper(useWrapping = true)
     val gates: List<DR2ProgressGate>,
+
+    /*
+    there is also a <track> element, it specifies a "total_distance" which is pretty close
+    to the last gates "distance", and a cubic bounding-box for the track
+     */
 )
 
 class DR2ProgressRouteSplit(
@@ -98,48 +103,56 @@ class DR2ProgressGate(
     val distance: Double,
 
     @XmlElement
-    val left: Position,
+    val left: DR2TrackProgressPosition,
+
+    @XmlElement
+    val right: DR2TrackProgressPosition,
+
+    @XmlElement
+    val crossing: DR2TrackProgressPosition,
+)
+
+@JsonDeserialize(using = DR2TrackProgressPosition.Deserializer::class)
+class DR2TrackProgressPosition(
+    val x: Double,
+    val y: Double,
+    val z: Double,
 ) {
-    @JsonDeserialize(using = Position.Deserializer::class)
-    class Position(
-        val x: Double,
-        val y: Double,
-        val z: Double,
-    ) {
-        class Deserializer : ValueDeserializer<Position>() {
-            override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Position? {
-                if (p.nextToken() != JsonToken.PROPERTY_NAME) {
-                    throw MismatchedInputException.from(p, Position::class.java, "Expected attribute name")
-                }
-                val propName = p.currentName()
-                if (propName != "format") {
-                    throw MismatchedInputException.from(p, Position::class.java, "Expected attribute 'format'")
-                }
-                check(p.nextToken() == JsonToken.VALUE_STRING)
-                val format = p.string
-                if (p.nextToken() != JsonToken.PROPERTY_NAME || p.currentName() != "" || p.nextToken() != JsonToken.VALUE_STRING) {
-                    throw MismatchedInputException.from(p, Position::class.java, "Expected tag content")
-                }
-                val content = p.string
-                if (p.nextToken() != JsonToken.END_OBJECT) {
-                    throw MismatchedInputException.from(p, Position::class.java, "Expected closing tag")
-                }
-
-                return decode(format, content) { msg ->
-                    throw MismatchedInputException.from(p, Position::class.java, msg)
-                }
+    class Deserializer : ValueDeserializer<DR2TrackProgressPosition>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): DR2TrackProgressPosition? {
+            if (p.nextToken() != JsonToken.PROPERTY_NAME) {
+                throw MismatchedInputException.from(p, DR2TrackProgressPosition::class.java, "Expected attribute name")
+            }
+            val propName = p.currentName()
+            if (propName != "format") {
+                throw MismatchedInputException.from(p, DR2TrackProgressPosition::class.java, "Expected attribute 'format'")
+            }
+            check(p.nextToken() == JsonToken.VALUE_STRING)
+            val format = p.string
+            if (p.nextToken() != JsonToken.PROPERTY_NAME || p.currentName() != "" || p.nextToken() != JsonToken.VALUE_STRING) {
+                throw MismatchedInputException.from(p, DR2TrackProgressPosition::class.java, "Expected tag content")
+            }
+            val content = p.string
+            val decoded = decode(format, content) { msg ->
+                throw MismatchedInputException.from(p, DR2TrackProgressPosition::class.java, msg)
             }
 
-            fun decode(format: String, content: String, onError: (String) -> Nothing = { throw IllegalArgumentException(it) }): Position = when (format) {
-                "float3" -> {
-                    val coords = content.trim().split(' ')
-                    if (coords.size != 3) {
-                        onError("Expected 3 coordinates, got ${coords.size}")
-                    }
-                    Position(coords[0].toDouble(), coords[1].toDouble(), coords[2].toDouble())
-                }
-                else -> onError("Unknown gate position format: $format")
+            if (p.nextToken() != JsonToken.END_OBJECT) {
+                throw MismatchedInputException.from(p, DR2TrackProgressPosition::class.java, "Expected closing tag")
             }
+
+            return decoded
+        }
+
+        fun decode(format: String, content: String, onError: (String) -> Nothing = { throw IllegalArgumentException(it) }): DR2TrackProgressPosition = when (format) {
+            "float3" -> {
+                val coords = content.trim().split(' ')
+                if (coords.size != 3) {
+                    onError("Expected 3 coordinates for format float3, got ${coords.size}")
+                }
+                DR2TrackProgressPosition(coords[0].toDouble(), coords[1].toDouble(), coords[2].toDouble())
+            }
+            else -> onError("Unknown position format: $format")
         }
     }
 }

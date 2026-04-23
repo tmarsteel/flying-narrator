@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReadingException
 import io.github.tmarsteel.flyingnarrator.geometry.HermiteSpline
@@ -61,6 +62,7 @@ class DR2TrackSplineSet(
     @JacksonXmlElementWrapper(useWrapping = false)
     val splines: List<DR2TrackSpline>
 ) {
+    @JsonIgnore
     val controlPoints: Sequence<HermiteSpline.ControlPoint> = splines
         .asSequence()
         .zipWithNextAndEmitLast(
