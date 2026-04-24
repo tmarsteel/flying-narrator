@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.degrees
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
@@ -16,290 +17,290 @@ class Vector3Test : FreeSpec({
     val upLeft = Vector3(-1.0, 1.0, 0.0)
 
     "angleTowardsPositiveY" {
-        Math.toDegrees(up.clockwiseAngleFromPositiveY()) shouldBe 0.0
-        Math.toDegrees(upRight.clockwiseAngleFromPositiveY()) shouldBe 45.0
-        Math.toDegrees(right.clockwiseAngleFromPositiveY()) shouldBe 90.0
-        Math.toDegrees(downRight.clockwiseAngleFromPositiveY()) shouldBe 135.0
-        Math.toDegrees(down.clockwiseAngleFromPositiveY()) shouldBe 180.0
-        Math.toDegrees(downLeft.clockwiseAngleFromPositiveY()) shouldBe -135.0
-        Math.toDegrees(left.clockwiseAngleFromPositiveY()) shouldBe -90.0
-        Math.toDegrees(upLeft.clockwiseAngleFromPositiveY()) shouldBe -45.0
+        up.clockwiseAngleFromPositiveY() shouldBe 0.degrees
+        upRight.clockwiseAngleFromPositiveY() shouldBe 45.degrees
+        right.clockwiseAngleFromPositiveY() shouldBe 90.degrees
+        downRight.clockwiseAngleFromPositiveY() shouldBe 135.degrees
+        down.clockwiseAngleFromPositiveY() shouldBe 180.degrees
+        downLeft.clockwiseAngleFromPositiveY() shouldBe -135.degrees
+        left.clockwiseAngleFromPositiveY() shouldBe -90.degrees
+        upLeft.clockwiseAngleFromPositiveY() shouldBe -45.degrees
 
-        Math.toDegrees(Vector3(2.0, 1.0, 0.0).clockwiseAngleFromPositiveY()) shouldBe 63.43.plusOrMinus(0.01)
-        Math.toDegrees(Vector3(2.0, -1.0, 0.0).clockwiseAngleFromPositiveY()) shouldBe 116.57.plusOrMinus(0.01)
-        Math.toDegrees(Vector3(-2.0, 1.0, 0.0).clockwiseAngleFromPositiveY()) shouldBe (-63.43).plusOrMinus(0.01)
-        Math.toDegrees(Vector3(-2.0, -1.0, 0.0).clockwiseAngleFromPositiveY()) shouldBe (-116.57).plusOrMinus(0.01)
+        Vector3(2.0, 1.0, 0.0).clockwiseAngleFromPositiveY().toDoubleInDegrees() shouldBe 63.43.plusOrMinus(0.01)
+        Vector3(2.0, -1.0, 0.0).clockwiseAngleFromPositiveY().toDoubleInDegrees() shouldBe 116.57.plusOrMinus(0.01)
+        Vector3(-2.0, 1.0, 0.0).clockwiseAngleFromPositiveY().toDoubleInDegrees() shouldBe (-63.43).plusOrMinus(0.01)
+        Vector3(-2.0, -1.0, 0.0).clockwiseAngleFromPositiveY().toDoubleInDegrees() shouldBe (-116.57).plusOrMinus(0.01)
     }
 
     "starting up" - {
         "going up" {
-            Math.toDegrees(up.angleTo(up)) shouldBe 0.0
+            up.angleTo(up) shouldBe 0.0.degrees
         }
 
         "going up-right" {
-            Math.toDegrees(up.angleTo(upRight)) shouldBe 45.0
+            up.angleTo(upRight) shouldBe 45.0.degrees
         }
 
         "going right" {
-            Math.toDegrees(up.angleTo(right)) shouldBe 90.0
+            up.angleTo(right) shouldBe 90.0.degrees
         }
 
         "going down-right" {
-            Math.toDegrees(up.angleTo(downRight)) shouldBe 135.0
+            up.angleTo(downRight) shouldBe 135.0.degrees
         }
 
         "going down" {
-            Math.toDegrees(up.angleTo(down)) shouldBe 180.0
+            up.angleTo(down) shouldBe 180.0.degrees
         }
 
         "going down-left" {
-            Math.toDegrees(up.angleTo(downLeft)) shouldBe -135.0
+            up.angleTo(downLeft) shouldBe -135.0.degrees
         }
 
         "going left" {
-            Math.toDegrees(up.angleTo(left)) shouldBe -90
+            up.angleTo(left) shouldBe -90.degrees
         }
 
         "going up-left" {
-            Math.toDegrees(up.angleTo(upLeft)) shouldBe -45
+            up.angleTo(upLeft) shouldBe -45.degrees
         }
     }
 
     "starting up-right" - {
         "going up" {
-            Math.toDegrees(upRight.angleTo(up)) shouldBe -45.0
+            upRight.angleTo(up) shouldBe -45.0.degrees
         }
 
         "going up-right" {
-            Math.toDegrees(upRight.angleTo(upRight)) shouldBe 0
+            upRight.angleTo(upRight) shouldBe 0.degrees
         }
 
         "going right" {
-            Math.toDegrees(upRight.angleTo(right)) shouldBe 45.0
+            upRight.angleTo(right) shouldBe 45.0.degrees
         }
 
         "going down-right" {
-            Math.toDegrees(upRight.angleTo(downRight)) shouldBe 90.0
+            upRight.angleTo(downRight) shouldBe 90.0.degrees
         }
 
         "going down" {
-            Math.toDegrees(upRight.angleTo(down)) shouldBe 135.0
+            upRight.angleTo(down) shouldBe 135.0.degrees
         }
 
         "going down-left" {
-            Math.toDegrees(upRight.angleTo(downLeft)) shouldBe -180.0
+            upRight.angleTo(downLeft) shouldBe -180.0.degrees
         }
 
         "going left" {
-            Math.toDegrees(upRight.angleTo(left)) shouldBe -135.0
+            upRight.angleTo(left) shouldBe -135.0.degrees
         }
 
         "going up-left" {
-            Math.toDegrees(upRight.angleTo(upLeft)) shouldBe -90.0
+            upRight.angleTo(upLeft) shouldBe -90.0.degrees
         }
     }
 
     "starting right" - {
         "going up" {
-            Math.toDegrees(right.angleTo(up)) shouldBe -90.0
+            right.angleTo(up) shouldBe -90.0.degrees
         }
 
         "going up-right" {
-            Math.toDegrees(right.angleTo(upRight)) shouldBe -45.0
+            right.angleTo(upRight) shouldBe -45.0.degrees
         }
 
         "going right" {
-            Math.toDegrees(right.angleTo(right)) shouldBe 0.0
+            right.angleTo(right) shouldBe 0.0.degrees
         }
 
         "going down-right" {
-            Math.toDegrees(right.angleTo(downRight)) shouldBe 45.0
+            right.angleTo(downRight) shouldBe 45.0.degrees
         }
 
         "going down" {
-            Math.toDegrees(right.angleTo(down)) shouldBe 90.0
+            right.angleTo(down) shouldBe 90.0.degrees
         }
 
         "going down-left" {
-            Math.toDegrees(right.angleTo(downLeft)) shouldBe 135.0
+            right.angleTo(downLeft) shouldBe 135.0.degrees
         }
 
         "going left" {
-            Math.toDegrees(right.angleTo(left)) shouldBe -180.0
+            right.angleTo(left) shouldBe -180.0.degrees
         }
 
         "going up-left" {
-            Math.toDegrees(right.angleTo(upLeft)) shouldBe -135.0
+            right.angleTo(upLeft) shouldBe -135.0.degrees
         }
     }
 
     "starting down-right" - {
         "going up" {
-            Math.toDegrees(downRight.angleTo(up)) shouldBe -135.0
+            downRight.angleTo(up) shouldBe -135.0.degrees
         }
 
         "going up-right" {
-            Math.toDegrees(downRight.angleTo(upRight)) shouldBe -90.0
+            downRight.angleTo(upRight) shouldBe -90.0.degrees
         }
 
         "going right" {
-            Math.toDegrees(downRight.angleTo(right)) shouldBe -45
+            downRight.angleTo(right) shouldBe -45.degrees
         }
 
         "going down-right" {
-            Math.toDegrees(downRight.angleTo(downRight)) shouldBe 0.0
+            downRight.angleTo(downRight) shouldBe 0.0.degrees
         }
 
         "going down" {
-            Math.toDegrees(downRight.angleTo(down)) shouldBe 45.0
+            downRight.angleTo(down) shouldBe 45.0.degrees
         }
 
         "going down-left" {
-            Math.toDegrees(downRight.angleTo(downLeft)) shouldBe 90.0
+            downRight.angleTo(downLeft) shouldBe 90.0.degrees
         }
 
         "going left" {
-            Math.toDegrees(downRight.angleTo(left)) shouldBe 135.0
+            downRight.angleTo(left) shouldBe 135.0.degrees
         }
 
         "going up-left" {
-            Math.toDegrees(downRight.angleTo(upLeft)) shouldBe -180.0
+            downRight.angleTo(upLeft) shouldBe -180.0.degrees
         }
     }
 
     "starting down" - {
         "going up" {
-            Math.toDegrees(down.angleTo(up)) shouldBe -180.0
+            down.angleTo(up) shouldBe -180.0.degrees
         }
 
         "going up-right" {
-            Math.toDegrees(down.angleTo(upRight)) shouldBe -135.0
+            down.angleTo(upRight) shouldBe -135.0.degrees
         }
 
         "going right" {
-            Math.toDegrees(down.angleTo(right)) shouldBe -90
+            down.angleTo(right) shouldBe -90.degrees
         }
 
         "going down-right" {
-            Math.toDegrees(down.angleTo(downRight)) shouldBe -45
+            down.angleTo(downRight) shouldBe -45.degrees
         }
 
         "going down" {
-            Math.toDegrees(down.angleTo(down)) shouldBe 0.0
+            down.angleTo(down) shouldBe 0.0.degrees
         }
 
         "going down-left" {
-            Math.toDegrees(down.angleTo(downLeft)) shouldBe 45.0
+            down.angleTo(downLeft) shouldBe 45.0.degrees
         }
 
         "going left" {
-            Math.toDegrees(down.angleTo(left)) shouldBe 90.0
+            down.angleTo(left) shouldBe 90.0.degrees
         }
 
         "going up-left" {
-            Math.toDegrees(down.angleTo(upLeft)) shouldBe 135.0
+            down.angleTo(upLeft) shouldBe 135.0.degrees
         }
     }
 
     "starting down-left" - {
         "going up" {
-            Math.toDegrees(downLeft.angleTo(up)) shouldBe 135.0
+            downLeft.angleTo(up) shouldBe 135.0.degrees
         }
 
         "going up-right" {
-            Math.toDegrees(downLeft.angleTo(upRight)) shouldBe 180.0
+            downLeft.angleTo(upRight) shouldBe 180.0.degrees
         }
 
         "going right" {
-            Math.toDegrees(downLeft.angleTo(right)) shouldBe -135.0
+            downLeft.angleTo(right) shouldBe -135.0.degrees
         }
 
         "going down-right" {
-            Math.toDegrees(downLeft.angleTo(downRight)) shouldBe -90.0
+            downLeft.angleTo(downRight) shouldBe -90.0.degrees
         }
 
         "going down" {
-            Math.toDegrees(downLeft.angleTo(down)) shouldBe -45.0
+            downLeft.angleTo(down) shouldBe -45.0.degrees
         }
 
         "going down-left" {
-            Math.toDegrees(downLeft.angleTo(downLeft)) shouldBe 0.0
+            downLeft.angleTo(downLeft) shouldBe 0.0.degrees
         }
 
         "going left" {
-            Math.toDegrees(downLeft.angleTo(left)) shouldBe 45.0
+            downLeft.angleTo(left) shouldBe 45.0.degrees
         }
 
         "going up-left" {
-            Math.toDegrees(downLeft.angleTo(upLeft)) shouldBe 90.0
+            downLeft.angleTo(upLeft) shouldBe 90.0.degrees
         }
     }
 
     "starting left" - {
         "going up" {
-            Math.toDegrees(left.angleTo(up)) shouldBe 90.0
+            left.angleTo(up) shouldBe 90.0.degrees
         }
 
         "going up-right" {
-            Math.toDegrees(left.angleTo(upRight)) shouldBe 135.0
+            left.angleTo(upRight) shouldBe 135.0.degrees
         }
 
         "going right" {
-            Math.toDegrees(left.angleTo(right)) shouldBe 180.0
+            left.angleTo(right) shouldBe 180.0.degrees
         }
 
         "going down-right" {
-            Math.toDegrees(left.angleTo(downRight)) shouldBe -135.0
+            left.angleTo(downRight) shouldBe -135.0.degrees
         }
 
         "going down" {
-            Math.toDegrees(left.angleTo(down)) shouldBe -90.0
+            left.angleTo(down) shouldBe -90.0.degrees
         }
 
         "going down-left" {
-            Math.toDegrees(left.angleTo(downLeft)) shouldBe -45.0
+            left.angleTo(downLeft) shouldBe -45.0.degrees
         }
 
         "going left" {
-            Math.toDegrees(left.angleTo(left)) shouldBe 0.0
+            left.angleTo(left) shouldBe 0.0.degrees
         }
 
         "going up-left" {
-            Math.toDegrees(left.angleTo(upLeft)) shouldBe 45.0
+            left.angleTo(upLeft) shouldBe 45.0.degrees
         }
     }
 
     "starting up-left" - {
         "going up" {
-            Math.toDegrees(upLeft.angleTo(up)) shouldBe 45.0
+            upLeft.angleTo(up) shouldBe 45.0.degrees
         }
 
         "going up-right" {
-            Math.toDegrees(upLeft.angleTo(upRight)) shouldBe 90.0
+            upLeft.angleTo(upRight) shouldBe 90.0.degrees
         }
 
         "going right" {
-            Math.toDegrees(upLeft.angleTo(right)) shouldBe 135.0
+            upLeft.angleTo(right) shouldBe 135.0.degrees
         }
 
         "going down-right" {
-            Math.toDegrees(upLeft.angleTo(downRight)) shouldBe 180.0
+            upLeft.angleTo(downRight) shouldBe 180.0.degrees
         }
 
         "going down" {
-            Math.toDegrees(upLeft.angleTo(down)) shouldBe -135.0
+            upLeft.angleTo(down) shouldBe -135.0.degrees
         }
 
         "going down-left" {
-            Math.toDegrees(upLeft.angleTo(downLeft)) shouldBe -90.0
+            upLeft.angleTo(downLeft) shouldBe -90.0.degrees
         }
 
         "going left" {
-            Math.toDegrees(upLeft.angleTo(left)) shouldBe -45.0
+            upLeft.angleTo(left) shouldBe -45.0.degrees
         }
 
         "going up-left" {
-            Math.toDegrees(upLeft.angleTo(upLeft)) shouldBe 0.0
+            upLeft.angleTo(upLeft) shouldBe 0.0.degrees
         }
     }
 })
