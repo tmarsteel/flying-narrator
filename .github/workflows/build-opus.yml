@@ -1,0 +1,80 @@
+name: build-opus.yml
+on:
+  push:
+#    paths:
+#      - '.github/actions/build-opus.yml'
+
+env:
+  OPUS_TARBALL_URL: https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz
+  OPUS_TARBALL_SHA256: 6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1
+
+jobs:
+  build-opus:
+    name: "Build Opus for ${{ matrix.target }}"
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        target: [x86_64-w64-mingw32, arm-w64-mingw32]
+    env:
+      OPUS_BUILD_OUTPUT_DIR: ${{ github.workspace }}/opus-source/${{ matrix.target }}/.libs
+    steps:
+      - name: define envs
+        shell: bash
+        run: |
+          set -x
+          opusSourceFilename="$(basename "$OPUS_TARBALL_URL")"
+          opusDirname="$(echo "$opusSourceFilename" | sed 's/.tar.gz//')"
+          echo "opusSourceFilename=$opusSourceFilename" >> "$GITHUB_ENV"
+          echo "opusDirname=$opusDirname" >> "$GITHUB_ENV"
+      - name: restore cached libopus source
+        id: cache-restore-opus-source
+        uses: actions/cache/restore@v5.0.5
+        with:
+          path: ${{ github.workspace }}/${{ env.opusSourceFilename }}
+          key: opus-source-${{ env.OPUS_TARBALL_URL }}
+      - name: download opus source
+        if: steps.cache-restore-opus-source.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          wget "$OPUS_TARBALL_URL"
+      - name: save cached libopus source
+        if: steps.cache-restore-opus-source.outputs.cache-hit != 'true'
+        id: cache-save-opus-source
+        uses: actions/cache/save@v5.0.5
+        with:
+          path: ${{ github.workspace }}/${{ env.opusSourceFilename }}
+          key: ${{ steps.cache-restore-opus-source.outputs.cache-primary-key }}
+      - name: Cache build
+        id: cache-build
+        uses: actions/cache@v5.0.5
+        with:
+          path: ${{ env.OPUS_BUILD_OUTPUT_DIR }}
+          key: opus-build-${{ matrix.target }}-${{ env.OPUS_TARBALL_URL }}
+      - name: build
+        if: steps.cache-build.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -ex
+          actualHash=$(sha256sum $opusSourceFilename)
+          if [[ "$actualHash" -ne "$OPUS_TARBALL_SHA256" ]]; then
+            echo "SHA256-Checksum mismatch"
+            exit 1
+          fi
+          sudo apt install g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
+          tar -xf "$opusSourceFilename"
+          mv "$opusDirname" "${{ github.workspace }}/opus-source"
+          pushd "${{ github.workspace }}/opus-source"
+            mkdir -p "${{ matrix.target }}" ; pushd $_
+              ../configure --host="${{ matrix.target }}" --enable-shared --disable-static
+              make
+              ls -a1 .libs
+            popd
+          popd
+      - name: Collect artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: opus-${{ matrix.target }}
+          include-hidden-files: true
+          path: |
+            ${{ env.OPUS_BUILD_OUTPUT_DIR }}/*.dll
+            ${{ env.OPUS_BUILD_OUTPUT_DIR }}/*.so
