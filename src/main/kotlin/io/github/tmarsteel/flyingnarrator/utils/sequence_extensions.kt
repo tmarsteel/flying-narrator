@@ -103,6 +103,21 @@ fun <A, T> Sequence<T>.foldInto(mutableAcc: A, fold: (A, T) -> Unit): A {
     return mutableAcc
 }
 
+fun <T, R> Sequence<T>.join(
+    transform: (T) -> Sequence<R>,
+    separator: List<R> = emptyList(),
+): Sequence<R> {
+    return sequence {
+        val iterator = this@join.iterator()
+        while (iterator.hasNext()) {
+            yieldAll(transform(iterator.next()))
+            if (iterator.hasNext()) {
+                yieldAll(separator)
+            }
+        }
+    }
+}
+
 fun <T> List<T>.windowsWhere(
     overlapping: Boolean = true,
     yieldCopies: Boolean = false,

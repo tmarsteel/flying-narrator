@@ -4,16 +4,13 @@ import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverData
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverDataCall
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverDataSubcall
 import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAtom
-import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLBreak
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLEmphasis
-import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLNullElement
-import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLSayAs
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLSentence
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLText
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import io.github.tmarsteel.flyingnarrator.utils.join
 import java.util.Locale
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Adapts data from [io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverData] to
@@ -38,17 +35,17 @@ class DirtRally2PacenoteAtomAdapter(
         val precedingSubcall = previousCall?.subcalls?.lastOrNull { !it.isNoop }
         val subcallsWithPrevious = (listOf(precedingSubcall) + call.subcalls).filterNot { it?.isNoop == true }
         val elements = subcallsWithPrevious
+            .asSequence()
             .windowed(size = 2, partialWindows = false)
-            .flatMap { (previous, subcall) ->
-                subcall!!.toWords(previous) + sequenceOf(
-                    SSMLText("; "),
-                    SSMLBreak(time = 0.75.seconds)
-                )
+            .map { (previous, subcall) ->
+                subcall!!.toWords(previous).toList()
             }
-
-        if (elements.isEmpty()) {
-            return SSMLNullElement
-        }
+            .filter { it.isNotEmpty()  }
+            .join(
+                transform = { it.asSequence() },
+                separator = listOf(SSMLText("; ")),
+            )
+            .toList()
 
         return SSMLSentence(
             children = elements + SSMLText("."),
@@ -122,10 +119,12 @@ class DirtRally2PacenoteAtomAdapter(
                 check(distanceLink.distanceInMeters != null) {
                     "unsupported distanceLink $distanceLink for subcall $this"
                 }
-                words.add(SSMLSayAs(
-                    interpretAs = SSMLSayAs.Interpretation.CARDINAL,
-                    SSMLText(distanceLink.distanceInMeters.toString(10))
-                ))
+                if (words.isNotEmpty()) {
+                    // two calls in one
+                    words.add(SSMLText(";"))
+                }
+
+                words.add(SSMLText(distanceLink.distanceInMeters.toString(10)))
             }
         }
 

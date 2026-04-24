@@ -8,7 +8,6 @@ import io.github.tmarsteel.flyingnarrator.io.SystemPathSerializer
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesisInputTooLongException
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesizer
 import io.github.tmarsteel.flyingnarrator.tts.SynthesizedSpeech
-import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLBreak
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLDocument
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLMark
@@ -101,7 +100,7 @@ data class PacenoteAudio(
                 ssmlElements.add(SSMLMark(endMarkerName))
                 ssmlMarkersByPacenoteAtom.add(Triple(atom, previousEndedAt, endMarkerName))
                 previousEndedAt = endMarkerName
-                ssmlElements.add(SSMLBreak(strength = SSMLBreak.Strength.MEDIUM)) // to prevent calls from flowing into each other
+                //ssmlElements.add(SSMLBreak(strength = SSMLBreak.Strength.WEAK)) // to prevent calls from flowing into each other
             }
 
             val synthesized = try {

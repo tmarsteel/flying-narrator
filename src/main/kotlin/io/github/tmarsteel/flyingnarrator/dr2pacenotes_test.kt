@@ -9,10 +9,12 @@ import io.github.tmarsteel.flyingnarrator.nefs.NefsFile
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
 import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAudio
 import io.github.tmarsteel.flyingnarrator.tts.gcloud.GoogleCloudSpeechSynthesizer
+import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLDocument
+import io.github.tmarsteel.flyingnarrator.tts.ssml.ssmlToString
 import okhttp3.OkHttpClient
 import tools.jackson.databind.util.ByteBufferBackedInputStream
 import java.nio.file.Paths
-import kotlin.io.path.moveTo
+import java.util.Locale
 import kotlin.io.path.writeText
 
 fun main(args: Array<String>) {
@@ -30,6 +32,9 @@ fun main(args: Array<String>) {
 
     val codriverData = DR2XMLMapper.readValue(ByteBufferBackedInputStream(codriverXml), DR2CodriverData::class.java)
     val pacenotes = DirtRally2PacenoteAtomAdapter.adapt(codriverData)
+    SSMLDocument(Locale.ENGLISH, pacenotes.map { it.toSSML(Locale.ENGLISH) })
+        .let { ssmlToString(it, true) }
+        .let(::println)
 
     val httpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
@@ -42,8 +47,7 @@ fun main(args: Array<String>) {
         .build()
     val synthesizer = GoogleCloudSpeechSynthesizer(httpClient = httpClient)
 
-    val pacenoteAudio = PacenoteAudio.renderToFile(pacenotes, synthesizer)
-        .withMappedAudioFilePath { it.moveTo(Paths.get("pacenotes.wav")) }
+    val pacenoteAudio = PacenoteAudio.renderToFile(pacenotes, synthesizer, storeAudioIn = Paths.get("pacenotes.wav"))
     val savedAudio = FlyingNarratorJsonFormat.encodeToString(PacenoteAudio.serializer(), pacenoteAudio)
     Paths.get("pacenote-audio.json").writeText(savedAudio)
 }
