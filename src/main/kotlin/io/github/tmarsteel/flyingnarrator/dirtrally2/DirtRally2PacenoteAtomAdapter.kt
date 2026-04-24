@@ -4,6 +4,7 @@ import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverData
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverDataCall
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverDataSubcall
 import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAtom
+import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLBreak
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLEmphasis
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLSentence
@@ -11,6 +12,7 @@ import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLText
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.utils.join
 import java.util.Locale
+import kotlin.time.Duration
 
 /**
  * Adapts data from [io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2CodriverData] to
@@ -126,6 +128,10 @@ class DirtRally2PacenoteAtomAdapter(
 
                 words.add(SSMLText(distanceLink.distanceInMeters.toString(10)))
             }
+        }
+
+        if (words.isNotEmpty() && delay > Duration.ZERO) {
+            words.addFirst(SSMLBreak(time = delay))
         }
 
         return words.asSequence()
