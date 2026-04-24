@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        target: [x86_64-w64-mingw32, arm-w64-mingw32]
+        target: [x86_64-w64-mingw32]
     env:
       OPUS_BUILD_OUTPUT_DIR: ${{ github.workspace }}/opus-source/${{ matrix.target }}/.libs
     steps:
