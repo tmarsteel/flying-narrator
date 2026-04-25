@@ -1,8 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.audio.opus
 
 import com.sun.jna.ptr.PointerByReference
+import okhttp3.internal.closeQuietly
 import org.gagravarr.ogg.OggFile
 import org.gagravarr.ogg.OggStreamIdentifier
+import org.gagravarr.opus.OpusAudioData
 import org.gagravarr.opus.OpusFile
 import org.gagravarr.opus.OpusInfo
 import tomp2p.opuswrapper.Opus
@@ -13,6 +15,9 @@ import java.nio.IntBuffer
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioInputStream
 import javax.sound.sampled.AudioSystem
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
 
 /**
  * construct new instances using [OggOpusDecodingAudioInputStream.Companion.peek]
@@ -20,7 +25,8 @@ import javax.sound.sampled.AudioSystem
 class OggOpusDecodingAudioInputStream private constructor(
     private val opusFile: OpusFile,
     targetFormat: AudioFormat,
-) : AudioInputStream(nullInputStream(), targetFormat, AudioSystem.NOT_SPECIFIED.toLong()) {
+    duration: Duration?,
+) : AudioInputStream(nullInputStream(), targetFormat, durationToFrameLength(duration, targetFormat)) {
     @Volatile
     private var closed = false
     private val nativeDecoder: PointerByReference?
@@ -147,37 +153,90 @@ class OggOpusDecodingAudioInputStream private constructor(
     }
 
     sealed interface PeekedStream {
-        data class Unsupported(val reason: String?) : PeekedStream
-        data class Supported(val sourceFormat: AudioFormat, val opusFile: OpusFile) : PeekedStream {
+        fun close()
+
+        data class Unsupported(
+            val reason: String?,
+            private val closeAction: () -> Unit,
+        ) : PeekedStream {
+            var closed = false
+            override fun close() {
+                if (closed) {
+                    return
+                }
+                closed = true
+                closeAction()
+            }
+        }
+        data class Supported(
+            val sourceFormat: AudioFormat,
+            val opusFile: OpusFile,
+            val duration: Duration?,
+        ) : PeekedStream {
             private var consumed = false
+            private var closed = false
             fun toStream(targetFormat: AudioFormat? = null): OggOpusDecodingAudioInputStream {
                 val decodedFormat = getDecodedFormat(sourceFormat, targetFormat)
                 check(!consumed)
+                check(!closed)
                 consumed = true
-                return OggOpusDecodingAudioInputStream(opusFile, decodedFormat)
+                return OggOpusDecodingAudioInputStream(opusFile, decodedFormat, duration)
+            }
+
+            override fun close() {
+                if (closed) {
+                    return
+                }
+                check(!consumed)
+
+                closed = true
+                consumed = true
+                opusFile.close()
             }
         }
     }
 
     companion object {
+        fun peek(reReadable: () -> InputStream): PeekedStream {
+            return peekInternal(reReadable, true)
+        }
+
         fun peek(inputStream: InputStream): PeekedStream {
-            val opusFile = try {
-                OpusFile(OggFile(inputStream).packetReader)
+            return peekInternal({ inputStream }, false)
+        }
+
+        fun peekInternal(getInputStream: () -> InputStream, canGetMultipleStreams: Boolean): PeekedStream {
+            val firstStream = getInputStream()
+            val firstOpusFile = try {
+                OpusFile(OggFile(firstStream).packetReader)
             } catch (e: IllegalArgumentException) {
-                return PeekedStream.Unsupported(e.message)
+                return PeekedStream.Unsupported(e.message, firstStream::close)
             } catch (e: IOException) {
                 if (e.message?.startsWith("Next ogg packet header not found") == true) {
-                    return PeekedStream.Unsupported("This file seems not to contain an ogg container")
+                    return PeekedStream.Unsupported("This file seems not to contain an ogg container", firstStream::close)
                 }
 
                 throw e
             }
 
-            if (opusFile.type.kind != OggStreamIdentifier.OggStreamType.Kind.AUDIO) {
-                return PeekedStream.Unsupported("This ogg file does not contain audio data")
+            if (firstOpusFile.type.kind != OggStreamIdentifier.OggStreamType.Kind.AUDIO) {
+                return PeekedStream.Unsupported("This ogg file does not contain audio data", firstStream::close)
             }
 
-            return PeekedStream.Supported(formatOf(opusFile.info), opusFile)
+            val duration: Duration?
+            val actualOpusFile: OpusFile
+            if (canGetMultipleStreams) {
+                duration = firstOpusFile.consumeReadingAudioLength()
+                if (firstOpusFile.oggFile != null) {
+                    firstOpusFile.closeQuietly()
+                }
+                actualOpusFile = OpusFile(OggFile(getInputStream()))
+            } else {
+                duration = null
+                actualOpusFile = firstOpusFile
+            }
+
+            return PeekedStream.Supported(formatOf(firstOpusFile.info), actualOpusFile, duration)
         }
 
         fun formatOf(info: OpusInfo): AudioFormat {
@@ -244,6 +303,30 @@ class OggOpusDecodingAudioInputStream private constructor(
             }
 
             return null
+        }
+
+        private fun OpusFile.consumeReadingAudioLength(): Duration? {
+            var lastPacket: OpusAudioData = this.nextAudioPacket
+                ?: return null
+            while (true) {
+                lastPacket = this.nextAudioPacket ?: break
+            }
+
+            return (lastPacket.granulePosition.toDouble() / 48000.0).seconds
+        }
+
+        private fun durationToFrameLength(duration: Duration?, decodedFormat: AudioFormat): Long {
+            if (duration == null) {
+                return AudioSystem.NOT_SPECIFIED.toLong()
+            }
+
+            val decodedFrameRate = decodedFormat.frameRate.toInt()
+                .takeUnless { it == AudioSystem.NOT_SPECIFIED }
+                ?: decodedFormat.sampleRate.toInt()
+                .takeUnless { it == AudioSystem.NOT_SPECIFIED }
+                ?: return AudioSystem.NOT_SPECIFIED.toLong()
+
+            return (duration.toDouble(DurationUnit.SECONDS) * decodedFrameRate.toDouble()).toLong()
         }
     }
 }

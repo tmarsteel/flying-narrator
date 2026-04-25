@@ -23,13 +23,10 @@ object OpusAudioFormat {
         )
     }
 
-    fun closestEncodableFormat(
-        targetFormat: AudioFormat,
-        encoding: OggOpusEncoding? = null,
-    ): AudioFormat {
-        if (targetFormat.encoding is OggOpusEncoding || OggOpusEncodingAudioInputStream.canEncode(targetFormat)) {
-            return targetFormat
-        }
+    fun closestEncodableFormat(targetFormat: AudioFormat): AudioFormat {
+        val encoding = targetFormat.encoding
+            .takeIf { it is OggOpusEncoding || it == AudioFormat.Encoding.PCM_SIGNED }
+            ?: AudioFormat.Encoding.PCM_SIGNED
 
         val sampleRate = SAMPLE_RATE_TO_BANDWIDTH_CONSTANT
             .keys
@@ -41,7 +38,7 @@ object OpusAudioFormat {
         val nChannels = SUPPORTED_CHANNELS.find { it == targetFormat.channels } ?: SUPPORTED_CHANNELS.max()
 
         return AudioFormat(
-            encoding ?: targetFormat.encoding as? OggOpusEncoding ?: OggOpusEncoding.OPUS_NOT_FURTHER_SPECIFIED,
+            encoding,
             sampleRate,
             16,
             nChannels,

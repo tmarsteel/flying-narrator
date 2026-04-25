@@ -14,6 +14,7 @@ import java.nio.IntBuffer
 import java.util.Arrays
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioInputStream
+import javax.sound.sampled.AudioSystem
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
@@ -136,7 +137,7 @@ class OggOpusEncodingAudioInputStream private constructor(
             val packetData = ByteArray(encodedLength)
             encoderOutputBuffer.get(packetData)
             val opusAudio = OpusAudioData(packetData)
-            oggPacketWriter.setGranulePosition(oggPacketWriter.currentGranulePosition + nPcmBytes / (format.sampleSizeInBits / 8))
+            oggPacketWriter.setGranulePosition(oggPacketWriter.currentGranulePosition + getGranuleAmount(nPcmBytes))
             oggPacketWriter.bufferPacket(opusAudio.write())
             oggPacketWriter.flush()
         }
@@ -146,6 +147,15 @@ class OggOpusEncodingAudioInputStream private constructor(
             return -1
         }
         return nBytesRead
+    }
+
+    private fun getGranuleAmount(nPcmBytesFromSource: Int): Long {
+        val sourceBytesPerFrame = pcmStream.format.frameSize
+            .takeUnless { it == AudioSystem.NOT_SPECIFIED }
+            ?: (pcmStream.format.sampleSizeInBits / 8 * pcmStream.format.channels)
+        val nFrames = nPcmBytesFromSource / sourceBytesPerFrame
+        val nSeconds = nFrames.toDouble() / pcmStream.format.sampleRate.toDouble()
+        return (nSeconds * 48000).toLong()
     }
 
     override fun skip(n: Long): Long {
