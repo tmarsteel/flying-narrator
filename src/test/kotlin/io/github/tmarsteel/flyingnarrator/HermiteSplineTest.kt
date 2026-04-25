@@ -16,7 +16,8 @@ class HermiteSplineTest : FreeSpec({
     )
 
     "interpolate at extremes is identical to position" {
-        HermiteSpline.interpolate(cp1, cp2, 0.0) shouldBe cp1.position
-        HermiteSpline.interpolate(cp1, cp2, 1.0) shouldBe cp2.position
+        val points = HermiteSpline.interpolate(cp1, cp2, 1.0).toList()
+        points.first() shouldBe cp1.position
+        points.last() shouldBe cp2.position
     }
 })
