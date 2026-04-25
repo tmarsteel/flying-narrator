@@ -1,8 +1,10 @@
 name: build-opus.yml
 on:
   push:
-#    paths:
-#      - '.github/actions/build-opus.yml'
+    paths:
+      - '.github/actions/build-opus.yml'
+  workflow_call:
+  workflow_dispatch:
 
 env:
   OPUS_TARBALL_URL: https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz

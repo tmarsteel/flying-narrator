@@ -70,13 +70,14 @@ data class PacenoteAudio(
             pacenotes: List<PacenoteAtom>,
             synthesizer: SpeechSynthesizer,
             localePreference: List<Locale.LanguageRange> = listOf(Locale.LanguageRange("en-US")),
-            storeAudioIn: Path = File.createTempFile("pacenote-audio", ".wav").run {
+            fileType: AudioFileFormat.Type = AudioFileFormat.Type.WAVE,
+            storeAudioIn: Path = File.createTempFile("pacenote-audio", "." + fileType.extension).run {
                 deleteOnExit()
                 toPath()
-            }
+            },
         ): PacenoteAudio {
             val parts = renderToMemory(pacenotes, synthesizer, localePreference)
-            return mergeToFile(parts, storeAudioIn)
+            return mergeToFile(parts, storeAudioIn, fileType)
         }
 
         fun renderToMemory(
@@ -137,6 +138,7 @@ data class PacenoteAudio(
         fun mergeToFile(
             parts: List<Pair<SynthesizedSpeech, List<CallData>>>,
             storeAudioIn: Path,
+            fileType: AudioFileFormat.Type,
         ): PacenoteAudio {
             val callsWithPartOffset = mutableListOf<Pair<Duration, List<CallData>>>()
             storeAudioIn.outputStream().use { fileOut ->
@@ -148,7 +150,7 @@ data class PacenoteAudio(
                     durationCarry += audioIn.timeLength
                 }
 
-                AudioSystem.write(concatenatedAudio, AudioFileFormat.Type.WAVE, fileOut)
+                AudioSystem.write(concatenatedAudio, fileType, fileOut)
             }
 
             val adjustedCalls = mutableListOf<CallData>()

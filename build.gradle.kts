@@ -28,6 +28,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jsoup:jsoup:1.22.1")
     implementation("com.google.protobuf:protobuf-kotlin:4.31.1")
+    implementation("club.minnced:opus-java-api:1.1.1")
+    implementation("net.java.dev.jna:jna:4.4.0")
+    implementation("org.gagravarr:vorbis-java-core:0.8")
 
     implementation("org.bytedeco:javacv-platform:1.5.11")
 
@@ -41,6 +44,9 @@ sourceSets {
     main {
         proto {
             srcDir("nefsedit-cli/nefsedit-cli/protobuf")
+        }
+        resources {
+            srcDir("build/native-libs")
         }
     }
 }
