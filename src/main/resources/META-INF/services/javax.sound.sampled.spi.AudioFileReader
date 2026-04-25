@@ -1,1 +1,1 @@
-io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusFileReader
+io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusAudioServiceProvider$FileReader

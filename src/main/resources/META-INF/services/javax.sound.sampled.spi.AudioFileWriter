@@ -1,1 +1,1 @@
-io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusFileWriter
+io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusAudioServiceProvider$FileWriter

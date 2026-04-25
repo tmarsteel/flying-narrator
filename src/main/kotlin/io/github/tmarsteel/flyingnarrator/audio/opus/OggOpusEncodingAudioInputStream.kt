@@ -117,6 +117,11 @@ class OggOpusEncodingAudioInputStream private constructor(
             if (nPcmBytes < encoderInputBufferArray.size) {
                 sourceIsEof = true
                 // fill silence
+                if (nPcmBytes < 0) {
+                    // input samples and opus frames match exactly
+                    continue
+                }
+
                 Arrays.fill(encoderInputBufferArray, nPcmBytes, encoderInputBufferArray.size, 0)
             }
 

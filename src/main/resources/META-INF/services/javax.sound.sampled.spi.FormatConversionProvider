@@ -1,1 +1,1 @@
-io.github.tmarsteel.flyingnarrator.audio.opus.OpusFormatConversionProvider
+io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusAudioServiceProvider$Converter
