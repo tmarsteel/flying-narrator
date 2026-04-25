@@ -47,7 +47,7 @@ class GoogleCloudSpeechSynthesizer(
                 locale = document.lang,
             ),
             AudioConfigDto(
-                audioEncoding = AudioConfigDto.AudioEncoding.LINEAR16,
+                audioEncoding = AudioConfigDto.AudioEncoding.OGG_OPUS,
             ),
             TimePointingMode.SSML_MARK,
         )

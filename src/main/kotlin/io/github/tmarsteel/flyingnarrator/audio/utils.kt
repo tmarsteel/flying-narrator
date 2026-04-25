@@ -77,11 +77,10 @@ fun List<AudioFormat>.findConvertibleTargetFormat(): AudioFormat? {
 fun List<AudioInputStream>.concatenate(): AudioInputStream {
     val audioFormat = this.map { it.format }.findConvertibleTargetFormat()
         ?: throw IllegalStateException("Different audio formats in the input, cannot convert to a common one")
+    val convertedStreams = this.map { AudioSystem.getAudioInputStream(audioFormat, it) }
     return AudioInputStream(
-        this.asSequence()
-            .map { AudioSystem.getAudioInputStream(audioFormat, it) }
-            .fold(InputStream.nullInputStream(), ::SequenceInputStream),
+        convertedStreams.fold(InputStream.nullInputStream(), ::SequenceInputStream),
         audioFormat,
-        this.sumOf { it.frameLength },
+        convertedStreams.sumOf { it.frameLength },
     )
 }

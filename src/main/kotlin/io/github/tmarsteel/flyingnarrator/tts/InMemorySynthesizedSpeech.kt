@@ -7,13 +7,14 @@ import kotlin.time.Duration
 
 class InMemorySynthesizedSpeech(
     /**
-     * bytes of the audio, as if read from a WAV file
+     * bytes of the audio, complete with format headers so the bytes can be written to a file unmodified,
+     * as well as fed to [AudioSystem.getAudioInputStream] with correct format detection.
      */
-    val wavFileBytes: ByteArray,
+    val audioFileBytes: ByteArray,
 
     override val ssmlMakers: Map<String, Duration>,
 ) : SynthesizedSpeech {
     override fun openNewAudioInputStream(): AudioInputStream {
-        return AudioSystem.getAudioInputStream(ByteArrayInputStream(wavFileBytes))
+        return AudioSystem.getAudioInputStream(ByteArrayInputStream(audioFileBytes))
     }
 }

@@ -101,7 +101,6 @@ data class PacenoteAudio(
                 ssmlElements.add(SSMLMark(endMarkerName))
                 ssmlMarkersByPacenoteAtom.add(Triple(atom, previousEndedAt, endMarkerName))
                 previousEndedAt = endMarkerName
-                //ssmlElements.add(SSMLBreak(strength = SSMLBreak.Strength.WEAK)) // to prevent calls from flowing into each other
             }
 
             val synthesized = try {
