@@ -1,0 +1,43 @@
+name: build-nefsedit
+on:
+  push:
+    paths:
+      - 'nefsedit-cli'
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build-nefsedit-cli:
+    name: "Build nefsedit for ${{ matrix.os }}-${{ matrix.arch }}"
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        os: [win]
+        arch: [x64]
+    env:
+      NEFSEDIT_CLI_PROJECT_DIR: "${{ github.workspace }}/nefsedit-cli"
+      NEFSEDIT_CLI_ARTIFACTS_DIR: "nefsedit-cli/bin/Release/net10.0/${{ matrix.os }}-${{ matrix.arch }}/publish"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 1
+      - name: Cache build
+        id: cache-build
+        uses: actions/cache@v5.0.5
+        with:
+          path: ${{ env.NEFSEDIT_CLI_PROJECT_DIR }}/${{ env.NEFSEDIT_CLI_ARTIFACTS_DIR }}
+          key: nefscli-build-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles(env.NEFSEDIT_CLI_PROJECT_DIR) }}
+      - name: build
+        if: steps.cache-build.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          cd "${{ env.NEFSEDIT_CLI_PROJECT_DIR }}/nefsedit-cli"
+          dotnet publish --self-contained --configuration Release --arch "${{ matrix.arch }}" --os "${{ matrix.os }}"
+      - name: Collect artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nefsedit-cli-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            ${{ env.NEFSEDIT_CLI_PROJECT_DIR }}/${{ env.NEFSEDIT_CLI_ARTIFACTS_DIR }}/**
