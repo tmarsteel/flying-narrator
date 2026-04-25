@@ -9,16 +9,16 @@ import kotlin.time.Duration.Companion.milliseconds
 class OggOpusEncoding(
     val application: Application = Application.UNSPECIFIED,
     val signal: Signal = Signal.UNSPECIFIED,
-    val complexity: Int = 10,
-    val bitsPerSecond: Int = 128000,
-    val opusFrameSize: Duration = 20.milliseconds,
+    val complexity: Int = COMPLEXITY_UNSPECIFIED,
+    val bitsPerSecond: Int = BITS_PER_SECOND_UNSPECIFIED,
+    val opusFrameSize: Duration = FRAME_SIZE_UNSPECIFIED,
     val maxEncodedFrameSizeInBytes: Int = Int.MAX_VALUE,
 ) : AudioFormat.Encoding("OPUS") {
     init {
         require(complexity in 0..10 || complexity == COMPLEXITY_UNSPECIFIED) {
             "complexity must be between 0 and 10, or ${::COMPLEXITY_UNSPECIFIED.name}"
         }
-        require(bitsPerSecond > 0 || bitsPerSecond == COMPLEXITY_UNSPECIFIED) {
+        require(bitsPerSecond > 0 || bitsPerSecond == BITS_PER_SECOND_UNSPECIFIED) {
             "bitsPerSecond must be greater than 0"
         }
         require(opusFrameSize in SUPPORTED_OPUS_FRAME_SIZES || opusFrameSize == FRAME_SIZE_UNSPECIFIED) {
@@ -92,7 +92,7 @@ class OggOpusEncoding(
         val DEFAULT_COMPLEXITY = 10
 
         @JvmStatic
-        val DEFAULT_BITS_PER_SECOND = 128_000
+        val DEFAULT_BITS_PER_SECOND = 96_000 // this is roughly equivalent to an 192kbit/s-256kbit/s MP3, almost transparent
 
         @JvmStatic
         val OPUS_NOT_FURTHER_SPECIFIED = OggOpusEncoding(

@@ -1,6 +1,8 @@
 package io.github.tmarsteel.flyingnarrator.pacenote
 
 import io.github.tmarsteel.flyingnarrator.audio.concatenate
+import io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusAudioFileType
+import io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusEncoding
 import io.github.tmarsteel.flyingnarrator.audio.timeLength
 import io.github.tmarsteel.flyingnarrator.io.CompactObjectListSerializer
 import io.github.tmarsteel.flyingnarrator.io.KotlinDurationAsMillisecondsSerializer
@@ -17,7 +19,6 @@ import java.nio.file.Path
 import java.util.Locale
 import javax.sound.sampled.AudioFileFormat
 import javax.sound.sampled.AudioSystem
-import kotlin.io.path.outputStream
 import kotlin.time.Duration
 
 /**
@@ -70,7 +71,7 @@ data class PacenoteAudio(
             pacenotes: List<PacenoteAtom>,
             synthesizer: SpeechSynthesizer,
             localePreference: List<Locale.LanguageRange> = listOf(Locale.LanguageRange("en-US")),
-            fileType: AudioFileFormat.Type = AudioFileFormat.Type.WAVE,
+            fileType: AudioFileFormat.Type = OggOpusAudioFileType,
             storeAudioIn: Path = File.createTempFile("pacenote-audio", "." + fileType.extension).run {
                 deleteOnExit()
                 toPath()
@@ -140,16 +141,21 @@ data class PacenoteAudio(
             fileType: AudioFileFormat.Type,
         ): PacenoteAudio {
             val callsWithPartOffset = mutableListOf<Pair<Duration, List<CallData>>>()
-            storeAudioIn.outputStream().use { fileOut ->
-                val audioIns = parts.map { it.first.openNewAudioInputStream() }
-                val concatenatedAudio = audioIns.concatenate()
-                var durationCarry = Duration.ZERO
-                for ((idx, audioIn) in audioIns.withIndex()) {
-                    callsWithPartOffset.add(Pair(durationCarry, parts[idx].second))
-                    durationCarry += audioIn.timeLength
-                }
+            val audioIns = parts.map { it.first.openNewAudioInputStream() }
+            val concatenatedAudio = audioIns.concatenate()
+            var durationCarry = Duration.ZERO
+            for ((idx, audioIn) in audioIns.withIndex()) {
+                callsWithPartOffset.add(Pair(durationCarry, parts[idx].second))
+                durationCarry += audioIn.timeLength
+            }
 
-                AudioSystem.write(concatenatedAudio, fileType, fileOut)
+            if (fileType == OggOpusAudioFileType) {
+                AudioSystem.getAudioInputStream(OPUS_ENCODING, concatenatedAudio).use { opusAudioIn ->
+                    AudioSystem.write(opusAudioIn, fileType, storeAudioIn.toFile())
+                }
+            } else {
+                AudioSystem.write(concatenatedAudio, fileType, storeAudioIn.toFile())
+                concatenatedAudio.close()
             }
 
             val adjustedCalls = mutableListOf<CallData>()
@@ -169,5 +175,12 @@ data class PacenoteAudio(
 
             return PacenoteAudio(storeAudioIn, adjustedCalls)
         }
+
+        val OPUS_ENCODING = OggOpusEncoding(
+            application = OggOpusEncoding.Application.AUDIO,
+            signal = OggOpusEncoding.Signal.VOICE,
+            complexity = 10,
+            bitsPerSecond = 48_000, // voice doesn't need more than this
+        )
     }
 }

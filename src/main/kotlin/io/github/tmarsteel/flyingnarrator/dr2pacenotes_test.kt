@@ -47,7 +47,7 @@ fun main(args: Array<String>) {
         .build()
     val synthesizer = GoogleCloudSpeechSynthesizer(httpClient = httpClient)
 
-    val pacenoteAudio = PacenoteAudio.renderToFile(pacenotes, synthesizer, storeAudioIn = Paths.get("pacenotes.wav"))
+    val pacenoteAudio = PacenoteAudio.renderToFile(pacenotes, synthesizer, storeAudioIn = Paths.get("pacenotes.opus"))
     val savedAudio = FlyingNarratorJsonFormat.encodeToString(PacenoteAudio.serializer(), pacenoteAudio)
     Paths.get("pacenote-audio.json").writeText(savedAudio)
 }
