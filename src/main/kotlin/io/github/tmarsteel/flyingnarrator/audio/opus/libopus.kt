@@ -22,7 +22,7 @@ internal fun throwOnOpusError(result: Int) {
 }
 
 private val OPUS_LIB_RESOURCE_BY_PLATFORM = mapOf(
-    "win32-x86-64" to "/opus/x64-windows/libopus-0.dll"
+    "win32-x86-64" to "/opus/win-x64/libopus-0.dll"
 )
 
 internal fun assureOpusNativeLibraryIsLoadable() {
