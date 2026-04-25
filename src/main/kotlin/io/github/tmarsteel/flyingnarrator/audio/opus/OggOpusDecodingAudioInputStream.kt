@@ -208,7 +208,7 @@ class OggOpusDecodingAudioInputStream private constructor(
         fun peekInternal(getInputStream: () -> InputStream, canGetMultipleStreams: Boolean): PeekedStream {
             val firstStream = getInputStream()
             val firstOpusFile = try {
-                OpusFile(OggFile(firstStream).packetReader)
+                OpusFile(OggFile(firstStream))
             } catch (e: IllegalArgumentException) {
                 return PeekedStream.Unsupported(e.message, firstStream::close)
             } catch (e: IOException) {

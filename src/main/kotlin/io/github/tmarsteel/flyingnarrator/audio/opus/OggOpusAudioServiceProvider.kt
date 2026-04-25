@@ -236,6 +236,14 @@ object OggOpusAudioServiceProvider {
             peeked = OggOpusDecodingAudioInputStream.peek(getInputStream)
         } else {
             val stream = getInputStream()
+            if (InfiniteResetStreamReplicator.supports(stream)) {
+                val replicator = InfiniteResetStreamReplicator(stream)
+                val result = peekInternal(replicator, true, resetOnSuccess = false)
+                if (result is OggOpusDecodingAudioInputStream.PeekedStream.Unsupported || resetOnSuccess) {
+                    replicator.close()
+                }
+                return result
+            }
             var marked = false
             if (stream.markSupported()) {
                 stream.mark(65536)
