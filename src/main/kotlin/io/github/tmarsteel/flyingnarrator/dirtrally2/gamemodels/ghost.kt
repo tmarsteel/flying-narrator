@@ -95,7 +95,7 @@ data class DR2Ghostcar(
         }
 
         /**
-         * TODO: fill these from the start gate positions
+         * TODO: fill these from the start gate positions; track_model ids are in base.ctpk
          */
         private val startPositionByTrackId = mapOf<ULong, Vector3>(
             472uL to Vector3(1185.39, 606.282, -2669.52),
