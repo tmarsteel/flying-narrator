@@ -115,7 +115,7 @@ class NefsFile private constructor(
         }
 
         private val nefsEditCliBinary by lazy {
-            Paths.get("""F:\CodingProjects\flying-narrator\nefsedit-cli\nefsedit-cli\bin\Debug\net10.0\nefsedit-cli.exe""")
+            Paths.get("""F:\CodingProjects\flying-narrator\nefsedit-cli\nefsedit-cli\bin\Release\net10.0\nefsedit-cli.exe""")
         }
 
         private fun buildCommand(coordinates: NefsCoordinates): List<String> {

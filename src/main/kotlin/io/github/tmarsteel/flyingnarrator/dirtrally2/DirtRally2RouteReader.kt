@@ -9,11 +9,15 @@ import io.github.tmarsteel.flyingnarrator.feature.MLine
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.geometry.HermiteSpline
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.nefs.NefsFile
+import io.github.tmarsteel.flyingnarrator.nefs.NefsItemId
+import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
 import io.github.tmarsteel.flyingnarrator.route.RoadSegment
 import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.route.RouteReader
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import tools.jackson.databind.util.ByteBufferBackedInputStream
 import java.nio.file.Path
 
 class DirtRally2RouteReader(
@@ -63,6 +67,22 @@ class DirtRally2RouteReader(
 
     override fun read(): Route {
         return route
+    }
+
+    companion object {
+        fun fromNefs(nefsFile: NefsFile, directoryId: NefsItemId): DirtRally2RouteReader {
+            val filesInDir = nefsFile.listFiles(recursive = false, directory = directoryId)
+            val splineData = filesInDir
+                .single { it.fileName == "route_spline.xml" }
+                .let { nefsFile.readFile(it.id, Command.Conversion.UNPACK_BINARY_XML) }
+                .let { DR2XMLMapper.readValue(ByteBufferBackedInputStream(it), DR2TrackSplines::class.java) }
+            val codriverData = filesInDir
+                .single { it.fileName == "progress_track.xml" }
+                .let { nefsFile.readFile(it.id, Command.Conversion.UNPACK_BINARY_XML) }
+                .let { DR2XMLMapper.readValue(ByteBufferBackedInputStream(it), DR2ProgressTrackData::class.java) }
+
+            return DirtRally2RouteReader(splineData, codriverData)
+        }
     }
 
     private data class Gate(

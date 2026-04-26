@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.dirtrally2
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2LanguageFile
 import io.github.tmarsteel.flyingnarrator.nefs.NefsCoordinates
 import io.github.tmarsteel.flyingnarrator.nefs.NefsFile
+import io.github.tmarsteel.flyingnarrator.nefs.NefsFileRef
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.Locale
@@ -21,10 +22,16 @@ class DirtRally2RouteImporter(
 
     data class ImportableRoute(
         val packFile: NefsCoordinates,
-        val routeKeyInPackFile: String,
+        val routeDirInPackFile: NefsFileRef,
         val locationName: Map<Locale, String>,
         val name: Map<Locale, String>,
-    )
+    ) {
+        fun read(): DirtRally2RouteReader {
+            NefsFile.open(packFile).use { routePackFile ->
+                return DirtRally2RouteReader.fromNefs(routePackFile, routeDirInPackFile.id)
+            }
+        }
+    }
 
     companion object {
         private val LOCATION_FILE_REGEX = Regex("(?<country>\\w+)__(?<location>\\w+)_rally_(?<number>\\d+)\\.nefs")
@@ -50,7 +57,7 @@ class DirtRally2RouteImporter(
                         val routeTechnicalName = locationTechnicalName + "_route_$routeNumber"
                         ImportableRoute(
                             routePackFileCoordinates,
-                            routeDir.fullPath,
+                            routeDir,
                             translations["lng_location_full_${location}"]
                                 ?: translations["lng_location_full_${location}_gravel"]
                                 ?: emptyMap(),
