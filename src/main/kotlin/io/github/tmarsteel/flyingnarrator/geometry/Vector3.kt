@@ -25,6 +25,7 @@ data class Vector3(
     val length2d: Double by lazy {
         hypot(x, y)
     }
+    val hasNaNComponent: Boolean get()= x.isNaN() || y.isNaN() || z.isNaN()
 
     operator fun plus(other: Vector3): Vector3 = Vector3(x + other.x, y + other.y, z + other.z)
 
