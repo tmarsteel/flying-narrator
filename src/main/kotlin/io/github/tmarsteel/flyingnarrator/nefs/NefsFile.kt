@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalSerializationApi::class)
 package io.github.tmarsteel.flyingnarrator.nefs
 
+import com.sun.jna.Platform
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.itemOrNull
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.listedItemsOrNull
@@ -8,8 +9,12 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import okio.IOException
 import java.lang.AutoCloseable
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.deleteRecursively
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -114,10 +119,6 @@ class NefsFile private constructor(
             return NefsFile(serviceProcess)
         }
 
-        private val nefsEditCliBinary by lazy {
-            Paths.get("""F:\CodingProjects\flying-narrator\nefsedit-cli\nefsedit-cli\bin\Release\net10.0\nefsedit-cli.exe""")
-        }
-
         private fun buildCommand(coordinates: NefsCoordinates): List<String> {
             return when(coordinates) {
                 is NefsCoordinates.FileOnSystemDisk -> listOf(
@@ -156,6 +157,51 @@ class NefsFile private constructor(
             catch (_: InterruptedException) { }
 
             serviceProcess.destroy()
+        }
+
+        private val NEFSEDIT_CLI_RESOURCES_BY_PLATFORM = mapOf(
+            "win32-x86-64" to Pair(
+                "/nefsedit-cli/win-x64",
+                listOf(
+                    "nefsedit-cli.exe",
+                    "libzstd.dll",
+                )
+            )
+        )
+
+        @OptIn(ExperimentalPathApi::class)
+        private val nefsEditCliBinary by lazy {
+            System.getenv("NEFSEDIT_CLI_PATH")?.let {
+                return@lazy Paths.get(it)
+            }
+
+            val (appDir, filesInAppDir) = NEFSEDIT_CLI_RESOURCES_BY_PLATFORM[Platform.RESOURCE_PREFIX]
+                ?: throw RuntimeException("nefsedit-cli is not bundled for this platform: ${Platform.RESOURCE_PREFIX}")
+
+            val classpathToFirstFile = "$appDir/${filesInAppDir.first()}"
+            val executableResource = NefsFile::class.java.getResource(classpathToFirstFile)
+                ?: throw RuntimeException("Could not find $classpathToFirstFile in classpath")
+
+            if (executableResource.protocol == "file") {
+                var pathStr = executableResource.path
+                if ("win32" in Platform.RESOURCE_PREFIX && pathStr.startsWith("/")) {
+                    pathStr = pathStr.substring(1)
+                }
+                return@lazy Paths.get(pathStr)
+            }
+
+            val tmpDir = Files.createTempDirectory("nefsedit-cli")
+            for (file in filesInAppDir) {
+                val resource = NefsFile::class.java.getResource("$appDir/$file")
+                    ?: throw RuntimeException("Could not find $file for nefsedit-cli in classpath")
+                val dest = tmpDir.resolve(file)
+                Files.copy(resource.openStream(), dest)
+            }
+            Runtime.getRuntime().addShutdownHook(thread(start = false) {
+                tmpDir.deleteRecursively()
+            })
+
+            return@lazy tmpDir.resolve(filesInAppDir.first())
         }
     }
 }

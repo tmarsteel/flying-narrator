@@ -29,7 +29,7 @@ internal fun assureOpusNativeLibraryIsLoadable() {
     if (System.getProperty("opus.lib") != null) {
         return
     }
-    System.setProperty("opus.lib", """F:\CodingProjects\audio-network\transmitter\src\main\resources\natives\win32-x86-64\libopus.dll""")
+
     val libFilePath = OPUS_LIB_RESOURCE_BY_PLATFORM[Platform.RESOURCE_PREFIX]
         ?: throw RuntimeException("opus is not bundled for this platform: ${Platform.RESOURCE_PREFIX}")
     val libFileResource = OggOpusEncoding::class.java.getResource(libFilePath)
