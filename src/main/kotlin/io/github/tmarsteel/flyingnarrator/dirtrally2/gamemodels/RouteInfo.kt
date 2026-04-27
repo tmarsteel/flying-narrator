@@ -6,6 +6,7 @@ import io.github.tmarsteel.flyingnarrator.nefs.NefsFile
 import kotlinx.serialization.Serializable
 import java.io.IOException
 import java.nio.file.Path
+import java.nio.file.Paths
 
 @Serializable
 data class RouteInfo(
@@ -82,5 +83,16 @@ data class RouteInfo(
             val disciplineName: String,
             val languageKey: String,
         )
+    }
+}
+
+fun main(args: Array<String>) {
+    val gameDir = Paths.get(args[0])
+    val routeInfos = RouteInfo.load(gameDir).sortedBy { it.modelId }
+
+    for (route in routeInfos) {
+        // 472uL to Vector3(1185.39, 606.282, -2669.52),
+        val start = route.startPosition
+        println(route.modelId.toUInt().toString() + "uL to Vector3(${start.x},${start.y},${start.z}),")
     }
 }
