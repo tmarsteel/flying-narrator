@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
+import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2CoordinateSystem
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReadingException
 import io.github.tmarsteel.flyingnarrator.geometry.HermiteSpline
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
@@ -71,8 +72,8 @@ class DR2TrackSplineSet(
         )
         .flatten()
         .map { cp -> HermiteSpline.ControlPoint(
-            Vector3(cp.z, cp.x, cp.y),
-            Vector3(cp.forwardZ, cp.forwardX, cp.forwardY),
+            DirtRally2CoordinateSystem.toAppSystem(Vector3(cp.x, cp.y, cp.z)),
+            DirtRally2CoordinateSystem.toAppSystem(Vector3(cp.forwardX, cp.forwardY, cp.forwardZ)),
         ) }
 
     /**

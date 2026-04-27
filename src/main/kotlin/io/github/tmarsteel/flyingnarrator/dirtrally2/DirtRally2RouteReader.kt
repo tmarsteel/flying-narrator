@@ -103,9 +103,9 @@ class DirtRally2RouteReader(
     ) {
         constructor(dto: DR2ProgressGate) : this(
             dto.id,
-            dto.left.let { Vector3(it.z, it.x, it.y) },
-            dto.crossing.let { Vector3(it.z, it.x, it.y) },
-            dto.right.let { Vector3(it.z, it.x, it.y) },
+            dto.left.let(DirtRally2CoordinateSystem::toAppSystem),
+            dto.crossing.let(DirtRally2CoordinateSystem::toAppSystem),
+            dto.right.let(DirtRally2CoordinateSystem::toAppSystem),
             dto.distance.meters,
         )
 
