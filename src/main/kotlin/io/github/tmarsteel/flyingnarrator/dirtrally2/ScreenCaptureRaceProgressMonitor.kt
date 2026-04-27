@@ -9,7 +9,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 import kotlin.time.TimeSource
 
-class RaceProgressMonitor(
+class ScreenCaptureRaceProgressMonitor(
     val sourceScreen: GraphicsDevice,
     samplingInterval: Duration = StageProgressReporter.OPTIMAL_SAMPLING_INTERVAL,
     extrapolationInterval: Duration = 50.milliseconds,

@@ -3,7 +3,7 @@ package io.github.tmarsteel.flyingnarrator.narrator
 import io.github.tmarsteel.flyingnarrator.audio.ClipQueue
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.dirtrally2.RaceProgressListener
-import io.github.tmarsteel.flyingnarrator.dirtrally2.RaceProgressMonitor
+import io.github.tmarsteel.flyingnarrator.dirtrally2.ScreenCaptureRaceProgressMonitor
 import io.github.tmarsteel.flyingnarrator.editor.RouteComponent
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.pacenote.CuedPacenoteAudio
@@ -83,7 +83,7 @@ class CodriverApp(
         window.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
     }
 
-    val progressMonitor = RaceProgressMonitor(GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice)
+    val progressMonitor = ScreenCaptureRaceProgressMonitor(GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice)
 
     private interface AppState {
         val controlPanel: JComponent

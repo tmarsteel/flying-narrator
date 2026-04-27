@@ -11,17 +11,17 @@ interface RaceProgressListener {
     fun onProgressReportingStarted() {}
 
     /**
-     * Called roughly every [RaceProgressMonitor.extrapolationInterval] with a new progress.
+     * Called roughly every [ScreenCaptureRaceProgressMonitor.extrapolationInterval] with a new progress.
      * @param fraction the progress, between `0.0` and `1.0` inclusive.
      * @param isExtrapolated true if [fraction] is a value extrapolated from the last accurate measurement. This
-     * generally happens when [RaceProgressMonitor.extrapolationInterval] is less than
+     * generally happens when [ScreenCaptureRaceProgressMonitor.extrapolationInterval] is less than
      * [StageProgressReporter.OPTIMAL_SAMPLING_INTERVAL]
      */
     fun onProgress(fraction: Double, isExtrapolated: Boolean)
 
     /**
      * Called _once_ when the progress cannot be determined reliably. Happens e.g. when the game is paused, the race
-     * is exited or the game disappears from the monitored [RaceProgressMonitor.sourceScreen] in any way.
+     * is exited or the game disappears from the monitored [ScreenCaptureRaceProgressMonitor.sourceScreen] in any way.
      */
     fun onProgressUnreliable() {}
 
