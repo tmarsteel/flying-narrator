@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.dirtrally2
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressGate
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressRouteSplit
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2ProgressTrackData
+import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2TrackProgressPosition
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2TrackSplines
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2XMLMapper
 import io.github.tmarsteel.flyingnarrator.feature.MLine
@@ -30,15 +31,19 @@ class DirtRally2RouteReader(
     )
 
     private val progressRoute = progressDto.routes.single()
-    private val startSplit = progressRoute.splits.single { it.type == DR2ProgressRouteSplit.Type.START }
-    private val finishSplit = progressRoute.splits.single { it.type == DR2ProgressRouteSplit.Type.FINISH }
-    private val startGate = Gate(progressDto.gates.single { it.id == startSplit.gateId })
-    private val finishGate = Gate(progressDto.gates.single { it.id == finishSplit.gateId })
+    private val startSplit = progressRoute.splits.first { it.type == DR2ProgressRouteSplit.Type.START }
+    private val finishSplit = progressRoute.splits.last { it.type == DR2ProgressRouteSplit.Type.FINISH }
+    private val startGateDto = progressDto.gates.single { it.id == startSplit.gateId }
+    private val finishGateDto = progressDto.gates.single { it.id == finishSplit.gateId }
+    private val startGate = Gate(startGateDto)
+    private val finishGate = Gate(finishGateDto)
 
     val positionsOnCentralSpline = HermiteSpline.interpolate(
         splineDto.centralSplineOriginal.controlPoints,
         OPTIMAL_ROAD_SEGMENT_LENGTH,
     )
+
+    val startPosition: DR2TrackProgressPosition = startGateDto.crossing
 
     private val route by lazy {
         val allVectors = positionsOnCentralSpline
@@ -73,7 +78,7 @@ class DirtRally2RouteReader(
         fun fromNefs(nefsFile: NefsFile, directoryId: NefsItemId): DirtRally2RouteReader {
             val filesInDir = nefsFile.listFiles(recursive = false, directory = directoryId)
             val splineData = filesInDir
-                .single { it.fileName == "route_spline.xml" }
+                .single { it.fileName == "track_spline.xml" }
                 .let { nefsFile.readFile(it.id, Command.Conversion.UNPACK_BINARY_XML) }
                 .let { DR2XMLMapper.readValue(ByteBufferBackedInputStream(it), DR2TrackSplines::class.java) }
             val codriverData = filesInDir

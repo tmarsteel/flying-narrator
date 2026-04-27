@@ -44,6 +44,7 @@ sourceSets {
     main {
         proto {
             srcDir("nefsedit-cli/nefsedit-cli/protobuf")
+            srcDir("src/main/kotlin/io/github/tmarsteel/flyingnarrator/dirtrally2/gamemodels")
         }
         resources {
             srcDir("build/native-libs")

@@ -1,0 +1,23 @@
+edition = "2023";
+
+package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels;
+option java_outer_classname = "BaseCTPK";
+
+message VehicleClass {
+  uint32 id = 0x01;
+  uint32 name_id = 0x04;
+  uint32 lng_key_id = 0x15;
+  uint32 lng_key_id_caps = 0x16;
+}
+
+message TrackModel {
+  uint32 id = 0x01;
+  uint32 pack_name_id = 0x02;
+  uint32 country_id = 0x04;
+  uint32 location_id = 0x05;
+  uint32 country_name = 0x06;
+  uint32 discipline_name_id = 0x09;
+  uint32 route_name_id = 0x0d;
+  uint32 lng_key = 0x11;
+  uint32 lng_key_caps = 0x12;
+}

@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonValue
+import kotlinx.serialization.Serializable
 import tools.jackson.core.JsonParser
 import tools.jackson.core.JsonToken
 import tools.jackson.databind.DeserializationContext
@@ -52,6 +53,7 @@ class DR2ProgressRouteSplit(
         START("start"),
         TIME("time"),
         FINISH("finish"),
+        SHAKEDOWN_FINISH("shake_finish"),
         ;
 
         companion object {
@@ -112,6 +114,7 @@ class DR2ProgressGate(
     val crossing: DR2TrackProgressPosition,
 )
 
+@Serializable
 @JsonDeserialize(using = DR2TrackProgressPosition.Deserializer::class)
 class DR2TrackProgressPosition(
     val x: Double,

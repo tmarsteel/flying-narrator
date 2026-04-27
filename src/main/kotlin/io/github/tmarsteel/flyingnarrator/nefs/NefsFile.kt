@@ -52,6 +52,19 @@ class NefsFile private constructor(
         }
     }
 
+    fun listDirectoryByPath(path: List<String>, parentDirectory: NefsItemId? = null): List<NefsFileRef> {
+        if (path.isEmpty()) {
+            return listFiles(false, parentDirectory)
+        }
+
+        val nextD = listFiles(false, parentDirectory).find { d -> d.fileName == path.first() }
+        if (nextD == null) {
+            return emptyList()
+        }
+
+        return listDirectoryByPath(path.subList(1, path.size), nextD.id)
+    }
+
     fun readFile(id: NefsItemId, convert: Command.Conversion? = null): ByteBuffer {
         val toHelper = Command.ToNefsEdit.newBuilder()
             .setReadItem(Command.ReadItemCommand.newBuilder()
@@ -65,6 +78,17 @@ class NefsFile private constructor(
             ?: throw NefsException("Improper response from nefsedit-cli; missing item")
 
         return protoItem.data.asReadOnlyByteBuffer()
+    }
+
+    fun readFileByPath(path: List<String>, parentDirectory: NefsItemId? = null): ByteBuffer? {
+        if (path.isEmpty()) {
+            throw NefsException("Path is empty")
+        }
+        val directoryListing = listDirectoryByPath(path.subList(0, path.size - 1), parentDirectory)
+        val fileEntry = directoryListing.find { d -> d.fileName == path.last() }
+            ?: return null
+
+        return readFile(fileEntry.id)
     }
 
     private fun exchange(toHelper: Command.ToNefsEdit): Command.FromNefsEdit {
