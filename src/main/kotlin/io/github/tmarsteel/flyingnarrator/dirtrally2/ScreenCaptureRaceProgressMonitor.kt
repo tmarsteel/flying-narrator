@@ -69,6 +69,7 @@ class ScreenCaptureRaceProgressMonitor(
         }
 
         val newThread = Thread(::monitoringThreadMain, "DR2ProgressMonitor")
+        newThread.isDaemon = true
         if (monitoringThread.compareAndSet(localCurrentThread, newThread)) {
             shouldStop = false
             newThread.start()

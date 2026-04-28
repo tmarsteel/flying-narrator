@@ -28,6 +28,9 @@ value class Velocity(private val metersPerSecond: Double) : ScalarLike<Velocity>
     fun toDoubleAsMetersPerSecond(): Double = metersPerSecond
 
     companion object {
+        val Int.metersPerSecond: Velocity get() = Velocity(this.toDouble())
+        val Float.metersPerSecond: Velocity get() = Velocity(this.toDouble())
+
         object Serializer : KSerializer<Velocity> {
             override val descriptor = PrimitiveSerialDescriptor("Velocity", PrimitiveKind.DOUBLE)
 

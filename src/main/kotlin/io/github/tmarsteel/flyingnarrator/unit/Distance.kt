@@ -42,6 +42,7 @@ value class Distance(private val meters: Double) : ScalarLike<Distance> {
 
     companion object {
         val Int.meters: Distance get() = this.toDouble().meters
+        val Float.meters: Distance get() = Distance(this.toDouble())
         val Double.meters: Distance get() = Distance(this)
 
         object Serializer : KSerializer<Distance> {

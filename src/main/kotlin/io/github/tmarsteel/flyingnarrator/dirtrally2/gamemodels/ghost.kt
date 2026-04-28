@@ -2,10 +2,10 @@ package io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.io.asString
+import io.github.tmarsteel.flyingnarrator.io.getVector3
 import io.github.tmarsteel.flyingnarrator.io.readDelimited
 import io.github.tmarsteel.flyingnarrator.io.readDelimitedBigIntAssumeMax64Bits
 import io.github.tmarsteel.flyingnarrator.io.readLEInt64
-import io.github.tmarsteel.flyingnarrator.io.readVector3
 import io.github.tmarsteel.flyingnarrator.io.skipDelimited
 import io.github.tmarsteel.flyingnarrator.io.skipNBytes
 import io.github.tmarsteel.flyingnarrator.io.skipUntil
@@ -313,12 +313,12 @@ private val MAX_VELOCITY = 83.0 // meters/second = 300km/h
 private val MAX_POSITION_DELTA = MAX_VELOCITY * SAMPLING_INTERVAL.toDouble(DurationUnit.SECONDS)
 private fun ByteBuffer.readCarPositions(startPositon: Vector3): Sequence<Pair<Duration, Vector3>> {
     skipUntil {
-        val v = it.readVector3()
+        val v = it.getVector3()
         !v.hasNaNComponent && (v - startPositon).length < 5.0
     }
 
     return sequence {
-        var position = readVector3()
+        var position = getVector3()
         var time = Duration.ZERO
 
         while (true) {
@@ -326,7 +326,7 @@ private fun ByteBuffer.readCarPositions(startPositon: Vector3): Sequence<Pair<Du
 
             val nextPositionFound = skipUntil(
                 condition = {
-                    val v = it.readVector3()
+                    val v = it.getVector3()
                     !v.hasNaNComponent && (v - position).length <= MAX_POSITION_DELTA
                 },
                 onEof = {},
@@ -335,7 +335,7 @@ private fun ByteBuffer.readCarPositions(startPositon: Vector3): Sequence<Pair<Du
                 break
             }
 
-            position = readVector3()
+            position = getVector3()
             time += SAMPLING_INTERVAL
         }
     }

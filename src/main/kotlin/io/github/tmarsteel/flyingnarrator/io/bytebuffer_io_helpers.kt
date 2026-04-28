@@ -34,7 +34,7 @@ inline fun ByteBuffer.skipUntil(
     return false
 }
 
-fun ByteBuffer.readVector3(): Vector3 {
+fun ByteBuffer.getVector3(): Vector3 {
     return Vector3(
         getFloat().toDouble(),
         getFloat().toDouble(),

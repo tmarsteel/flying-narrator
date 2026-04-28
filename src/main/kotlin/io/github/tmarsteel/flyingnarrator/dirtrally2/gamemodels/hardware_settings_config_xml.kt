@@ -55,7 +55,7 @@ class DR2HardwareSettingsConfig(
         ip: InetAddress,
         port: UShort,
         delay: Int,
-    ) {
+    ): TelemetryExport {
         checkNotClosed()
 
         val element = document.createElement("custom_udp")
@@ -65,7 +65,10 @@ class DR2HardwareSettingsConfig(
         element.setAttribute("port", port.toString())
         element.setAttribute("delay", delay.toString())
         motionPlatformEl.appendChild(element)
-        _telemetryExports.add(TelemetryExportImpl(element))
+
+        val handle = TelemetryExportImpl(element)
+        _telemetryExports.add(handle)
+        return handle
     }
 
     interface TelemetryExport {
