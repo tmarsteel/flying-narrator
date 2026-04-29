@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Timestamper</title>
+        <style>
+            th, td, button, input {
+                font-size: min(1.5cm, 20vh);
+                font-family: sans-serif;
+            }
+            #timestamps {
+                border-collapse: collapse;
+            }
+            #timestamps td, #timestamps th {
+                border: 2px black solid;
+                padding: .5em;
+            }
+            #timestamps th, #timestamps td {
+                text-align: left;
+            }
+            #timestamps tr td:nth-child(1) {
+                width: 0;
+            }
+
+            #timestamps tr td:nth-child(2) {
+                width: 100%;
+            }
+        </style>
+    </head>
+    <body>
+        <table id="timestamps" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <span id="current-time"></span>
+                    </td>
+                    <td>
+                        <button onclick="addTimestamp()">STAMP</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <script type="text/javascript">
+            const tbodyEl = document.querySelector("#timestamps tbody")
+            const currentTimeEl = document.querySelector("#current-time");
+
+            function addTimestamp() {
+                const stampStr = currentTimeEl.innerText;
+                const stampRowEl = document.createElement("tr");
+                const stampCellEl = document.createElement("td");
+                stampCellEl.innerText = stampStr;
+                stampRowEl.appendChild(stampCellEl);
+                const descCellEl = document.createElement("td");
+                const descInput = document.createElement("input");
+                descInput.type = "text";
+                descCellEl.appendChild(descInput);
+                stampRowEl.appendChild(descCellEl);
+                tbodyEl.children.item(tbodyEl.children.length - 1).before( stampRowEl);
+            }
+
+            window.setInterval(function() {
+                currentTimeEl.innerText = new Date().toLocaleTimeString();
+            })
+        </script>
+    </body>
+</html>

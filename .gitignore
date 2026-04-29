@@ -29,3 +29,6 @@ gradle-app.setting
 
 # App cache
 .cache
+
+# Scratch files / development data
+**/dr2-telemetry-*.csv
