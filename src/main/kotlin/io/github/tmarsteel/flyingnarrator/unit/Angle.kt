@@ -27,7 +27,9 @@ value class Angle(private val radians: Double) : ScalarLike<Angle> {
     override fun toString() = toDoubleInDegrees().roundToInt().toString() + "°"
 
     fun toDoubleInRadians(): Double = radians
+    fun toFloatInRadians(): Float = radians.toFloat()
     fun toDoubleInDegrees(): Double = Math.toDegrees(radians)
+    fun toFloatInDegrees(): Float = Math.toDegrees(radians).toFloat()
 
     companion object {
         val Int.radians: Angle get() = this.toDouble().radians
