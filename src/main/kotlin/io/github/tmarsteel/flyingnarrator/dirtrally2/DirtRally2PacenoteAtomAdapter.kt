@@ -105,10 +105,10 @@ class DirtRally2PacenoteAtomAdapter(
 
         when (distanceLink) {
             DR2CodriverDataSubcall.DistanceLink.OPENS -> {
-                words.add(SSMLText("opens"))
+                words.add(SSMLText(" opens"))
             }
             DR2CodriverDataSubcall.DistanceLink.TIGHTENS -> {
-                words.add(SSMLText("tightens"))
+                words.add(SSMLText(" tightens"))
             }
             DR2CodriverDataSubcall.DistanceLink.INTO,
             DR2CodriverDataSubcall.DistanceLink.PLUS -> {

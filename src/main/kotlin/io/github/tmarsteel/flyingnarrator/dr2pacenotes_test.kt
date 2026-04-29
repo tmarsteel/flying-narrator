@@ -31,7 +31,7 @@ fun main(args: Array<String>) {
     }
 
     val codriverData = DR2XMLMapper.readValue(ByteBufferBackedInputStream(codriverXml), DR2CodriverData::class.java)
-    val pacenotes = DirtRally2PacenoteAtomAdapter.adapt(codriverData).take(10)
+    val pacenotes = DirtRally2PacenoteAtomAdapter.adapt(codriverData)
     SSMLDocument(Locale.ENGLISH, pacenotes.map { it.toSSML(Locale.ENGLISH) })
         .let { ssmlToString(it, true) }
         .let(::println)
