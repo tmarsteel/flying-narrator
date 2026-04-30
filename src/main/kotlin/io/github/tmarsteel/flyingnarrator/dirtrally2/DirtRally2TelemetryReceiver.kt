@@ -18,6 +18,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Paths
 import java.util.Collections
+import javax.swing.SwingUtilities
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.io.path.name
@@ -115,11 +116,13 @@ object DirtRally2TelemetryReceiver {
         }
     }
     private fun dispatch(action: (Listener) -> Unit) {
-        listeners.forEach {
-            try {
-                action(it)
-            } catch (e: Exception) {
-                e.printStackTrace()
+        SwingUtilities.invokeLater {
+            listeners.forEach {
+                try {
+                    action(it)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
