@@ -32,8 +32,6 @@ dependencies {
     implementation("net.java.dev.jna:jna:4.4.0")
     implementation("org.gagravarr:vorbis-java-core:0.8")
 
-    implementation("org.bytedeco:javacv-platform:1.5.11")
-
     testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-assertions-core:6.1.5")
     testImplementation("io.kotest:kotest-framework-engine:6.1.5")
