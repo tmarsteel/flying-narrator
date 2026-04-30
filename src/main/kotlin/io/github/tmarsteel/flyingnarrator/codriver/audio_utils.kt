@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator.narrator
+package io.github.tmarsteel.flyingnarrator.codriver
 
 import io.github.tmarsteel.flyingnarrator.utils.zipWithNextAndEmitLast
 import java.nio.file.Path

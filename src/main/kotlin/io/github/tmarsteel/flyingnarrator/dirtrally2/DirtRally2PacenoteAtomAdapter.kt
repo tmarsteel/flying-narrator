@@ -20,7 +20,7 @@ import kotlin.time.Duration
  */
 class DirtRally2PacenoteAtomAdapter(
     val previousCall: DR2CodriverDataCall?,
-    val call: DR2CodriverDataCall
+    val call: DR2CodriverDataCall,
 ) : PacenoteAtom {
     override val metadata = PacenoteAtom.Metadata(
         call.distanceAlongTrack.meters,

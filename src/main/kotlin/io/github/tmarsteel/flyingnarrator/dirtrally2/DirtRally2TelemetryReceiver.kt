@@ -1,7 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.dirtrally2
 
-import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2GameObserver.TELEMETRY_STALL_TIMEOUT
-import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2GameObserver.TELEMETRY_STOP_TIMEOUT
+import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2TelemetryReceiver.TELEMETRY_STALL_TIMEOUT
+import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2TelemetryReceiver.TELEMETRY_STOP_TIMEOUT
 import io.github.tmarsteel.flyingnarrator.dirtrally2.gamemodels.DR2HardwareSettingsConfig
 import io.github.tmarsteel.flyingnarrator.io.FileCache
 import io.github.tmarsteel.flyingnarrator.io.InetSocketAddressSerializer
@@ -29,7 +29,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 @OptIn(ExperimentalAtomicApi::class)
-object DirtRally2GameObserver {
+object DirtRally2TelemetryReceiver {
     /**
      * @see Listener.onTelemetryReceptionEnded
      */
@@ -59,6 +59,23 @@ object DirtRally2GameObserver {
         }
         FileCache.set("dr2.telemetry-race-progress", CacheData(chosenAddress))
         chosenAddress
+    }
+
+    /**
+     * True iff the game is currently running and needs to be restarted for telemetry to become available.
+     */
+    var gameRequiresRestart: Boolean = false
+        private set
+    init {
+        val telemetryWasConfigured = assureTelemetryIsConfigured()
+        if (!telemetryWasConfigured) {
+            scanForGameProcess()?.also { gameProcess ->
+                gameRequiresRestart = true
+                gameProcess.onExit().whenComplete { _, _ ->
+                    gameRequiresRestart = false
+                }
+            }
+        }
     }
 
     private var monitoringThread = AtomicReference<Thread?>(null)
@@ -107,25 +124,24 @@ object DirtRally2GameObserver {
         }
     }
 
+    @Volatile
+    private lateinit var monitoringState: MonitorState
     private fun monitoringThreadMain() {
         val process = scanForGameProcess()
-        var state = if (process == null) {
+        monitoringState = if (process == null) {
             MonitorState.GameNotRunning
         } else {
-            MonitorState.GameRunning(process)
+            MonitorState.GameRunning(process, true)
         }
-        state.onInit()
 
         while (!Thread.currentThread().isInterrupted) {
-            state = state.takeControl()
+            monitoringState = monitoringState.takeControl()
         }
     }
 
     interface Listener {
         fun onGameRunning(wasJustStarted: Boolean)
         fun onGameStopped()
-
-        fun onTelemetryRequiresGameRestart()
 
         /**
          * Is called when the first packet of telemetry arrives, or after [onTelemetryReceptionEnded] had been called
@@ -188,14 +204,9 @@ object DirtRally2GameObserver {
     }
 
     private sealed interface MonitorState {
-        fun onInit() {}
         fun takeControl(): MonitorState
 
         object GameNotRunning : MonitorState {
-            override fun onInit() {
-                assureTelemetryIsConfigured()
-            }
-
             override fun takeControl(): MonitorState {
                 while (true) {
                     val gameProcess = scanForGameProcess()
@@ -207,22 +218,11 @@ object DirtRally2GameObserver {
             }
         }
 
-        class GameRunning(val process: ProcessHandle) : MonitorState {
-            private var isInitialState = false
-            override fun onInit() {
-                isInitialState = true
-                dispatch { it.onGameRunning(false) }
-                if (!assureTelemetryIsConfigured()) {
-                    dispatch { it.onTelemetryRequiresGameRestart() }
-                }
-            }
-
+        class GameRunning(val process: ProcessHandle, private val isInitialState: Boolean = false) : MonitorState {
             private var telemetryReceptionOngoing = false
             private var telemetryStalled = false
             override fun takeControl(): MonitorState {
-                if (!isInitialState) {
-                    dispatch { it.onGameRunning(true) }
-                }
+                dispatch { it.onGameRunning(!isInitialState) }
 
                 process.onExit().whenComplete { _, _ ->
                     monitoringThread.load()?.interrupt()
@@ -247,6 +247,9 @@ object DirtRally2GameObserver {
                         telemetryReceptionOngoing = false
                     }
                     catch (_: InterruptedException) {
+                        if (telemetryReceptionOngoing) {
+                            dispatch { it.onTelemetryReceptionEnded() }
+                        }
                         break
                     }
                 }
@@ -329,7 +332,7 @@ object DirtRally2GameObserver {
     }
 
     /**
-     * @return true iff telemetry as already properly configured when this method was called
+     * @return true iff telemetry was already properly configured when this method was called
      */
     private fun assureTelemetryIsConfigured(): Boolean {
         DR2HardwareSettingsConfig.readCurrent().use { dr2hwConfig ->
@@ -358,6 +361,11 @@ object DirtRally2GameObserver {
 
     @JvmStatic
     fun main(args: Array<String>) {
+        if (gameRequiresRestart) {
+            println("!!!! the game needs to be restarted to enable telemetry !!!!")
+            exitProcess(-1)
+        }
+
         val outfile = Paths.get("dr2-telemetry-${System.currentTimeMillis() / 1000}.csv").toAbsolutePath()
         println("monitoring, writing to $outfile")
 
@@ -375,11 +383,6 @@ object DirtRally2GameObserver {
                 }
             }
 
-            override fun onTelemetryRequiresGameRestart() {
-                println("!!!! CAN'T RECORD TELEMETRY, PLEASE RESTART THE GAME !!!!")
-                exitProcess(-1)
-            }
-
             override fun onGameStopped() {
                 println("game stopped")
                 csvOut.flush()
@@ -387,7 +390,7 @@ object DirtRally2GameObserver {
                 exitProcess(0)
             }
 
-            override fun onTelemetryReceived(record: DirtRally2GameObserver.TelemetryRecord) {
+            override fun onTelemetryReceived(record: DirtRally2TelemetryReceiver.TelemetryRecord) {
                 val time = startedAt.elapsedNow().inWholeMilliseconds
                 csvOut.write("$time")
                 for (p in record.data) {

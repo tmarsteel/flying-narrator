@@ -82,7 +82,7 @@ class CuedAudioPacenotes private constructor(
          * @param raceLength length of the racing part of the route (start line to finish line)
          * @param speedmap used to adapt the timing of the callouts to the speed of the car
          */
-        fun cueue(
+        fun cue(
             pacenotes: AudioPacenotes,
             raceLength: Distance,
             speedmap: Speedmap,
