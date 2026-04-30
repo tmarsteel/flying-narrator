@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import com.formdev.flatlaf.FlatLightLaf
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
@@ -22,8 +23,12 @@ class RouteEditorApp {
         @JvmStatic
         fun main(args: Array<String>) {
             try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+                UIManager.setLookAndFeel(FlatLightLaf())
             } catch (_: Exception) {
+                try {
+                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+                } catch (_: Exception) {
+                }
             }
 
             val inputFilePath = args.firstOrNull() ?: run {
