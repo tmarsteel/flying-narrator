@@ -1,12 +1,11 @@
 package io.github.tmarsteel.flyingnarrator.pacenote
 
 import io.github.tmarsteel.flyingnarrator.audio.concatenate
-import io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusAudioFileType
 import io.github.tmarsteel.flyingnarrator.audio.opus.OggOpusEncoding
 import io.github.tmarsteel.flyingnarrator.audio.timeLength
+import io.github.tmarsteel.flyingnarrator.io.ByteArrayBase64Serializer
 import io.github.tmarsteel.flyingnarrator.io.CompactObjectListSerializer
 import io.github.tmarsteel.flyingnarrator.io.KotlinDurationAsMillisecondsSerializer
-import io.github.tmarsteel.flyingnarrator.io.SystemPathSerializer
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesisInputTooLongException
 import io.github.tmarsteel.flyingnarrator.tts.SpeechSynthesizer
 import io.github.tmarsteel.flyingnarrator.tts.SynthesizedSpeech
@@ -14,10 +13,9 @@ import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLDocument
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLElement
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLMark
 import kotlinx.serialization.Serializable
-import java.io.File
-import java.nio.file.Path
+import java.io.ByteArrayOutputStream
 import java.util.Locale
-import javax.sound.sampled.AudioFileFormat
+import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import kotlin.time.Duration
 
@@ -25,30 +23,26 @@ import kotlin.time.Duration
  * Audio for all [PacenoteAtom]s in a route plus markings where each [PacenoteAtom] starts in the audio
  * data as well as the original [PacenoteAtom.physicalFeaturesAtDistanceAlongRoute].
  * This data is what you can save and share after curation/quality check. Further customization and adaption
- * (e.g. considering the drivers pace) then happens in real time with [CuedPacenoteAudio].
+ * (e.g. considering the drivers pace) then happens in real time with [CuedAudioPacenotes].
  */
 @Serializable
-data class PacenoteAudio(
-    @Serializable(with = SystemPathSerializer::class)
-    val audioFile: Path,
+class AudioPacenotes(
+    @Serializable(with = ByteArrayBase64Serializer::class)
+    val encodedAudio: ByteArray,
 
     @Serializable(with = CompactObjectListSerializer::class)
     val markers: List<CallData>,
 ) {
-    fun withMappedAudioFilePath(mapper: (Path) -> Path): PacenoteAudio {
-        return copy(audioFile = mapper(audioFile))
-    }
-
     @Serializable
     data class CallData(
         /**
-         * The duration within [PacenoteAudio.audioFile] at which the sound for this callout starts
+         * The duration within [AudioPacenotes.audioFile] at which the sound for this callout starts
          */
         @Serializable(with = KotlinDurationAsMillisecondsSerializer::class)
         val callAudioStartsAt: Duration,
 
         /**
-         * The duration within [PacenoteAudio.audioFile] at which the sound for this callout ends
+         * The duration within [AudioPacenotes.audioFile] at which the sound for this callout ends
          */
         @Serializable(with = KotlinDurationAsMillisecondsSerializer::class)
         val callAudioEndsAt: Duration,
@@ -67,18 +61,14 @@ data class PacenoteAudio(
     }
 
     companion object {
-        fun renderToFile(
+        fun render(
             pacenotes: List<PacenoteAtom>,
             synthesizer: SpeechSynthesizer,
             localePreference: List<Locale.LanguageRange> = listOf(Locale.LanguageRange("en-US")),
-            fileType: AudioFileFormat.Type = OggOpusAudioFileType,
-            storeAudioIn: Path = File.createTempFile("pacenote-audio", "." + fileType.extension).run {
-                deleteOnExit()
-                toPath()
-            },
-        ): PacenoteAudio {
+            audioEncoding: AudioFormat.Encoding = OPUS_ENCODING,
+        ): AudioPacenotes {
             val parts = renderToMemory(pacenotes, synthesizer, localePreference)
-            return mergeToFile(parts, storeAudioIn, fileType)
+            return merge(parts, audioEncoding)
         }
 
         fun renderToMemory(
@@ -135,11 +125,10 @@ data class PacenoteAudio(
             return listOf(Pair(synthesized, callMarkers))
         }
 
-        fun mergeToFile(
+        fun merge(
             parts: List<Pair<SynthesizedSpeech, List<CallData>>>,
-            storeAudioIn: Path,
-            fileType: AudioFileFormat.Type,
-        ): PacenoteAudio {
+            audioEncoding: AudioFormat.Encoding = OPUS_ENCODING,
+        ): AudioPacenotes {
             val callsWithPartOffset = mutableListOf<Pair<Duration, List<CallData>>>()
             val audioIns = parts.map { it.first.openNewAudioInputStream() }
             val concatenatedAudio = audioIns.concatenate()
@@ -149,13 +138,9 @@ data class PacenoteAudio(
                 durationCarry += audioIn.timeLength
             }
 
-            if (fileType == OggOpusAudioFileType) {
-                AudioSystem.getAudioInputStream(OPUS_ENCODING, concatenatedAudio).use { opusAudioIn ->
-                    AudioSystem.write(opusAudioIn, fileType, storeAudioIn.toFile())
-                }
-            } else {
-                AudioSystem.write(concatenatedAudio, fileType, storeAudioIn.toFile())
-                concatenatedAudio.close()
+            val outBuffer = ByteArrayOutputStream()
+            AudioSystem.getAudioInputStream(audioEncoding, concatenatedAudio).use { encodedAudioIn ->
+                encodedAudioIn.transferTo(outBuffer)
             }
 
             val adjustedCalls = mutableListOf<CallData>()
@@ -173,7 +158,10 @@ data class PacenoteAudio(
                 }
             }
 
-            return PacenoteAudio(storeAudioIn, adjustedCalls)
+            return AudioPacenotes(
+                outBuffer.toByteArray(),
+                adjustedCalls,
+            )
         }
 
         val OPUS_ENCODING = OggOpusEncoding(

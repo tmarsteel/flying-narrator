@@ -12,14 +12,14 @@ interface Lookahead {
      * at which the callout must have finished playing back _latest_.
      */
     fun determineCalloutLocation(
-        callout: PacenoteAudio.CallData,
+        callout: AudioPacenotes.CallData,
         speedmap: Speedmap,
     ): Distance
 
     companion object {
         fun ofConstantDistance(distance: Distance): Lookahead = object : Lookahead {
             override fun determineCalloutLocation(
-                callout: PacenoteAudio.CallData,
+                callout: AudioPacenotes.CallData,
                 speedmap: Speedmap
             ): Distance {
                 return callout.metadata.physicalFeaturesAtDistanceAlongRoute - distance

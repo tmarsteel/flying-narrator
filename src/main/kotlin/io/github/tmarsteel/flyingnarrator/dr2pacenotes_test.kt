@@ -7,16 +7,19 @@ import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.nefs.NefsCoordinates
 import io.github.tmarsteel.flyingnarrator.nefs.NefsFile
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
-import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAudio
+import io.github.tmarsteel.flyingnarrator.pacenote.AudioPacenotes
 import io.github.tmarsteel.flyingnarrator.tts.gcloud.GoogleCloudSpeechSynthesizer
 import io.github.tmarsteel.flyingnarrator.tts.ssml.SSMLDocument
 import io.github.tmarsteel.flyingnarrator.tts.ssml.ssmlToString
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.encodeToStream
 import okhttp3.OkHttpClient
 import tools.jackson.databind.util.ByteBufferBackedInputStream
 import java.nio.file.Paths
 import java.util.Locale
-import kotlin.io.path.writeText
+import kotlin.io.path.outputStream
 
+@OptIn(ExperimentalSerializationApi::class)
 fun main(args: Array<String>) {
     val codriver_file_regex = Regex("(?<location>\\w+)_rally_(?<locationNumber>\\d+)_codriver_\\d+_pro_\\d+_data.xml")
     val codriverXml = NefsFile.open(NefsCoordinates.FileOnSystemDisk(Paths.get(args[0]))).use { routePackFile ->
@@ -47,7 +50,8 @@ fun main(args: Array<String>) {
         .build()
     val synthesizer = GoogleCloudSpeechSynthesizer(httpClient = httpClient)
 
-    val pacenoteAudio = PacenoteAudio.renderToFile(pacenotes, synthesizer, storeAudioIn = Paths.get("pacenotes.opus"))
-    val savedAudio = FlyingNarratorJsonFormat.encodeToString(PacenoteAudio.serializer(), pacenoteAudio)
-    Paths.get("pacenote-audio.json").writeText(savedAudio)
+    val audioPacenotes = AudioPacenotes.render(pacenotes, synthesizer)
+    Paths.get("audio-pacenotes.json").outputStream().use { fileOut ->
+        FlyingNarratorJsonFormat.encodeToStream(audioPacenotes, fileOut)
+    }
 }

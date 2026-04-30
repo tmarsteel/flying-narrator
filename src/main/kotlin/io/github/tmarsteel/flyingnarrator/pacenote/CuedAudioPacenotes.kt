@@ -5,6 +5,7 @@ import io.github.tmarsteel.flyingnarrator.audio.skip
 import io.github.tmarsteel.flyingnarrator.route.Speedmap
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import java.io.ByteArrayInputStream
 import java.util.Collections
 import java.util.LinkedList
 import java.util.TreeMap
@@ -13,16 +14,16 @@ import javax.sound.sampled.Clip
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * A [PacenoteAudio], but the cues are now concrete progress values (0-1), which can be directly utilized to play
+ * [AudioPacenotes], but the cues are now concrete progress values (0-1), which can be directly utilized to play
  * back the callouts as the car progresses through the stage. The actual cues are also based on driver preference,
  * and ideally, consider the speed of the car (DiRT Rally 2 doesn't).
  */
-class CuedPacenoteAudio private constructor(
-    val baseAudio: PacenoteAudio,
+class CuedAudioPacenotes private constructor(
+    val baseAudio: AudioPacenotes,
     val intro: List<CuedCallout>,
     val cues: TreeMap<Distance, CuedCallout>,
 ) {
-    constructor(baseAudio: PacenoteAudio, intro: List<CuedCallout>, cues: List<CuedCallout>) : this(
+    constructor(baseAudio: AudioPacenotes, intro: List<CuedCallout>, cues: List<CuedCallout>) : this(
         baseAudio,
         intro,
         TreeMap(cues.associateBy { it.triggerAtDistanceAlongRoute })
@@ -51,7 +52,7 @@ class CuedPacenoteAudio private constructor(
          */
         val triggerAtDistanceAlongRoute: Distance
 
-        val callData: PacenoteAudio.CallData
+        val callData: AudioPacenotes.CallData
 
         val clip: Clip
     }
@@ -67,7 +68,7 @@ class CuedPacenoteAudio private constructor(
          */
         val finishesAtDistanceAlongRoute: Distance,
 
-        override val callData: PacenoteAudio.CallData,
+        override val callData: AudioPacenotes.CallData,
     ) : CuedCallout {
         override lateinit var clip: Clip
     }
@@ -82,11 +83,11 @@ class CuedPacenoteAudio private constructor(
          * @param speedmap used to adapt the timing of the callouts to the speed of the car
          */
         fun cueue(
-            pacenotes: PacenoteAudio,
+            pacenotes: AudioPacenotes,
             raceLength: Distance,
             speedmap: Speedmap,
             lookahead: Lookahead,
-        ): CuedPacenoteAudio {
+        ): CuedAudioPacenotes {
             val finishLineCallout = pacenotes.markers.find { it.metadata.finishLineAtOffset >= 0.meters }
             val lastImportantPoint = finishLineCallout
                 ?.metadata?.run { physicalFeaturesAtDistanceAlongRoute + finishLineAtOffset }
@@ -116,11 +117,11 @@ class CuedPacenoteAudio private constructor(
             fillClips(intro, pacenotes)
             fillClips(cues, pacenotes)
 
-            return CuedPacenoteAudio(pacenotes, intro, cues)
+            return CuedAudioPacenotes(pacenotes, intro, cues)
         }
 
         private fun cueCalloutsAvoidingOverlapBackwards(
-            calls: List<PacenoteAudio.CallData>,
+            calls: List<AudioPacenotes.CallData>,
             introOut: MutableList<CuedCalloutImpl>,
             cuesOut: MutableList<CuedCalloutImpl>,
             speedmap: Speedmap,
@@ -163,7 +164,7 @@ class CuedPacenoteAudio private constructor(
         }
 
         private fun cueCalloutsAvoidingOverlapForward(
-            calls: List<PacenoteAudio.CallData>,
+            calls: List<AudioPacenotes.CallData>,
             cuesOut: MutableList<CuedCalloutImpl>,
             speedmap: Speedmap,
             lookahead: Lookahead,
@@ -182,8 +183,8 @@ class CuedPacenoteAudio private constructor(
             }
         }
 
-        private fun fillClips(cues: List<CuedCalloutImpl>, pacenotes: PacenoteAudio) {
-            AudioSystem.getAudioInputStream(pacenotes.audioFile.toFile()).use { audioIn ->
+        private fun fillClips(cues: List<CuedCalloutImpl>, pacenotes: AudioPacenotes) {
+            AudioSystem.getAudioInputStream(ByteArrayInputStream(pacenotes.encodedAudio)).use { audioIn ->
                 var previousEndedAt = 0.seconds
                 for (cue in cues.sortedBy { it.callData.callAudioStartsAt }) {
                     require(cue.callData.callAudioStartsAt >= previousEndedAt) {
