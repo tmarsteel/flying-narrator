@@ -2,19 +2,26 @@ package io.github.tmarsteel.flyingnarrator.editor
 
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
-import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
+import java.awt.Insets
 import java.awt.Point
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.event.MouseWheelEvent
 import java.awt.event.MouseWheelListener
+import javax.swing.Box
+import javax.swing.BoxLayout
+import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JLayeredPane
+import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JViewport
 import javax.swing.OverlayLayout
@@ -63,6 +70,7 @@ class ScrollableRouteComponent(
             val pointedComponentPosition = Point(mwe.x, mwe.y)
             val pointedRoutePosition = routeComponent.getRoutePositionFromComponentPosition(pointedComponentPosition)
             routeComponent.scale = newScale
+            zoomComponent.update()
             val newComponentPosition = routeComponent.getComponentPositionFromRoutePosition(pointedRoutePosition)
             val dX = newComponentPosition.x - pointedComponentPosition.x
             val dY = newComponentPosition.y - pointedComponentPosition.y
@@ -89,10 +97,13 @@ class ScrollableRouteComponent(
 
             g.color = Color.BLACK // todo: use track color
             g.stroke = BasicStroke(routeComponent.lineThickness)
-            g.translate(10, 10)
             g.drawLine(0, 0, indicatorLineLength, 0)
             g.font = g.font.deriveFont(fontSize)
             g.drawString("100m", 0, (routeComponent.lineThickness * 2.0f + fontSize).toInt())
+        }
+
+        override fun getPreferredSize(): Dimension? {
+            return getMinimumSize()
         }
 
         override fun getMinimumSize(): Dimension {
@@ -103,15 +114,68 @@ class ScrollableRouteComponent(
         }
     }
 
+    private val zoomComponent = object : JPanel() {
+        private val zoomOutButton = JButton("-")
+        private val zoomInButton = JButton("+")
+        private val zoomLabel = JLabel("100%")
+        init {
+            layout = BoxLayout(this, BoxLayout.LINE_AXIS)
+            add(zoomOutButton)
+            add(Box.createHorizontalStrut(3))
+            add(zoomLabel)
+            add(Box.createHorizontalStrut(3))
+            add(zoomInButton)
+            isOpaque = false
+            update()
+
+            zoomInButton.addActionListener {
+                routeComponent.scale *= 1.1
+                update()
+            }
+            zoomOutButton.addActionListener {
+                routeComponent.scale /= 1.1
+                update()
+            }
+        }
+
+        fun update() {
+            zoomLabel.text = "${(routeComponent.scale * 100.0).toInt()}%"
+        }
+
+        override fun revalidate() {
+            super.revalidate()
+        }
+    }
+
     init {
         layout = OverlayLayout(this)
         scrollPane.isWheelScrollingEnabled = false
         scrollPane.viewport.scrollMode = JViewport.BLIT_SCROLL_MODE
         setLayer(scrollPane, 0)
-        add(scrollPane, BorderLayout.CENTER)
+        add(scrollPane)
 
-        setLayer(scaleIndicatorComponent, 1)
-        add(scaleIndicatorComponent, BorderLayout.CENTER)
+        val bottomPanel = JPanel().also {
+            val gridBag = GridBagLayout()
+            it.layout = gridBag
+            it.isOpaque = false
+            it.background = Color(0, true)
+            gridBag.setConstraints(scaleIndicatorComponent, GridBagConstraints().apply {
+                weightx = 1.0
+                weighty = 1.0
+                insets = Insets(10, 10, 10, 10)
+                anchor = GridBagConstraints.SOUTHWEST
+            })
+            it.add(scaleIndicatorComponent)
+            gridBag.setConstraints(zoomComponent, GridBagConstraints().apply {
+                weightx = 1.0
+                weighty = 1.0
+                insets = Insets(10, 10, 10, 10)
+                anchor = GridBagConstraints.SOUTHEAST
+            })
+            it.add(zoomComponent)
+        }
+        setLayer(bottomPanel, 1)
+        add(bottomPanel)
 
         routeComponent.addMouseListener(_mouseListener)
         routeComponent.addMouseMotionListener(_mouseListener)
