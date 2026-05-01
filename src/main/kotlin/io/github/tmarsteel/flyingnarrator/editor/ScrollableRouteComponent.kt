@@ -1,21 +1,29 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import java.awt.BasicStroke
+import java.awt.BorderLayout
+import java.awt.Color
+import java.awt.Dimension
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.Point
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.event.MouseWheelEvent
 import java.awt.event.MouseWheelListener
-import javax.swing.BoxLayout
-import javax.swing.JPanel
+import javax.swing.JComponent
+import javax.swing.JLayeredPane
 import javax.swing.JScrollPane
 import javax.swing.JViewport
+import javax.swing.OverlayLayout
 import javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
 import javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
 
 class ScrollableRouteComponent(
     private val routeComponent: RouteComponent,
-) : JPanel() {
+) : JLayeredPane() {
     private val scrollPane = JScrollPane(
         routeComponent,
         VERTICAL_SCROLLBAR_AS_NEEDED,
@@ -67,11 +75,44 @@ class ScrollableRouteComponent(
         override fun mouseClicked(e: MouseEvent?) {}
     }
 
+    private val scaleIndicatorComponent = object : JComponent() {
+        private val indicatedDistance = 100.meters
+        private val fontSize = 14.0f
+
+        private val indicatorLineLength: Int
+            get() = (routeComponent.scale * indicatedDistance.toDoubleInMeters()).toInt()
+
+        override fun paintComponent(g: Graphics) {
+            super.paintComponent(g)
+
+            g as Graphics2D
+
+            g.color = Color.BLACK // todo: use track color
+            g.stroke = BasicStroke(routeComponent.lineThickness)
+            g.translate(10, 10)
+            g.drawLine(0, 0, indicatorLineLength, 0)
+            g.font = g.font.deriveFont(fontSize)
+            g.drawString("100m", 0, (routeComponent.lineThickness * 2.0f + fontSize).toInt())
+        }
+
+        override fun getMinimumSize(): Dimension {
+            return Dimension(
+                indicatorLineLength,
+                (routeComponent.lineThickness * 2.0f + fontSize).toInt(),
+            )
+        }
+    }
+
     init {
-        layout = BoxLayout(this, BoxLayout.X_AXIS)
+        layout = OverlayLayout(this)
         scrollPane.isWheelScrollingEnabled = false
         scrollPane.viewport.scrollMode = JViewport.BLIT_SCROLL_MODE
-        add(scrollPane)
+        setLayer(scrollPane, 0)
+        add(scrollPane, BorderLayout.CENTER)
+
+        setLayer(scaleIndicatorComponent, 1)
+        add(scaleIndicatorComponent, BorderLayout.CENTER)
+
         routeComponent.addMouseListener(_mouseListener)
         routeComponent.addMouseMotionListener(_mouseListener)
         routeComponent.addMouseWheelListener(_mouseListener)

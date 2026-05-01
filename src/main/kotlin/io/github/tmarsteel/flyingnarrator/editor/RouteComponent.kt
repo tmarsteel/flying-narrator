@@ -13,11 +13,11 @@ import io.github.tmarsteel.flyingnarrator.utils.foldInto
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension
-import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Point
 import java.awt.Polygon
+import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.event.MouseEvent
@@ -30,13 +30,14 @@ import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JToolTip
+import javax.swing.Scrollable
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 class RouteComponent(
     val route: Route,
     val features: List<Feature>,
-) : JComponent() {
+) : JComponent(), Scrollable {
     var scale by RepaintBaseImageOnChange(0.4, alsoOnChange = { revalidate() })
     var distanceMarkersEvery by RepaintBaseImageOnChange(200.meters)
     var distanceMarkerColor: Color? by RepaintBaseImageOnChange(Color.RED)
@@ -61,16 +62,31 @@ class RouteComponent(
         baseImageNeedsRepaint = true
     }
 
-    override fun getPreferredSize(): Dimension {
-        return minimumSize
-    }
+    override fun getPreferredSize(): Dimension = preferredScrollableViewportSize
 
-    override fun getMinimumSize(): Dimension {
+    override fun getMinimumSize(): Dimension = preferredScrollableViewportSize
+
+    override fun getPreferredScrollableViewportSize(): Dimension {
         return Dimension(
             ceil(routeBoundsInRouteCoordinateSpace.width * scale).toInt() + paddingPx * 2,
             ceil(routeBoundsInRouteCoordinateSpace.height * scale).toInt() + paddingPx * 2,
         )
     }
+
+    override fun getScrollableUnitIncrement(
+        visibleRect: Rectangle?,
+        orientation: Int,
+        direction: Int
+    ): Int = 1
+
+    override fun getScrollableBlockIncrement(
+        visibleRect: Rectangle?,
+        orientation: Int,
+        direction: Int
+    ): Int = 1
+
+    override fun getScrollableTracksViewportWidth(): Boolean = false
+    override fun getScrollableTracksViewportHeight(): Boolean = false
 
     fun fitScaleToSize(targetWidth: Int, targetHeight: Int) {
         val scaleX = (targetWidth.toDouble() - paddingPx * 2) / routeBoundsInRouteCoordinateSpace.width
@@ -88,11 +104,6 @@ class RouteComponent(
         assureBaseImageIsUpToDate()
 
         g.drawImage(baseImage, 0, 0, null)
-
-        g.color = computeTrackColor(null)
-        g.drawLine(10, height - 10, 10 + (100.0 * scale).toInt(), height - 10)
-        g.font = g.font.deriveFont(Font.PLAIN, 14.0f)
-        g.drawString("100m", 10, height - 10 - (lineThickness * 2.0f).toInt())
 
         paintCarMarker(g)
 
