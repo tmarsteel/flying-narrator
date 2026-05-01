@@ -23,7 +23,6 @@ import java.awt.Shape
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionListener
 import java.awt.geom.AffineTransform
-import java.awt.geom.Ellipse2D
 import java.awt.geom.Line2D
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
@@ -41,10 +40,7 @@ class RouteComponent(
     var scale by RepaintBaseImageOnChange(0.4, alsoOnChange = { revalidate() })
     var distanceMarkersEvery by RepaintBaseImageOnChange(200.meters)
     var distanceMarkerColor: Color? by RepaintBaseImageOnChange(Color.RED)
-    var startMarkerColor by RepaintBaseImageOnChange(Color.RED)
-    var finishMarkerColor by RepaintBaseImageOnChange(Color.GREEN)
     var lineThickness by RepaintBaseImageOnChange(3.0f)
-    var segmentJointMarkerColor: Color? by RepaintBaseImageOnChange(null)
     var paddingPx by RepaintBaseImageOnChange(100, alsoOnChange = { revalidate() })
 
     val routeBoundsInRouteCoordinateSpace: Rectangle2D = computeRouteBounds(route)
@@ -259,11 +255,6 @@ class RouteComponent(
                 g.draw(Line2D.Double(prevX, prevY, x, y))
             }
 
-            if (segmentJointMarkerColor != null) {
-                val jointMarkerRadius = (lineThickness + 1) / (2.0 * scale)
-                g.color = segmentJointMarkerColor
-                g.fill(Ellipse2D.Double(prevX - jointMarkerRadius, prevY - jointMarkerRadius, jointMarkerRadius * 2, jointMarkerRadius * 2))
-            }
             distanceCarry += segment.length
             distanceSinceLastMarker += segment.length
             if (distanceSinceLastMarker >= distanceMarkersEvery && distanceMarkerColor != null) {
@@ -281,15 +272,9 @@ class RouteComponent(
             }
         }
 
-        g.color = startMarkerColor
-        g.draw(Ellipse2D.Double(-startFinishMarkerRadius, -startFinishMarkerRadius, startFinishMarkerRadius * 2, startFinishMarkerRadius * 2))
-
-        g.color = finishMarkerColor
-        g.draw(Ellipse2D.Double(carryPoint.x - startFinishMarkerRadius, carryPoint.y - startFinishMarkerRadius, startFinishMarkerRadius * 2, startFinishMarkerRadius * 2))
-
         val finishPt = routeTransform.transform(Point2D.Double(prevX, prevY), null)
         withTransform(g, AffineTransform()) {
-            g.color = segmentJointMarkerColor
+            g.color = distanceMarkerColor
             val distanceText = String.format("%3.2f km", (distanceCarry.toDoubleInMeters() / 1000.0))
             g.drawString(distanceText, finishPt.x.toInt(), (finishPt.y + 10).toInt())
         }
