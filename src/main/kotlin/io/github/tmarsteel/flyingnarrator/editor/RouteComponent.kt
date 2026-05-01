@@ -22,11 +22,14 @@ import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionListener
+import java.awt.geom.AffineTransform
+import java.awt.geom.Ellipse2D
+import java.awt.geom.Line2D
+import java.awt.geom.Point2D
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JToolTip
 import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.roundToInt
 
 class RouteComponent(
@@ -42,44 +45,47 @@ class RouteComponent(
     var segmentJointMarkerColor: Color? by RepaintBaseImageOnChange(null)
     var paddingPx by RepaintBaseImageOnChange(100, alsoOnChange = { revalidate() })
 
-    private val routeCoordinateSystem = object {
-        private val offsetX: Double
-        private val offsetY: Double
-        val width: Double
-        val height: Double
+    private val routeBounds = object {
+        val minX: Double
+        val maxX: Double
+        val minY: Double
+        val maxY: Double
 
         init {
-            var minX = Double.POSITIVE_INFINITY
-            var maxX = Double.NEGATIVE_INFINITY
-            var minY = Double.POSITIVE_INFINITY
-            var maxY = Double.NEGATIVE_INFINITY
+            var localMinX = Double.POSITIVE_INFINITY
+            var localMaxX = Double.NEGATIVE_INFINITY
+            var localMinY = Double.POSITIVE_INFINITY
+            var localMaxY = Double.NEGATIVE_INFINITY
             route.fold(Vector3.ORIGIN) { carryPt, segment ->
                 val nextCarry = carryPt + segment.forward
-                minX = minX.coerceAtMost(nextCarry.x)
-                maxX = maxX.coerceAtLeast(nextCarry.x)
-                minY = minY.coerceAtMost(nextCarry.y)
-                maxY = maxY.coerceAtLeast(nextCarry.y)
+                localMinX = localMinX.coerceAtMost(nextCarry.x)
+                localMaxX = localMaxX.coerceAtLeast(nextCarry.x)
+                localMinY = localMinY.coerceAtMost(nextCarry.y)
+                localMaxY = localMaxY.coerceAtLeast(nextCarry.y)
                 nextCarry
             }
-
-            offsetX = -minX
-            offsetY = -minY
-            width = maxX - minX
-            height = maxY - minY
+            minX = localMinX
+            maxX = localMaxX
+            minY = localMinY
+            maxY = localMaxY
         }
 
-        val baseImageTargetWidthPx: Int get() = ceil(width * scale).toInt() + paddingPx * 2
-        val baseImageTargetHeightPx: Int get() = ceil(height * scale).toInt() + paddingPx * 2
-        fun routeToBaseImageX(trackX: Double) = ceil((trackX + offsetX) * scale).toInt() + paddingPx
-        fun routeToBaseImageY(trackY: Double) = ceil((height - (trackY + offsetY)) * scale).toInt() + paddingPx
-        fun baseImageXToRouteX(imageX: Int) = (imageX - paddingPx).toDouble() / scale - offsetX
-        fun baseImageYToRouteY(imageY: Int) = -(((imageY - paddingPx).toDouble() / scale) - height + offsetY)
+        val width: Double get() = maxX - minX
+        val height: Double get() = maxY - minY
+    }
+
+    private fun buildRouteTransform(): AffineTransform {
+        val t = AffineTransform()
+        t.translate(paddingPx.toDouble(), paddingPx.toDouble())
+        t.scale(scale, -scale)
+        t.translate(-routeBounds.minX, -routeBounds.maxY)
+        return t
     }
 
     val routeBoundsInRouteCoordinateSpace: Dimension
         get() = Dimension(
-            ceil(routeCoordinateSystem.width).toInt(),
-            ceil(routeCoordinateSystem.height).toInt()
+            ceil(routeBounds.width).toInt(),
+            ceil(routeBounds.height).toInt()
         )
 
     var baseImageNeedsRepaint = true
@@ -92,12 +98,15 @@ class RouteComponent(
     }
 
     override fun getMinimumSize(): Dimension {
-        return Dimension(routeCoordinateSystem.baseImageTargetWidthPx, routeCoordinateSystem.baseImageTargetHeightPx)
+        return Dimension(
+            ceil(routeBounds.width * scale).toInt() + paddingPx * 2,
+            ceil(routeBounds.height * scale).toInt() + paddingPx * 2,
+        )
     }
 
     fun fitScaleToSize(targetWidth: Int, targetHeight: Int) {
-        val scaleX = (targetWidth.toDouble() - paddingPx * 2) / routeCoordinateSystem.width
-        val scaleY = (targetHeight.toDouble() - paddingPx * 2) / routeCoordinateSystem.height
+        val scaleX = (targetWidth.toDouble() - paddingPx * 2) / routeBounds.width
+        val scaleY = (targetHeight.toDouble() - paddingPx * 2) / routeBounds.height
         scale = scaleX.coerceAtMost(scaleY)
     }
 
@@ -174,13 +183,15 @@ class RouteComponent(
             return
         }
 
+        val markerPt = buildRouteTransform().transform(
+            Point2D.Double(carMarkerPositionInTrackCoords.x, carMarkerPositionInTrackCoords.y),
+            null,
+        )
+
         val carMarkerG = g.create() as Graphics2D
         carMarkerG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         try {
-            carMarkerG.translate(
-                routeCoordinateSystem.routeToBaseImageX(carMarkerPositionInTrackCoords.x),
-                routeCoordinateSystem.routeToBaseImageY(carMarkerPositionInTrackCoords.y),
-            )
+            carMarkerG.translate(markerPt.x, markerPt.y)
             carMarkerG.rotate(carMarkerOrientation.toDoubleInRadians())
             carMarkerG.scale(1.5, 1.5)
             carMarkerG.translate(-carMarkerShape.bounds.width / 2, -carMarkerShape.bounds.height / 2)
@@ -198,13 +209,15 @@ class RouteComponent(
     private lateinit var baseImage: BufferedImage
     private val inspectables = ArrayList<Inspectable>()
     private fun assureBaseImageIsUpToDate() {
+        val targetWidth = ceil(routeBounds.width * scale).toInt() + paddingPx * 2
+        val targetHeight = ceil(routeBounds.height * scale).toInt() + paddingPx * 2
         if (!baseImageNeedsRepaint && this::baseImage.isInitialized) {
             return
         }
-        if (!this::baseImage.isInitialized || this.baseImage.width != routeCoordinateSystem.baseImageTargetWidthPx || this.baseImage.height != routeCoordinateSystem.baseImageTargetHeightPx) {
+        if (!this::baseImage.isInitialized || this.baseImage.width != targetWidth || this.baseImage.height != targetHeight) {
             baseImage = BufferedImage(
-                routeCoordinateSystem.baseImageTargetWidthPx.coerceAtLeast(1),
-                routeCoordinateSystem.baseImageTargetHeightPx.coerceAtLeast(1),
+                targetWidth.coerceAtLeast(1),
+                targetHeight.coerceAtLeast(1),
                 BufferedImage.TYPE_INT_RGB
             )
         }
@@ -212,95 +225,95 @@ class RouteComponent(
         val bgColor = Color.WHITE
         inspectables.clear()
 
-        val startFinishMarkerRadius =
-            routeCoordinateSystem.width.coerceAtLeast(routeCoordinateSystem.height) / 25.0 / 3.0
+        val startFinishMarkerRadius = routeBounds.width.coerceAtLeast(routeBounds.height) / 25.0 / 3.0
 
         val g = baseImage.createGraphics()
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        g.stroke = BasicStroke(lineThickness)
         g.color = bgColor
         g.fillRect(0, 0, baseImage.width, baseImage.height)
 
+        val routeTransform = buildRouteTransform()
+        g.transform(routeTransform)
+        // stroke width is in user space; divide by scale so it renders as lineThickness pixels
+        g.stroke = BasicStroke((lineThickness / scale).toFloat())
+
         var carryPoint = Vector3.ORIGIN
-        var prevImageX = routeCoordinateSystem.routeToBaseImageX(carryPoint.x)
-        var prevImageY = routeCoordinateSystem.routeToBaseImageY(carryPoint.y)
+        var prevX = carryPoint.x
+        var prevY = carryPoint.y
         var distanceCarry = 0.meters
         var distanceSinceLastMarker = 0.meters
         var activeFeature: Feature? = null
-        val currentFeaturePoints = ArrayList<Pair<Int, Int>>()
+        val currentFeaturePoints = ArrayList<Pair<Double, Double>>()
         for (segment in route) {
             carryPoint += segment.forward
 
-            val imageX = routeCoordinateSystem.routeToBaseImageX(carryPoint.x)
-            val imageY = routeCoordinateSystem.routeToBaseImageY(carryPoint.y)
+            val x = carryPoint.x
+            val y = carryPoint.y
 
             val nextActiveFeature = features.find { distanceCarry in it.startsAtTrackDistance..(it.startsAtTrackDistance + it.length) }
             if (nextActiveFeature !== activeFeature) {
                 if (activeFeature != null) {
+                    val featurePxPoints = currentFeaturePoints.map { (fx, fy) ->
+                        val pt = routeTransform.transform(Point2D.Double(fx, fy), null)
+                        Pair(pt.x, pt.y)
+                    }
                     inspectables.add(Inspectable(
-                        featurePointsToShape(currentFeaturePoints, FEATURE_HOVER_SHAPE_THICKNESS_PX),
-                        featurePointsToShape(currentFeaturePoints, FEATURE_DISPLAY_SHAPE_THICKNESS_PX),
+                        featurePointsToShape(featurePxPoints, FEATURE_HOVER_SHAPE_THICKNESS_PX),
+                        featurePointsToShape(featurePxPoints, FEATURE_DISPLAY_SHAPE_THICKNESS_PX),
                         activeFeature
                     ))
                 }
                 currentFeaturePoints.clear()
                 if (nextActiveFeature != null) {
-                    currentFeaturePoints.add(Pair(prevImageX, prevImageY))
+                    currentFeaturePoints.add(Pair(prevX, prevY))
                 }
             }
             activeFeature = nextActiveFeature
             if (activeFeature != null) {
-                currentFeaturePoints.add(Pair(imageX, imageY))
+                currentFeaturePoints.add(Pair(x, y))
             }
 
-            val lineLength = Vector3(prevImageX.toDouble() - imageX.toDouble(), prevImageY.toDouble() - imageY.toDouble(), 0.0).length2d
-            val drawThisLine = lineLength > (lineThickness * 1.75)
+            val lineLength = Vector3(prevX - x, prevY - y, 0.0).length2d
+            val drawThisLine = lineLength * scale > (lineThickness * 1.75)
             if (drawThisLine) {
                 g.color = computeTrackColor(activeFeature)
-                g.drawLine(prevImageX, prevImageY, imageX, imageY)
+                g.draw(Line2D.Double(prevX, prevY, x, y))
             }
 
             if (segmentJointMarkerColor != null) {
+                val jointMarkerRadius = (lineThickness + 1) / (2.0 * scale)
                 g.color = segmentJointMarkerColor
-                g.fillOval(
-                    floor(prevImageX - (lineThickness + 1) / 2).toInt(),
-                    floor(prevImageY - (lineThickness + 1) / 2).toInt(),
-                    ceil(lineThickness + 1).toInt(),
-                    ceil(lineThickness + 1).toInt(),
-                )
+                g.fill(Ellipse2D.Double(prevX - jointMarkerRadius, prevY - jointMarkerRadius, jointMarkerRadius * 2, jointMarkerRadius * 2))
             }
             distanceCarry += segment.length
             distanceSinceLastMarker += segment.length
             if (distanceSinceLastMarker >= distanceMarkersEvery && distanceMarkerColor != null) {
                 distanceSinceLastMarker = 0.meters
-                g.color = distanceMarkerColor
-                g.drawString(distanceToString(distanceCarry), imageX + 30, imageY + 10)
+                val labelPt = routeTransform.transform(Point2D.Double(x, y), null)
+                withTransform(g, AffineTransform()) {
+                    g.color = distanceMarkerColor
+                    g.drawString(distanceToString(distanceCarry), (labelPt.x + 30).toInt(), (labelPt.y + 10).toInt())
+                }
             }
 
             if (drawThisLine) {
-                prevImageX = imageX
-                prevImageY = imageY
+                prevX = x
+                prevY = y
             }
         }
 
         g.color = startMarkerColor
-        g.drawOval(
-            routeCoordinateSystem.routeToBaseImageX(0 - startFinishMarkerRadius),
-            routeCoordinateSystem.routeToBaseImageY(0 + startFinishMarkerRadius),
-            (startFinishMarkerRadius * 2 * scale).toInt(),
-            (startFinishMarkerRadius * 2 * scale).toInt()
-        )
+        g.draw(Ellipse2D.Double(-startFinishMarkerRadius, -startFinishMarkerRadius, startFinishMarkerRadius * 2, startFinishMarkerRadius * 2))
 
         g.color = finishMarkerColor
-        g.drawOval(
-            routeCoordinateSystem.routeToBaseImageX(carryPoint.x - startFinishMarkerRadius),
-            routeCoordinateSystem.routeToBaseImageY(carryPoint.y + startFinishMarkerRadius),
-            (startFinishMarkerRadius * 2 * scale).toInt(),
-            (startFinishMarkerRadius * 2 * scale).toInt()
-        )
-        g.color = segmentJointMarkerColor
-        val distanceText = String.format("%3.2f km", (distanceCarry.toDoubleInMeters() / 1000.0))
-        g.drawString(distanceText, prevImageX, prevImageY + 10)
+        g.draw(Ellipse2D.Double(carryPoint.x - startFinishMarkerRadius, carryPoint.y - startFinishMarkerRadius, startFinishMarkerRadius * 2, startFinishMarkerRadius * 2))
+
+        val finishPt = routeTransform.transform(Point2D.Double(prevX, prevY), null)
+        withTransform(g, AffineTransform()) {
+            g.color = segmentJointMarkerColor
+            val distanceText = String.format("%3.2f km", (distanceCarry.toDoubleInMeters() / 1000.0))
+            g.drawString(distanceText, finishPt.x.toInt(), (finishPt.y + 10).toInt())
+        }
 
         g.dispose()
         baseImageNeedsRepaint = false
@@ -310,7 +323,7 @@ class RouteComponent(
         return String.format("%3.2f km", (distance.toDoubleInMeters() / 1000.0))
     }
 
-    private fun featurePointsToShape(points: List<Pair<Int, Int>>, thicknessPx: Double): Shape {
+    private fun featurePointsToShape(points: List<Pair<Double, Double>>, thicknessPx: Double): Shape {
         val pointsOnRouteWithPerpendiculars = points
             .asSequence()
             .windowed(size = 2, step = 1, partialWindows = false)
@@ -321,10 +334,10 @@ class RouteComponent(
             .map { (index, points) ->
                 val (x1, y1) = points[0]
                 val (x2, y2) = points[1]
-                val vecToP1 = Vector3(x1.toDouble(), y1.toDouble(), 0.0)
-                val vecP1P2 = Vector3(x2.toDouble() - vecToP1.x, y2.toDouble() - vecToP1.y, 0.0)
+                val vecToP1 = Vector3(x1, y1, 0.0)
+                val vecP1P2 = Vector3(x2 - vecToP1.x, y2 - vecToP1.y, 0.0)
                 val perpendicularVec = vecP1P2.rotate2d90degCounterClockwise().withLength2d(thicknessPx)
-                val endPair = Pair(Vector3(x2.toDouble(), y2.toDouble(), 0.0), perpendicularVec)
+                val endPair = Pair(Vector3(x2, y2, 0.0), perpendicularVec)
                 if (index == 0) {
                     sequenceOf(
                         Pair(vecToP1, perpendicularVec),
@@ -359,18 +372,13 @@ class RouteComponent(
     }
 
     fun getRoutePositionFromComponentPosition(componentPosition: Point): Vector3 {
-        return Vector3(
-            routeCoordinateSystem.baseImageXToRouteX(componentPosition.x),
-            routeCoordinateSystem.baseImageYToRouteY(componentPosition.y),
-            0.0,
-        )
+        val pt = buildRouteTransform().inverseTransform(Point2D.Double(componentPosition.x.toDouble(), componentPosition.y.toDouble()), null)
+        return Vector3(pt.x, pt.y, 0.0)
     }
 
     fun getComponentPositionFromRoutePosition(routePosition: Vector3): Point {
-        return Point(
-            routeCoordinateSystem.routeToBaseImageX(routePosition.x),
-            routeCoordinateSystem.routeToBaseImageY(routePosition.y),
-        )
+        val pt = buildRouteTransform().transform(Point2D.Double(routePosition.x, routePosition.y), null)
+        return Point(pt.x.roundToInt(), pt.y.roundToInt())
     }
 
     private inner class RepaintBaseImageOnChange<T>(
@@ -473,5 +481,15 @@ class RouteComponent(
     companion object {
         const val FEATURE_HOVER_SHAPE_THICKNESS_PX = 20.0
         const val FEATURE_DISPLAY_SHAPE_THICKNESS_PX = 6.0
+    }
+}
+
+private inline fun withTransform(g: Graphics2D, transform: AffineTransform, crossinline block: () -> Unit) {
+    val saved = g.transform
+    g.transform = transform
+    try {
+        block()
+    } finally {
+        g.transform = saved
     }
 }
