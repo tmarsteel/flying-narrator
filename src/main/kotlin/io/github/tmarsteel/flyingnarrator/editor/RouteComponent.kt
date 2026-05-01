@@ -26,6 +26,7 @@ import java.awt.geom.AffineTransform
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Line2D
 import java.awt.geom.Point2D
+import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JToolTip
@@ -45,48 +46,15 @@ class RouteComponent(
     var segmentJointMarkerColor: Color? by RepaintBaseImageOnChange(null)
     var paddingPx by RepaintBaseImageOnChange(100, alsoOnChange = { revalidate() })
 
-    private val routeBounds = object {
-        val minX: Double
-        val maxX: Double
-        val minY: Double
-        val maxY: Double
-
-        init {
-            var localMinX = Double.POSITIVE_INFINITY
-            var localMaxX = Double.NEGATIVE_INFINITY
-            var localMinY = Double.POSITIVE_INFINITY
-            var localMaxY = Double.NEGATIVE_INFINITY
-            route.fold(Vector3.ORIGIN) { carryPt, segment ->
-                val nextCarry = carryPt + segment.forward
-                localMinX = localMinX.coerceAtMost(nextCarry.x)
-                localMaxX = localMaxX.coerceAtLeast(nextCarry.x)
-                localMinY = localMinY.coerceAtMost(nextCarry.y)
-                localMaxY = localMaxY.coerceAtLeast(nextCarry.y)
-                nextCarry
-            }
-            minX = localMinX
-            maxX = localMaxX
-            minY = localMinY
-            maxY = localMaxY
-        }
-
-        val width: Double get() = maxX - minX
-        val height: Double get() = maxY - minY
-    }
+    val routeBoundsInRouteCoordinateSpace: Rectangle2D = computeRouteBounds(route)
 
     private fun buildRouteTransform(): AffineTransform {
         val t = AffineTransform()
         t.translate(paddingPx.toDouble(), paddingPx.toDouble())
         t.scale(scale, -scale)
-        t.translate(-routeBounds.minX, -routeBounds.maxY)
+        t.translate(-routeBoundsInRouteCoordinateSpace.x, -(routeBoundsInRouteCoordinateSpace.y + routeBoundsInRouteCoordinateSpace.height))
         return t
     }
-
-    val routeBoundsInRouteCoordinateSpace: Dimension
-        get() = Dimension(
-            ceil(routeBounds.width).toInt(),
-            ceil(routeBounds.height).toInt()
-        )
 
     var baseImageNeedsRepaint = true
     fun invalidateBaseImage() {
@@ -99,14 +67,14 @@ class RouteComponent(
 
     override fun getMinimumSize(): Dimension {
         return Dimension(
-            ceil(routeBounds.width * scale).toInt() + paddingPx * 2,
-            ceil(routeBounds.height * scale).toInt() + paddingPx * 2,
+            ceil(routeBoundsInRouteCoordinateSpace.width * scale).toInt() + paddingPx * 2,
+            ceil(routeBoundsInRouteCoordinateSpace.height * scale).toInt() + paddingPx * 2,
         )
     }
 
     fun fitScaleToSize(targetWidth: Int, targetHeight: Int) {
-        val scaleX = (targetWidth.toDouble() - paddingPx * 2) / routeBounds.width
-        val scaleY = (targetHeight.toDouble() - paddingPx * 2) / routeBounds.height
+        val scaleX = (targetWidth.toDouble() - paddingPx * 2) / routeBoundsInRouteCoordinateSpace.width
+        val scaleY = (targetHeight.toDouble() - paddingPx * 2) / routeBoundsInRouteCoordinateSpace.height
         scale = scaleX.coerceAtMost(scaleY)
     }
 
@@ -209,8 +177,8 @@ class RouteComponent(
     private lateinit var baseImage: BufferedImage
     private val inspectables = ArrayList<Inspectable>()
     private fun assureBaseImageIsUpToDate() {
-        val targetWidth = ceil(routeBounds.width * scale).toInt() + paddingPx * 2
-        val targetHeight = ceil(routeBounds.height * scale).toInt() + paddingPx * 2
+        val targetWidth = ceil(routeBoundsInRouteCoordinateSpace.width * scale).toInt() + paddingPx * 2
+        val targetHeight = ceil(routeBoundsInRouteCoordinateSpace.height * scale).toInt() + paddingPx * 2
         if (!baseImageNeedsRepaint && this::baseImage.isInitialized) {
             return
         }
@@ -225,7 +193,7 @@ class RouteComponent(
         val bgColor = Color.WHITE
         inspectables.clear()
 
-        val startFinishMarkerRadius = routeBounds.width.coerceAtLeast(routeBounds.height) / 25.0 / 3.0
+        val startFinishMarkerRadius = routeBoundsInRouteCoordinateSpace.width.coerceAtLeast(routeBoundsInRouteCoordinateSpace.height) / 25.0 / 3.0
 
         val g = baseImage.createGraphics()
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -482,6 +450,22 @@ class RouteComponent(
         const val FEATURE_HOVER_SHAPE_THICKNESS_PX = 20.0
         const val FEATURE_DISPLAY_SHAPE_THICKNESS_PX = 6.0
     }
+}
+
+private fun computeRouteBounds(route: Route): Rectangle2D.Double {
+    var minX = Double.POSITIVE_INFINITY
+    var maxX = Double.NEGATIVE_INFINITY
+    var minY = Double.POSITIVE_INFINITY
+    var maxY = Double.NEGATIVE_INFINITY
+    route.fold(Vector3.ORIGIN) { carryPt, segment ->
+        val nextCarry = carryPt + segment.forward
+        minX = minX.coerceAtMost(nextCarry.x)
+        maxX = maxX.coerceAtLeast(nextCarry.x)
+        minY = minY.coerceAtMost(nextCarry.y)
+        maxY = maxY.coerceAtLeast(nextCarry.y)
+        nextCarry
+    }
+    return Rectangle2D.Double(minX, minY, maxX - minX, maxY - minY)
 }
 
 private inline fun withTransform(g: Graphics2D, transform: AffineTransform, crossinline block: () -> Unit) {
