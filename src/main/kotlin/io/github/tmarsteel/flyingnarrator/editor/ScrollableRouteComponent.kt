@@ -29,6 +29,13 @@ import javax.swing.OverlayLayout
 import javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
 import javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
 
+/**
+ * Adds these features to a [RouteComponent]:
+ * * scrolling vertically and horizontally using [JScrollPane]
+ * * scrolling vertically and horizontally using mouse click+drag
+ * * scaling/zooming using dedicated zooming controls and the mouse wheel
+ * * a scale indicator
+ */
 class ScrollableRouteComponent(
     private val routeComponent: RouteComponent,
 ) : JLayeredPane() {
