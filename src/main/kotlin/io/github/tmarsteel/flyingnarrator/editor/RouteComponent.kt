@@ -35,7 +35,7 @@ class RouteComponent(
     var scale by RepaintBaseImageOnChange(0.4, alsoOnChange = { revalidate() })
     var distanceMarkersEvery by RepaintBaseImageOnChange(200.meters)
     var distanceMarkerColor: Color? by RepaintBaseImageOnChange(Color.RED)
-    var lineThickness by RepaintBaseImageOnChange(3.0f)
+    var trackWidth by RepaintBaseImageOnChange(5.meters)
     var paddingPx by RepaintBaseImageOnChange(100, alsoOnChange = { revalidate() })
     var trackColor: Color by RepaintBaseImageOnChange(Color.BLACK)
 
@@ -217,8 +217,7 @@ class RouteComponent(
 
         val routeTransform = buildRouteTransform()
         g.transform(routeTransform)
-        // stroke width is in user space; divide by scale so it renders as lineThickness pixels
-        g.stroke = BasicStroke((lineThickness / scale).toFloat())
+        g.stroke = BasicStroke(trackWidth.toDoubleInMeters().toFloat())
         var carryPoint = Vector3.ORIGIN
         var prevX = carryPoint.x
         var prevY = carryPoint.y
@@ -231,7 +230,7 @@ class RouteComponent(
             val y = carryPoint.y
 
             val lineLength = Vector3(prevX - x, prevY - y, 0.0).length2d
-            val drawThisLine = lineLength * scale > (lineThickness * 1.75)
+            val drawThisLine = lineLength > trackWidth.toDoubleInMeters() * 1.75
             if (drawThisLine) {
                 g.color = trackColor
                 g.draw(Line2D.Double(prevX, prevY, x, y))

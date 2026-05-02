@@ -96,6 +96,7 @@ class ScrollableRouteComponent(
     }
 
     private val scaleIndicatorComponent = object : JComponent() {
+        private val indicatorLineStroke = BasicStroke(3f)
         private val indicatedDistance = 100.meters
         private val fontSize = 14.0f
 
@@ -108,10 +109,11 @@ class ScrollableRouteComponent(
             g as Graphics2D
 
             g.color = Color.BLACK // todo: use track color
-            g.stroke = BasicStroke(routeComponent.lineThickness)
+            val lineThicknessPx = 3f
+            g.stroke = indicatorLineStroke
             g.drawLine(0, 0, indicatorLineLength, 0)
             g.font = g.font.deriveFont(fontSize)
-            g.drawString("100m", 0, (routeComponent.lineThickness * 2.0f + fontSize).toInt())
+            g.drawString("100m", 0, (lineThicknessPx * 2.0f + fontSize).toInt())
         }
 
         override fun getPreferredSize(): Dimension? {
@@ -121,7 +123,7 @@ class ScrollableRouteComponent(
         override fun getMinimumSize(): Dimension {
             return Dimension(
                 indicatorLineLength,
-                (routeComponent.lineThickness * 2.0f + fontSize).toInt(),
+                (indicatorLineStroke.lineWidth * 2.0f + fontSize).toInt(),
             )
         }
     }
