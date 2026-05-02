@@ -35,7 +35,7 @@ abstract class RouteStretchComponent(
         return hoerTriggerShape.contains(pointedTrackLocation.x, pointedTrackLocation.y)
     }
 
-    override var isHovered = false
+    final override var isHovered = false
 
     final override fun paint(g: Graphics2D) {
         if (isHovered) {

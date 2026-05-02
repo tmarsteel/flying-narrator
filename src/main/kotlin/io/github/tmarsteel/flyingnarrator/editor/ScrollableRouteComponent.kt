@@ -166,10 +166,11 @@ class ScrollableRouteComponent(
         setLayer(scrollPane, 0)
         add(scrollPane)
 
-        val bottomPanel = JPanel().also {
+        val controlsPanel = JPanel().also {
             val gridBag = GridBagLayout()
             it.layout = gridBag
             it.isOpaque = false
+            it.isEnabled = false
             it.background = Color(0, true)
             gridBag.setConstraints(scaleIndicatorComponent, GridBagConstraints().apply {
                 weightx = 1.0
@@ -186,8 +187,8 @@ class ScrollableRouteComponent(
             })
             it.add(zoomComponent)
         }
-        setLayer(bottomPanel, 1)
-        add(bottomPanel)
+        setLayer(controlsPanel, 1)
+        add(controlsPanel)
 
         routeComponent.addMouseListener(_mouseListener)
         routeComponent.addMouseMotionListener(_mouseListener)

@@ -8,6 +8,7 @@ import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
 import java.awt.Color
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -300,6 +301,11 @@ class RouteComponent(
                     } else {
                         component.isHovered = false
                     }
+                }
+                if (nowHovered != null && hoveredComponent == null && nowHovered.isSelectable) {
+                    this@RouteComponent.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
+                } else if (nowHovered == null && hoveredComponent != null) {
+                    this@RouteComponent.setCursor(null)
                 }
                 hoveredComponent = nowHovered
                 repaint()

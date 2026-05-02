@@ -14,4 +14,6 @@ class CornerFeatureComponent(
     },
     Color.ORANGE,
     Color(0x8020FF00.toInt(), true)
-)
+) {
+    override val isSelectable = true
+}
