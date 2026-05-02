@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.editor
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
 import java.awt.Color
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -47,18 +48,22 @@ class ScrollableRouteComponent(
         override fun mousePressed(e: MouseEvent) {
             dragStartedAt = e.point
             viewportPositionAtDragStart = scrollPane.viewport.viewPosition
+            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
         }
 
         override fun mouseReleased(e: MouseEvent?) {
             dragStartedAt = null
+            setCursor(null)
         }
 
         override fun mouseDragged(e: MouseEvent) {
             check(dragStartedAt != null && viewportPositionAtDragStart != null)
             val dragDeltaX = e.point.x - dragStartedAt!!.x
             val dragDeltaY = e.point.y - dragStartedAt!!.y
-            val newViewportPositionX = (viewportPositionAtDragStart!!.x - dragDeltaX).coerceAtLeast(0)
-            val newViewportPositionY = (viewportPositionAtDragStart!!.y - dragDeltaY).coerceAtLeast(0)
+            val newViewportPositionX = (viewportPositionAtDragStart!!.x - dragDeltaX)
+                .coerceAtLeast(0)
+            val newViewportPositionY = (viewportPositionAtDragStart!!.y - dragDeltaY)
+                .coerceAtLeast(0)
             scrollPane.viewport.viewPosition = Point(newViewportPositionX, newViewportPositionY)
         }
 
