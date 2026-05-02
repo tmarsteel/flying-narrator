@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator.feature
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import kotlin.math.absoluteValue
+import kotlin.math.pow
 
 /**
  * A line defined by a vector from origin to one point on the line
@@ -83,5 +84,33 @@ internal class MLine(
     fun contains2d(point: Vector3, tolerance: Double = 0.00001): Boolean {
         val (factorForX, factorForY) = getNPerDimension(point)
         return contains2d(point, factorForX, factorForY, tolerance)
+    }
+
+
+    fun findVerticalLineThrough(point: Vector3): MLine {
+        return findVerticalLineThrough(point, onlyIfOnSegment = false)!!
+    }
+
+    /**
+     * @param point the point through which to construct the vertical
+     * @param onlyIfOnSegment if true and the intersection point between the vertical and this line is not on this line
+     * segment, will return `null`
+     * @return a line through [point] and `this` which has a 90° angle to this line, or `null` if [point] is on this
+     * line or [onlyIfOnSegment] is true and the intersection point is not on this line segment
+     */
+    fun findVerticalLineThrough(point: Vector3, onlyIfOnSegment: Boolean): MLine? {
+        val denominator = -direction.x.pow(2) - direction.y.pow(2) - direction.z.pow(2)
+        check(denominator != 0.0) { "zero-length line direction: $direction" }
+        val dividend = -point.x * direction.x - point.y * direction.y - point.z * direction.z + somePoint.x * direction.x + somePoint.y * direction.y + somePoint.z * direction.z
+        val n = dividend / denominator
+        if (onlyIfOnSegment && n !in 0.0..1.0) {
+            return null
+        }
+        val intersectionPoint = getPoint(n)
+        val intersectionDirection = point - intersectionPoint
+        if (intersectionDirection.length == 0.0) {
+            return null
+        }
+        return MLine(intersectionPoint, intersectionDirection)
     }
 }

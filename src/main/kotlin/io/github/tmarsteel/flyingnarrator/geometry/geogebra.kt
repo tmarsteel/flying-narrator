@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.geometry
 
+import io.github.tmarsteel.flyingnarrator.feature.MLine
 import io.github.tmarsteel.flyingnarrator.route.RoadSegment
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import java.util.stream.IntStream
@@ -128,6 +129,9 @@ fun ggbVector(name: String, vector: Vector3, position: Vector3 = Vector3.ORIGIN)
         val end = position + vector
         ggbCmd("$name=Vector((${position.x},${position.y}),(${end.x},${end.y}))")
     }
+}
+internal fun ggbLine(name: String, line: MLine) {
+    ggbCmd("$name=Line(Point({${line.somePoint.x},${line.somePoint.y}}),Vector((${line.direction.x},${line.direction.y})))")
 }
 fun ggbPoint3D(
     name: String,
