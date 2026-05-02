@@ -9,6 +9,7 @@ import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
 import java.awt.Color
+import java.awt.Component
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
@@ -18,6 +19,7 @@ import java.awt.Polygon
 import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.event.MouseEvent
+import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.geom.AffineTransform
 import java.awt.geom.Line2D
@@ -39,13 +41,25 @@ class RouteComponent(
     var paddingPx by RepaintBaseImageOnChange(100, alsoOnChange = { updateRouteTransform(); revalidate() })
     var trackColor: Color by RepaintBaseImageOnChange(Color.BLACK)
 
+    private val routeBoundComponents = mutableListOf<RouteBoundComponent>()
+    fun addRouteBoundComponent(component: RouteBoundComponent) {
+        routeBoundComponents.add(component)
+        component.routeTransform = routeTransform
+    }
+    fun removeRouteBoundComponent(component: RouteBoundComponent) {
+        routeBoundComponents.remove(component)
+    }
+
     val routeBoundsInRouteCoordinateSpace: Rectangle2D = computeRouteBounds(route)
     private fun updateRouteTransform(): AffineTransform {
         val t = AffineTransform()
         t.translate(paddingPx.toDouble(), paddingPx.toDouble())
         t.scale(scale, -scale)
         t.translate(-routeBoundsInRouteCoordinateSpace.x, -(routeBoundsInRouteCoordinateSpace.y + routeBoundsInRouteCoordinateSpace.height))
+
         routeTransform = t
+        routeBoundComponents.forEach { it.routeTransform = t }
+
         return t
     }
     private var routeTransform: AffineTransform = updateRouteTransform()
@@ -95,15 +109,13 @@ class RouteComponent(
     }
 
     override fun paintChildren(g: Graphics) {
-        super.paintChildren(g)
-
         g as Graphics2D
 
         val subG = g.create() as Graphics2D
         subG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         try {
             for (component in routeBoundComponents) {
-                component.paint(subG, routeTransform)
+                component.paint(subG)
             }
         } finally {
             subG.dispose()
@@ -111,11 +123,9 @@ class RouteComponent(
 
         paintCarMarker(g)
 
-        hoveredComponent?.tooltip?.let { tooltip ->
-            withTransform(g, AffineTransform.getTranslateInstance((tooltip.x + 15).toDouble(), (tooltip.y + 15).toDouble())) {
-                tooltip.paint(g)
-            }
-        }
+        super.paintChildren(g)
+
+        subComponentState.paint(g)
     }
 
     var carPositionOnTrack: Distance = -(1.meters)
@@ -184,14 +194,6 @@ class RouteComponent(
         finally {
             carMarkerG.dispose()
         }
-    }
-
-    private val routeBoundComponents = mutableListOf<RouteBoundComponent>()
-    fun addRouteBoundComponent(component: RouteBoundComponent) {
-        routeBoundComponents.add(component)
-    }
-    fun removeRouteBoundComponent(component: RouteBoundComponent) {
-        routeBoundComponents.remove(component)
     }
 
     private lateinit var baseImage: BufferedImage
@@ -290,37 +292,137 @@ class RouteComponent(
         }
     }
 
-    private var hoveredComponent: RouteBoundComponent? = null
+    private interface SubComponentState {
+        fun mouseMoved(e: MouseEvent)
+        fun mouseClicked(e: MouseEvent)
+        fun paint(g: Graphics2D)
+    }
+    private val subComponentsIdleState = object : SubComponentState {
+        override fun mouseMoved(e: MouseEvent) {
+            val pointedLocation = routeTransform.inverseTransform(e.point, null).let {
+                Vector3(it.x, it.y, 0.0)
+            }
+            for (component in routeBoundComponents) {
+                if (component.tryClaimHover(pointedLocation)) {
+                    subComponentState = SubComponentHoveredState(component, e.point)
+                    repaint()
+                    break
+                }
+            }
+        }
+
+        override fun mouseClicked(e: MouseEvent) {
+            mouseMoved(e)
+            if (subComponentState != this) {
+                subComponentState.mouseClicked(e)
+            }
+        }
+
+        override fun paint(g: Graphics2D) {}
+    }
+    private inner class SubComponentHoveredState(
+        val hovered: RouteBoundComponent,
+        hoverEnteredAt: Point,
+    ) : SubComponentState {
+        init {
+            hovered.isHovered = true
+            if (hovered.isSelectable) {
+                this@RouteComponent.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
+            }
+            hovered.tooltip?.location = Point(hoverEnteredAt.x + TOOLTIP_OFFSET_X, hoverEnteredAt.y + TOOLTIP_OFFSET_Y)
+        }
+
+        override fun mouseMoved(e: MouseEvent) {
+            val pointedLocation = routeTransform.inverseTransform(e.point, null).let {
+                Vector3(it.x, it.y, 0.0)
+            }
+            if (hovered.tryClaimHover(pointedLocation)) {
+                hovered.tooltip?.location = Point(e.point.x + TOOLTIP_OFFSET_X, e.point.y + TOOLTIP_OFFSET_Y)
+            } else {
+                subComponentState = subComponentsIdleState
+                hovered.isHovered = false
+                this@RouteComponent.setCursor(null)
+                subComponentsIdleState.mouseMoved(e)
+            }
+            repaint()
+        }
+
+        override fun mouseClicked(e: MouseEvent) {
+            val pointedLocation = routeTransform.inverseTransform(e.point, null).let {
+                Vector3(it.x, it.y, 0.0)
+            }
+            if (hovered.tryClaimHover(pointedLocation)) {
+                subComponentState = SubComponentSelectedState(hovered)
+                repaint()
+            }
+        }
+
+        override fun paint(g: Graphics2D) {
+            hovered.tooltip?.let { tooltip ->
+                withTransform(g, AffineTransform.getTranslateInstance(tooltip.x.toDouble(), tooltip.y.toDouble())) {
+                    tooltip.paint(g)
+                }
+            }
+        }
+    }
+
+    private inner class SubComponentSelectedState(
+        val selected: RouteBoundComponent,
+    ) : SubComponentState {
+        private val componentsInSelectedMode = mutableListOf<Component>()
+        private fun addComponentForSelectionMode(component: Component) {
+            componentsInSelectedMode.add(component)
+            this@RouteComponent.add(component)
+        }
+
+        init {
+            selected.isHovered = false
+            this@RouteComponent.setCursor(null)
+            selected.onSelected(this::addComponentForSelectionMode)
+        }
+
+        override fun mouseMoved(e: MouseEvent) {
+
+        }
+
+        override fun mouseClicked(e: MouseEvent) {
+
+        }
+
+        override fun paint(g: Graphics2D) {
+
+        }
+    }
+
+    private var subComponentState: SubComponentState = subComponentsIdleState
 
     init {
-        addMouseMotionListener(object : MouseMotionListener {
+        val mouseListener = object : MouseListener, MouseMotionListener {
             override fun mouseMoved(e: MouseEvent) {
-                val pointedLocation = routeTransform.inverseTransform(e.point, null).let {
-                    Vector3(it.x, it.y, 0.0)
-                }
-                var nowHovered: RouteBoundComponent? = null
-                for (component in routeBoundComponents) {
-                    if (nowHovered != null) {
-                        component.isHovered = false
-                    } else if (component.tryClaimHover(pointedLocation)) {
-                        nowHovered = component
-                        component.isHovered = true
-                    } else {
-                        component.isHovered = false
-                    }
-                }
-                if (nowHovered != null && hoveredComponent == null && nowHovered.isSelectable) {
-                    this@RouteComponent.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
-                } else if (nowHovered == null && hoveredComponent != null) {
-                    this@RouteComponent.setCursor(null)
-                }
-                hoveredComponent = nowHovered
-                hoveredComponent?.tooltip?.location = e.point
-                repaint()
+                subComponentState.mouseMoved(e)
             }
 
             override fun mouseDragged(e: MouseEvent?) {}
-        })
+
+            override fun mouseClicked(e: MouseEvent) {
+                subComponentState.mouseClicked(e)
+            }
+
+            override fun mousePressed(e: MouseEvent?) {}
+
+            override fun mouseReleased(e: MouseEvent?) {}
+
+            override fun mouseEntered(e: MouseEvent?) {}
+
+            override fun mouseExited(e: MouseEvent?) {}
+        }
+        addMouseListener(mouseListener)
+        addMouseMotionListener(mouseListener)
+    }
+
+    companion object {
+        const val TOOLTIP_OFFSET_X = 15
+        const val TOOLTIP_OFFSET_Y = 15
     }
 }
 

@@ -16,10 +16,9 @@ class CornerFeatureComponent(
         IntRange(route.indexOf(corner.segments.first()), route.indexOf(corner.segments.last()))
     },
     Color.ORANGE,
-    Color(0x8020FF00.toInt(), true)
+    Color(0x8020FF00.toInt(), true),
+    true,
 ) {
-    override val isSelectable = true
-
     override val tooltip = run {
         val text = StringBuilder()
         text.append("<html>")
