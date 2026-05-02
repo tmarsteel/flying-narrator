@@ -30,7 +30,7 @@ abstract class RouteStretchComponent(
         .take(segmentIndices.last - segmentIndices.first + 1)
 
     protected val displayShape = createTrackOutlineShape(trackPoints, DISPLAY_SHAPE_THICKNESS)
-    protected val hoveredDisplayShape = createTrackOutlineShape(trackPoints, HOVERED_DISPLAY_SHAPE_THICKNESS)
+    protected val highlightDisplayShape = createTrackOutlineShape(trackPoints, HIGHLIGHT_DISPLAY_SHAPE_THICKNESS)
     protected val hoverTriggerShape = createTrackOutlineShape(trackPoints, HOVER_TRIGGER_SHAPE_THICKNESS)
 
     final override fun tryClaimHover(pointedTrackLocation: Vector3): Boolean {
@@ -40,22 +40,20 @@ abstract class RouteStretchComponent(
     final override var isHovered = false
 
     final override fun paint(g: Graphics2D, routeTransform: AffineTransform) {
-        if (isHovered) {
-            withTransform(g, routeTransform) {
+        withTransform(g, routeTransform) {
+            if (isHovered) {
                 g.color = hoverColor
-                g.fill(hoveredDisplayShape)
+                g.fill(highlightDisplayShape)
             }
-        } else {
-            withTransform(g, routeTransform) {
-                g.color = displayColor
-                g.fill(displayShape)
-            }
+
+            g.color = displayColor
+            g.fill(displayShape)
         }
     }
 
     companion object {
         val DISPLAY_SHAPE_THICKNESS = 5.meters
-        val HOVERED_DISPLAY_SHAPE_THICKNESS = 15.meters
+        val HIGHLIGHT_DISPLAY_SHAPE_THICKNESS = 15.meters
         val HOVER_TRIGGER_SHAPE_THICKNESS = 30.meters
 
         private fun createTrackOutlineShape(trackPoints: Sequence<Vector3>, thickness: Distance): Shape {
