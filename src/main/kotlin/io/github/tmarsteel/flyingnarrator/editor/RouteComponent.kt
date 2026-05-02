@@ -32,22 +32,23 @@ import kotlin.math.roundToInt
 class RouteComponent(
     val route: Route,
 ) : JComponent(), Scrollable {
-    var scale by RepaintBaseImageOnChange(0.4, alsoOnChange = { revalidate() })
+    var scale by RepaintBaseImageOnChange(0.4, alsoOnChange = { updateRouteTransform(); revalidate() })
     var distanceMarkersEvery by RepaintBaseImageOnChange(200.meters)
     var distanceMarkerColor: Color? by RepaintBaseImageOnChange(Color.RED)
     var trackWidth by RepaintBaseImageOnChange(5.meters)
-    var paddingPx by RepaintBaseImageOnChange(100, alsoOnChange = { revalidate() })
+    var paddingPx by RepaintBaseImageOnChange(100, alsoOnChange = { updateRouteTransform(); revalidate() })
     var trackColor: Color by RepaintBaseImageOnChange(Color.BLACK)
 
     val routeBoundsInRouteCoordinateSpace: Rectangle2D = computeRouteBounds(route)
-
-    private fun buildRouteTransform(): AffineTransform {
+    private fun updateRouteTransform(): AffineTransform {
         val t = AffineTransform()
         t.translate(paddingPx.toDouble(), paddingPx.toDouble())
         t.scale(scale, -scale)
         t.translate(-routeBoundsInRouteCoordinateSpace.x, -(routeBoundsInRouteCoordinateSpace.y + routeBoundsInRouteCoordinateSpace.height))
+        routeTransform = t
         return t
     }
+    private var routeTransform: AffineTransform = updateRouteTransform()
 
     var baseImageNeedsRepaint = true
     fun invalidateBaseImage() {
@@ -100,7 +101,6 @@ class RouteComponent(
 
         val subG = g.create() as Graphics2D
         subG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        val routeTransform = buildRouteTransform()
         try {
             for (component in routeBoundComponents) {
                 component.paint(subG, routeTransform)
@@ -163,7 +163,7 @@ class RouteComponent(
             return
         }
 
-        val markerPt = buildRouteTransform().transform(
+        val markerPt = routeTransform.transform(
             Point2D.Double(carMarkerPositionInTrackCoords.x, carMarkerPositionInTrackCoords.y),
             null,
         )
@@ -215,7 +215,6 @@ class RouteComponent(
         g.color = bgColor
         g.fillRect(0, 0, baseImage.width, baseImage.height)
 
-        val routeTransform = buildRouteTransform()
         g.transform(routeTransform)
         g.stroke = BasicStroke(trackWidth.toDoubleInMeters().toFloat())
         var carryPoint = Vector3.ORIGIN
@@ -265,12 +264,12 @@ class RouteComponent(
     }
 
     fun getRoutePositionFromComponentPosition(componentPosition: Point): Vector3 {
-        val pt = buildRouteTransform().inverseTransform(Point2D.Double(componentPosition.x.toDouble(), componentPosition.y.toDouble()), null)
+        val pt = routeTransform.inverseTransform(Point2D.Double(componentPosition.x.toDouble(), componentPosition.y.toDouble()), null)
         return Vector3(pt.x, pt.y, 0.0)
     }
 
     fun getComponentPositionFromRoutePosition(routePosition: Vector3): Point {
-        val pt = buildRouteTransform().transform(Point2D.Double(routePosition.x, routePosition.y), null)
+        val pt = routeTransform.transform(Point2D.Double(routePosition.x, routePosition.y), null)
         return Point(pt.x.roundToInt(), pt.y.roundToInt())
     }
 
@@ -296,7 +295,7 @@ class RouteComponent(
     init {
         addMouseMotionListener(object : MouseMotionListener {
             override fun mouseMoved(e: MouseEvent) {
-                val pointedLocation = buildRouteTransform().inverseTransform(e.point, null).let {
+                val pointedLocation = routeTransform.inverseTransform(e.point, null).let {
                     Vector3(it.x, it.y, 0.0)
                 }
                 var nowHovered: RouteBoundComponent? = null
