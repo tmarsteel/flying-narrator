@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator.editor
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.utils.foldInto
@@ -9,6 +10,7 @@ import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.Polygon
 import java.awt.Shape
+import java.awt.geom.AffineTransform
 import kotlin.math.roundToInt
 
 abstract class RouteStretchComponent(
@@ -27,23 +29,27 @@ abstract class RouteStretchComponent(
         .drop(segmentIndices.first)
         .take(segmentIndices.last - segmentIndices.first + 1)
 
-    private val displayShape = createTrackOutlineShape(trackPoints, DISPLAY_SHAPE_THICKNESS)
-    private val hoveredDisplayShape = createTrackOutlineShape(trackPoints, HOVERED_DISPLAY_SHAPE_THICKNESS)
-    private val hoerTriggerShape = createTrackOutlineShape(trackPoints, HOVER_TRIGGER_SHAPE_THICKNESS)
+    protected val displayShape = createTrackOutlineShape(trackPoints, DISPLAY_SHAPE_THICKNESS)
+    protected val hoveredDisplayShape = createTrackOutlineShape(trackPoints, HOVERED_DISPLAY_SHAPE_THICKNESS)
+    protected val hoverTriggerShape = createTrackOutlineShape(trackPoints, HOVER_TRIGGER_SHAPE_THICKNESS)
 
     final override fun tryClaimHover(pointedTrackLocation: Vector3): Boolean {
-        return hoerTriggerShape.contains(pointedTrackLocation.x, pointedTrackLocation.y)
+        return hoverTriggerShape.contains(pointedTrackLocation.x, pointedTrackLocation.y)
     }
 
     final override var isHovered = false
 
-    final override fun paint(g: Graphics2D) {
+    final override fun paint(g: Graphics2D, routeTransform: AffineTransform) {
         if (isHovered) {
-            g.color = hoverColor
-            g.fill(hoveredDisplayShape)
+            withTransform(g, routeTransform) {
+                g.color = hoverColor
+                g.fill(hoveredDisplayShape)
+            }
         } else {
-            g.color = displayColor
-            g.fill(displayShape)
+            withTransform(g, routeTransform) {
+                g.color = displayColor
+                g.fill(displayShape)
+            }
         }
     }
 

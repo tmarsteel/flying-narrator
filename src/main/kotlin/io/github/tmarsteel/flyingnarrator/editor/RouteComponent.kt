@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator.editor
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Angle
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import io.github.tmarsteel.flyingnarrator.unit.Distance
@@ -90,19 +91,31 @@ class RouteComponent(
         assureBaseImageIsUpToDate()
 
         g.drawImage(baseImage, 0, 0, null)
+    }
+
+    override fun paintChildren(g: Graphics) {
+        super.paintChildren(g)
+
+        g as Graphics2D
 
         val subG = g.create() as Graphics2D
         subG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        subG.transform(buildRouteTransform())
+        val routeTransform = buildRouteTransform()
         try {
             for (component in routeBoundComponents) {
-                component.paint(subG)
+                component.paint(subG, routeTransform)
             }
         } finally {
             subG.dispose()
         }
 
         paintCarMarker(g)
+
+        hoveredComponent?.tooltip?.let { tooltip ->
+            withTransform(g, AffineTransform.getTranslateInstance((tooltip.x + 15).toDouble(), (tooltip.y + 15).toDouble())) {
+                tooltip.paint(g)
+            }
+        }
     }
 
     var carPositionOnTrack: Distance = -(1.meters)
@@ -231,7 +244,7 @@ class RouteComponent(
                 val labelPt = routeTransform.transform(Point2D.Double(x, y), null)
                 withTransform(g, AffineTransform()) {
                     g.color = distanceMarkerColor
-                    g.drawString(distanceToString(distanceCarry), (labelPt.x + 30).toInt(), (labelPt.y + 10).toInt())
+                    g.drawString(distanceCarry.toString(), (labelPt.x + 30).toInt(), (labelPt.y + 10).toInt())
                 }
             }
 
@@ -250,10 +263,6 @@ class RouteComponent(
 
         g.dispose()
         baseImageNeedsRepaint = false
-    }
-
-    private fun distanceToString(distance: Distance): String {
-        return String.format("%3.2f km", (distance.toDoubleInMeters() / 1000.0))
     }
 
     fun getRoutePositionFromComponentPosition(componentPosition: Point): Vector3 {
@@ -308,6 +317,7 @@ class RouteComponent(
                     this@RouteComponent.setCursor(null)
                 }
                 hoveredComponent = nowHovered
+                hoveredComponent?.tooltip?.location = e.point
                 repaint()
             }
 
@@ -330,14 +340,4 @@ private fun computeRouteBounds(route: Route): Rectangle2D.Double {
         nextCarry
     }
     return Rectangle2D.Double(minX, minY, maxX - minX, maxY - minY)
-}
-
-private inline fun withTransform(g: Graphics2D, transform: AffineTransform, crossinline block: () -> Unit) {
-    val saved = g.transform
-    g.transform = transform
-    try {
-        block()
-    } finally {
-        g.transform = saved
-    }
 }

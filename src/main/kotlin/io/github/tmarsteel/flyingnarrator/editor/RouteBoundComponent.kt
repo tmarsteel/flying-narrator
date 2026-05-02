@@ -1,7 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import java.awt.Graphics2D
+import java.awt.geom.AffineTransform
+import javax.swing.JToolTip
 
 interface RouteBoundComponent {
     /**
@@ -22,7 +25,10 @@ interface RouteBoundComponent {
 
     /**
      * Visualize this element by drawing on top of the current track view.
-     * @param g takes draw commands in route coordinate space
+     * @param g paints to the [RouteComponent], its swing/pixel coordinate space
+     * @param routeTransform apply to [g] using [withTransform] to issue drawing commands in the route coordinate space
      */
-    fun paint(g: Graphics2D)
+    fun paint(g: Graphics2D, routeTransform: AffineTransform)
+
+    val tooltip: JToolTip? get()= null
 }
