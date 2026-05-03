@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.geometry
 import io.github.tmarsteel.flyingnarrator.unit.Angle
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import kotlinx.serialization.Serializable
+import java.awt.geom.Point2D
 import kotlin.math.PI
 import kotlin.math.absoluteValue
 import kotlin.math.atan
@@ -82,6 +83,8 @@ data class Vector3(
     fun withLength(length: Double): Vector3 {
         return this * (length / this.length)
     }
+
+    fun toPoint2D() = Point2D.Double(x, y)
 
     override fun toString() = "($x, $y, $z)"
 

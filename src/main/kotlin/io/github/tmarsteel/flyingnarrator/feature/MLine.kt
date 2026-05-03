@@ -8,10 +8,20 @@ import kotlin.math.pow
  * A line defined by a vector from origin to one point on the line
  * and a vector defining the direction of the line.
  */
-internal class MLine(
+class MLine(
     val somePoint: Vector3,
     val direction: Vector3,
 ) {
+    /**
+     * the start point when treating this line as a line-segment
+     */
+    val startPoint: Vector3 get() = somePoint
+
+    /**
+     * the end point when treating this line as a line-segment
+     */
+    val endPoint: Vector3 get() = somePoint + direction
+
     /**
      * Treats this as a two-dimensional line defined by [Vector3.x] and [Vector3.y] and returns the point of intersection
      * between `this` and [other].

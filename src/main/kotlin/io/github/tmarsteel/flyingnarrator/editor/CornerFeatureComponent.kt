@@ -2,18 +2,17 @@ package io.github.tmarsteel.flyingnarrator.editor
 
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
-import io.github.tmarsteel.flyingnarrator.route.Route
 import java.awt.Color
 import javax.swing.JToolTip
 import kotlin.math.roundToInt
 
 class CornerFeatureComponent(
-    route: Route,
+    viewModel: RouteEditorViewModel,
     val corner: Feature.Corner,
 ) : RouteStretchComponent(
-    route,
+    viewModel,
     Unit.run {
-        IntRange(route.indexOf(corner.segments.first()), route.indexOf(corner.segments.last()))
+        IntRange(viewModel.route.indexOf(corner.segments.first()), viewModel.route.indexOf(corner.segments.last()))
     },
     Color.ORANGE,
     Color(0x8020FF00.toInt(), true),

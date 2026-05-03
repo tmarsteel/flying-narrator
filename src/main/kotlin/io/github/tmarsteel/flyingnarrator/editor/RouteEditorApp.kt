@@ -38,13 +38,14 @@ class RouteEditorApp {
             }
 
             val route = DirtRally2RouteReader(Paths.get(inputFilePath)).read()
+            val viewModel = RouteEditorViewModel(route)
 
             val routeComponent = RouteComponent(route).also {
                 it.distanceMarkersEvery = 500.meters
             }
             Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
-                .map { CornerFeatureComponent(route, it) }
+                .map { CornerFeatureComponent(viewModel, it) }
                 .forEach(routeComponent::addRouteBoundComponent)
 
             val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)

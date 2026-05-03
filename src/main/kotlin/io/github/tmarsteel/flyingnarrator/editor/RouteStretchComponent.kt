@@ -1,8 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
-import io.github.tmarsteel.flyingnarrator.feature.MLine
+import com.formdev.flatlaf.ui.FlatUIUtils
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
-import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
@@ -10,21 +9,17 @@ import io.github.tmarsteel.flyingnarrator.utils.foldInto
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Component
-import java.awt.Cursor
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Polygon
 import java.awt.Shape
-import java.awt.event.MouseEvent
-import java.awt.event.MouseMotionListener
 import java.awt.geom.AffineTransform
-import java.awt.geom.Line2D
+import java.awt.geom.Ellipse2D
 import java.awt.geom.Point2D
-import javax.swing.JComponent
 import kotlin.math.roundToInt
 
 abstract class RouteStretchComponent(
-    val route: Route,
+    val viewModel: RouteEditorViewModel,
     val segmentIndices: IntRange,
     val displayColor: Color,
     val hoverColor: Color,
@@ -32,14 +27,12 @@ abstract class RouteStretchComponent(
 ) : RouteBoundComponent {
     init {
         require(segmentIndices.first >= 0)
-        require(segmentIndices.last < route.size)
+        require(segmentIndices.last < viewModel.route.size)
     }
 
-    private val trackPoints = route.asSequence()
-        .runningFold(Vector3.ORIGIN) { acc, s -> acc + s.forward }
-        .drop(segmentIndices.first)
-        .take(segmentIndices.last - segmentIndices.first + 1)
-        .toList()
+    private val trackPoints = viewModel.mathSegments
+        .subList(segmentIndices.first, segmentIndices.last + 1)
+        .map { it.somePoint }
 
     protected val displayShape = createTrackOutlineShape(trackPoints, DISPLAY_SHAPE_THICKNESS)
     protected val highlightDisplayShape = createTrackOutlineShape(trackPoints, HIGHLIGHT_DISPLAY_SHAPE_THICKNESS)
@@ -53,8 +46,8 @@ abstract class RouteStretchComponent(
     final override var routeTransform: AffineTransform = AffineTransform()
         set(value) {
             field = value
-            startMover?.routeTransformChanged()
-            endMover?.routeTransformChanged()
+            startPointHandle?.routeTransform = value
+            endPointHandle?.routeTransform = value
         }
 
     final override fun paint(g: Graphics2D) {
@@ -71,87 +64,66 @@ abstract class RouteStretchComponent(
 
     final override val isSelectable = isEditable
 
-    private var startMover: EndMoverComponent? = null
-    private var endMover: EndMoverComponent? = null
+    private var startPointHandle: EndPointHandle? = null
+    private var endPointHandle: EndPointHandle? = null
 
     final override fun onSelected(addComponent: (Component) -> Unit) {
-        if (startMover == null) {
-            startMover = EndMoverComponent(segmentIndices.first, true, trackPoints.first())
+        if (startPointHandle == null) {
+            startPointHandle = object : EndPointHandle(
+                segmentIndices.first,
+                true,
+                object : EditGovernor.Editable {
+                    override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
+                        // TODO: validate not moving start past end
+                        // TODO: validate not moving start into the previous corner
+                        return true
+                    }
+                }
+            ) {}
         }
-        if (endMover == null) {
-            endMover = EndMoverComponent(segmentIndices.last, false, trackPoints.last())
+        if (endPointHandle == null) {
+            endPointHandle = object : EndPointHandle(
+                segmentIndices.last,
+                false,
+                object : EditGovernor.Editable {
+                    override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
+                        // TODO: validate not moving start past end
+                        // TODO: validate not moving end into the next corner
+                        return true
+                    }
+                }
+            ) {}
         }
-        addComponent(startMover!!)
-        addComponent(endMover!!)
+        addComponent(startPointHandle!!)
+        addComponent(endPointHandle!!)
     }
 
-    private inner class EndMoverComponent(
-        val segmentIndex: Int,
-        val atStart: Boolean,
-        val point: Vector3,
-    ) : JComponent(), MouseMotionListener {
-        private lateinit var selfRouteTransform: AffineTransform
-
-        fun routeTransformChanged() {
-            val locationAsDouble = routeTransform.transform(Point2D.Double(point.x, point.y), null)
-            setLocation(locationAsDouble.x.roundToInt() - width / 2, locationAsDouble.y.roundToInt() - height / 2)
-            selfRouteTransform = AffineTransform().apply {
-                translate(-x.toDouble(), -y.toDouble())
-                concatenate(this@RouteStretchComponent.routeTransform)
-            }
-        }
-
+    private abstract inner class EndPointHandle(
+        segmentIndex: Int,
+        atStart: Boolean,
+        editGovernor: EditGovernor,
+    ) : SinglePointOnRouteComponent(
+        viewModel,
+        segmentIndex,
+        atStart,
+        editGovernor,
+        routeTransform,
+    ) {
         init {
-            setSize(40, 40)
-            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-            routeTransformChanged()
-            addMouseMotionListener(this)
+            setSize(20, 20)
         }
 
-        override fun mouseDragged(e: MouseEvent) {
-            val pointedLocation = selfRouteTransform.inverseTransform(e.point, null).let {
-                Vector3(it.x, it.y, 0.0)
-            }
-
-            val indexOfClosestSegment = findSegmentIndexClosestTo(pointedLocation)
-
-            TODO("visualize")
-        }
-
-        private fun findSegmentIndexClosestTo(point: Vector3): Int? {
-            return route
-                .asSequence()
-                .runningFold(Vector3.ORIGIN) { acc, s -> acc + s.forward }
-                .windowed(size = 2, step = 1, partialWindows = false)
-                .mapIndexedNotNull { segmentIndex, (pointA, pointB) ->
-                    val line = MLine(pointA, pointB - pointA)
-                    val vertical = line.findVerticalLineThrough(point, onlyIfOnSegment = true)
-                    if (vertical == null && !line.contains2d(point)) {
-                        return@mapIndexedNotNull null
-                    }
-                    val distance = vertical?.direction?.length2d ?: 0.0
-                    Pair(segmentIndex, distance)
-                }
-                .minByOrNull { it.second }
-                ?.first
-        }
-
-        override fun mouseMoved(e: MouseEvent?) {
-            // nothing to do
-        }
-
-        override fun paintComponent(g: Graphics) {
+        override fun paintComponent(g: Graphics?) {
             g as Graphics2D
 
-            val orthogonal = route[segmentIndex].forward.rotate2d90degCounterClockwise().withLength2d(10.0)
-            val lineStartPoint = point + orthogonal
-            val lineEndPoint = point - orthogonal
-            g.stroke = BasicStroke(3f)
+            FlatUIUtils.setRenderingHints(g)
+            g.translate(END_HANDLE_BORDER_STROKE.lineWidth.toDouble(), END_HANDLE_BORDER_STROKE.lineWidth.toDouble())
+            g.scale(width / (END_HANDLE_SHAPE.width + END_HANDLE_BORDER_STROKE.lineWidth * 2.0), height / (END_HANDLE_SHAPE.height + END_HANDLE_BORDER_STROKE.lineWidth * 2.0))
+            g.color = Color.RED
+            g.fill(END_HANDLE_SHAPE)
+            g.stroke = END_HANDLE_BORDER_STROKE
             g.color = Color.BLACK
-
-            withTransform(g, selfRouteTransform) {
-                g.draw(Line2D.Double(lineStartPoint.x, lineStartPoint.y, lineEndPoint.x, lineEndPoint.y))
-            }
+            g.draw(END_HANDLE_SHAPE)
         }
     }
 
@@ -159,6 +131,9 @@ abstract class RouteStretchComponent(
         val DISPLAY_SHAPE_THICKNESS = 5.meters
         val HIGHLIGHT_DISPLAY_SHAPE_THICKNESS = 15.meters
         val HOVER_TRIGGER_SHAPE_THICKNESS = 30.meters
+
+        val END_HANDLE_SHAPE = Ellipse2D.Double(0.0, 0.0, 10.0, 10.0)
+        val END_HANDLE_BORDER_STROKE = BasicStroke(3f)
 
         private fun createTrackOutlineShape(trackPoints: Iterable<Vector3>, thickness: Distance): Shape {
             val pointsOnRouteWithPerpendiculars = trackPoints
@@ -210,6 +185,6 @@ abstract class RouteStretchComponent(
     }
 }
 
-private fun AffineTransform.transform(point: Vector3, dst: Point2D): Point2D {
+private fun AffineTransform.transform(point: Vector3, dst: Point2D?): Point2D {
     return transform(Point2D.Double(point.x, point.y), dst)
 }
