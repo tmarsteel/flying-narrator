@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.editor
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.CustomCursor
+import io.github.tmarsteel.flyingnarrator.utils.DeriveFromDelegate.Companion.deriveFrom
 import java.awt.Cursor
 import java.awt.event.ComponentEvent
 import java.awt.event.ComponentListener
@@ -42,19 +43,17 @@ abstract class SinglePointOnRouteComponent(
             centerOnTrackPoint()
         }
 
-    private lateinit var routePoint: Point2D
     private var segmentIndex: Int = -1
         set(value) {
             check(value in viewModel.route.indices)
             field = value
-            routePoint = viewModel.mathSegments[value]
-                .let { if (atStart) it.startPoint else it.endPoint }
-                .toPoint2D()
             centerOnTrackPoint()
         }
-    init {
-        // force proper initialization through setter
-        segmentIndex = initialSegmentIndex
+
+    private val routePoint: Point2D by deriveFrom(this::segmentIndex) { (idx)  ->
+        viewModel.mathSegments[idx]
+            .let { if (atStart) it.startPoint else it.endPoint }
+            .toPoint2D()
     }
 
     private lateinit var selfRouteTransform: AffineTransform
@@ -69,6 +68,11 @@ abstract class SinglePointOnRouteComponent(
             translate(-x.toDouble(), -y.toDouble())
             concatenate(routeTransform)
         }
+    }
+
+    init {
+        // forces proper initialization of segmentIndex and selfRouteTransform through setter
+        segmentIndex = initialSegmentIndex
     }
 
     init {
@@ -123,7 +127,6 @@ abstract class SinglePointOnRouteComponent(
         }
 
         segmentIndex = indexOfClosestSegment
-        repaint()
     }
 
     override fun mouseReleased(e: MouseEvent?) {

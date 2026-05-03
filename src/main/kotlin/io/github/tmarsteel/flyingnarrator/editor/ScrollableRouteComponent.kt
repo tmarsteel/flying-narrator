@@ -75,7 +75,7 @@ class ScrollableRouteComponent(
         }
 
         override fun mouseWheelMoved(mwe: MouseWheelEvent) {
-            val newScale = (routeComponent.scale - mwe.preciseWheelRotation / scrollZoomDivisor).coerceAtLeast(0.1)
+            val newScale = (routeComponent.scale - mwe.preciseWheelRotation / scrollZoomDivisor).coerceIn(SCALE_RANGE)
             if (routeComponent.scale == newScale) {
                 return
             }
@@ -143,11 +143,11 @@ class ScrollableRouteComponent(
             update()
 
             zoomInButton.addActionListener {
-                routeComponent.scale *= 1.1
+                routeComponent.scale = (routeComponent.scale * 1.1).coerceIn(SCALE_RANGE)
                 update()
             }
             zoomOutButton.addActionListener {
-                routeComponent.scale /= 1.1
+                routeComponent.scale = (routeComponent.scale / 1.1).coerceIn(SCALE_RANGE)
                 update()
             }
         }
@@ -199,5 +199,9 @@ class ScrollableRouteComponent(
 
     fun fitScaleToSize() {
         routeComponent.fitScaleToSize(width, height)
+    }
+
+    companion object {
+        val SCALE_RANGE = 0.2 .. 3.0
     }
 }

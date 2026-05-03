@@ -5,6 +5,7 @@ import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
+import io.github.tmarsteel.flyingnarrator.utils.DeriveFromDelegate.Companion.deriveFrom
 import io.github.tmarsteel.flyingnarrator.utils.foldInto
 import java.awt.BasicStroke
 import java.awt.Color
@@ -20,23 +21,33 @@ import kotlin.math.roundToInt
 
 abstract class RouteStretchComponent(
     val viewModel: RouteEditorViewModel,
-    val segmentIndices: IntRange,
+    initialSegmentIndices: IntRange,
     val displayColor: Color,
     val hoverColor: Color,
     val isEditable: Boolean,
 ) : RouteBoundComponent {
-    init {
-        require(segmentIndices.first >= 0)
-        require(segmentIndices.last < viewModel.route.size)
+    var segmentIndices: IntRange = initialSegmentIndices
+        set(value) {
+            require(value.first >= 0)
+            require(value.last < viewModel.route.size)
+            field = value
+        }
+
+    private val trackPoints by deriveFrom(this::segmentIndices) { (idxs) ->
+        viewModel.mathSegments
+            .subList(idxs.first, idxs.last + 1)
+            .map { it.somePoint }
     }
 
-    private val trackPoints = viewModel.mathSegments
-        .subList(segmentIndices.first, segmentIndices.last + 1)
-        .map { it.somePoint }
-
-    protected val displayShape = createTrackOutlineShape(trackPoints, DISPLAY_SHAPE_THICKNESS)
-    protected val highlightDisplayShape = createTrackOutlineShape(trackPoints, HIGHLIGHT_DISPLAY_SHAPE_THICKNESS)
-    protected val hoverTriggerShape = createTrackOutlineShape(trackPoints, HOVER_TRIGGER_SHAPE_THICKNESS)
+    protected val displayShape by deriveFrom(this::segmentIndices) {
+        createTrackOutlineShape(trackPoints, DISPLAY_SHAPE_THICKNESS)
+    }
+    protected val highlightDisplayShape by deriveFrom(this::segmentIndices) {
+        createTrackOutlineShape(trackPoints, HIGHLIGHT_DISPLAY_SHAPE_THICKNESS)
+    }
+    protected val hoverTriggerShape by deriveFrom(this::segmentIndices) {
+        createTrackOutlineShape(trackPoints, HOVER_TRIGGER_SHAPE_THICKNESS)
+    }
 
     final override fun tryClaimHover(pointedTrackLocation: Vector3): Boolean {
         return hoverTriggerShape.contains(pointedTrackLocation.x, pointedTrackLocation.y)
@@ -59,6 +70,9 @@ abstract class RouteStretchComponent(
 
             g.color = displayColor
             g.fill(displayShape)
+            if (segmentIndices.first == 122) {
+                println(displayShape.hashCode())
+            }
         }
     }
 
@@ -74,8 +88,13 @@ abstract class RouteStretchComponent(
                 true,
                 object : EditGovernor.Editable {
                     override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
-                        // TODO: validate not moving start past end
+                        if (segmentIndex > segmentIndices.last) {
+                            return false
+                        }
+
                         // TODO: validate not moving start into the previous corner
+
+                        segmentIndices = segmentIndex..segmentIndices.last
                         return true
                     }
                 }
@@ -87,8 +106,13 @@ abstract class RouteStretchComponent(
                 false,
                 object : EditGovernor.Editable {
                     override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
-                        // TODO: validate not moving start past end
+                        if (segmentIndex < segmentIndices.first) {
+                            return false
+                        }
+
                         // TODO: validate not moving end into the next corner
+
+                        segmentIndices = segmentIndices.first..segmentIndex
                         return true
                     }
                 }
