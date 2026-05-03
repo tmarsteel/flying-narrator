@@ -1,9 +1,9 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.tmarsteel.flyingnarrator.ui.CustomCursor
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
 import java.awt.Color
-import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -55,7 +55,7 @@ class ScrollableRouteComponent(
         override fun mousePressed(e: MouseEvent) {
             dragStartedAt = e.point
             viewportPositionAtDragStart = scrollPane.viewport.viewPosition
-            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            cursor = CustomCursor.GRABBING
         }
 
         override fun mouseReleased(e: MouseEvent?) {
