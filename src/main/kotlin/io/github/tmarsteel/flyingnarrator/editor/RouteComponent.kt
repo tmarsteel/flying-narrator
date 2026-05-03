@@ -14,10 +14,13 @@ import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.KeyEventDispatcher
+import java.awt.KeyboardFocusManager
 import java.awt.Point
 import java.awt.Polygon
 import java.awt.Rectangle
 import java.awt.RenderingHints
+import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
@@ -28,6 +31,7 @@ import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.Scrollable
+import javax.swing.SwingUtilities
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -293,9 +297,10 @@ class RouteComponent(
     }
 
     private interface SubComponentState {
-        fun mouseMoved(e: MouseEvent)
-        fun mouseClicked(e: MouseEvent)
-        fun paint(g: Graphics2D)
+        fun mouseMoved(e: MouseEvent) {}
+        fun mouseClicked(e: MouseEvent) {}
+        fun onKeyTyped(e: KeyEvent) {}
+        fun paint(g: Graphics2D) {}
     }
     private val subComponentsIdleState = object : SubComponentState {
         override fun mouseMoved(e: MouseEvent) {
@@ -303,7 +308,7 @@ class RouteComponent(
                 Vector3(it.x, it.y, 0.0)
             }
             for (component in routeBoundComponents) {
-                if (component.tryClaimHover(pointedLocation)) {
+                if (component.shouldCapture(pointedLocation)) {
                     subComponentState = SubComponentHoveredState(component, e.point)
                     repaint()
                     break
@@ -314,11 +319,10 @@ class RouteComponent(
         override fun mouseClicked(e: MouseEvent) {
             mouseMoved(e)
             if (subComponentState != this) {
+                e.consume()
                 subComponentState.mouseClicked(e)
             }
         }
-
-        override fun paint(g: Graphics2D) {}
     }
     private inner class SubComponentHoveredState(
         val hovered: RouteBoundComponent,
@@ -333,10 +337,7 @@ class RouteComponent(
         }
 
         override fun mouseMoved(e: MouseEvent) {
-            val pointedLocation = routeTransform.inverseTransform(e.point, null).let {
-                Vector3(it.x, it.y, 0.0)
-            }
-            if (hovered.tryClaimHover(pointedLocation)) {
+            if (hovered.shouldCapture(toRouteSpace(e.point))) {
                 hovered.tooltip?.location = Point(e.point.x + TOOLTIP_OFFSET_X, e.point.y + TOOLTIP_OFFSET_Y)
             } else {
                 subComponentState = subComponentsIdleState
@@ -348,11 +349,9 @@ class RouteComponent(
         }
 
         override fun mouseClicked(e: MouseEvent) {
-            val pointedLocation = routeTransform.inverseTransform(e.point, null).let {
-                Vector3(it.x, it.y, 0.0)
-            }
-            if (hovered.tryClaimHover(pointedLocation)) {
+            if (hovered.shouldCapture(toRouteSpace(e.point))) {
                 subComponentState = SubComponentSelectedState(hovered)
+                e.consume()
                 repaint()
             }
         }
@@ -381,43 +380,81 @@ class RouteComponent(
             selected.onSelected(this::addComponentForSelectionMode)
         }
 
-        override fun mouseMoved(e: MouseEvent) {
-
+        private fun deselect() {
+            selected.onDeselected()
+            componentsInSelectedMode.forEach(this@RouteComponent::remove)
+            subComponentState = subComponentsIdleState
         }
 
         override fun mouseClicked(e: MouseEvent) {
-
+            if (!selected.shouldCapture(toRouteSpace(e.point))) {
+                deselect()
+                subComponentState.mouseClicked(e)
+                e.consume()
+            }
         }
 
-        override fun paint(g: Graphics2D) {
+        override fun onKeyTyped(e: KeyEvent) {
+            if (e.isMetaDown || e.isShiftDown || e.isAltDown || e.isControlDown) {
+                return
+            }
 
+            if (e.keyChar != '\u001B') {
+                return
+            }
+
+            deselect()
+            e.consume()
         }
     }
 
     private var subComponentState: SubComponentState = subComponentsIdleState
 
-    init {
-        val mouseListener = object : MouseListener, MouseMotionListener {
-            override fun mouseMoved(e: MouseEvent) {
-                subComponentState.mouseMoved(e)
-            }
-
-            override fun mouseDragged(e: MouseEvent?) {}
-
-            override fun mouseClicked(e: MouseEvent) {
-                subComponentState.mouseClicked(e)
-            }
-
-            override fun mousePressed(e: MouseEvent?) {}
-
-            override fun mouseReleased(e: MouseEvent?) {}
-
-            override fun mouseEntered(e: MouseEvent?) {}
-
-            override fun mouseExited(e: MouseEvent?) {}
+    private fun toRouteSpace(point: Point): Vector3 {
+        return routeTransform.inverseTransform(point, null).let {
+            Vector3(it.x, it.y, 0.0)
         }
-        addMouseListener(mouseListener)
-        addMouseMotionListener(mouseListener)
+    }
+
+    private val keyboardFocusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
+    private val listener = object : MouseListener, MouseMotionListener, KeyEventDispatcher {
+        override fun mouseMoved(e: MouseEvent) {
+            subComponentState.mouseMoved(e)
+        }
+        override fun mouseDragged(e: MouseEvent?) {}
+
+        override fun mouseClicked(e: MouseEvent) {
+            subComponentState.mouseClicked(e)
+        }
+        override fun mousePressed(e: MouseEvent?) {}
+        override fun mouseReleased(e: MouseEvent?) {}
+        override fun mouseEntered(e: MouseEvent?) {}
+        override fun mouseExited(e: MouseEvent?) {}
+
+        override fun dispatchKeyEvent(e: KeyEvent): Boolean {
+            val selfWindow = SwingUtilities.getWindowAncestor(this@RouteComponent)
+            if (selfWindow.isActive && e.component?.let { SwingUtilities.getWindowAncestor(it) } != selfWindow) {
+                return false
+            }
+
+            if (e.id != KeyEvent.KEY_TYPED) {
+                return false
+            }
+
+            subComponentState.onKeyTyped(e)
+
+            return e.isConsumed
+        }
+    }
+    init {
+        addMouseListener(listener)
+        addMouseMotionListener(listener)
+        keyboardFocusManager.addKeyEventDispatcher(listener)
+    }
+
+    override fun removeNotify() {
+        super.removeNotify()
+        keyboardFocusManager.removeKeyEventDispatcher(listener)
     }
 
     companion object {

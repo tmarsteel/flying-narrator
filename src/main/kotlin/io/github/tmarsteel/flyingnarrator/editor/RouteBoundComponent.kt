@@ -9,16 +9,16 @@ import javax.swing.JToolTip
 
 sealed interface RouteBoundComponent {
     /**
-     * Called whenever the mouse moves in the parent [RouteComponent]
+     * Called to determine whether a mouse position in the parent [RouteComponent] belongs to this [RouteBoundComponent].
      * @param pointedTrackLocation where the mouse points, in the track coordinate space, but with [Vector3.z] being `0`
      * because [RouteComponent] is 2-dimensional top-down
-     * @return whether this component should be hovered at the given mouse position
+     * @return whether the mouse interaction at this point belongs to this [RouteBoundComponent]
      */
-    fun tryClaimHover(pointedTrackLocation: Vector3): Boolean
+    fun shouldCapture(pointedTrackLocation: Vector3): Boolean
 
     /**
-     * Is set to `true` iff [tryClaimHover] returned true and there is no other component that should rather have
-     * the hover. Is set to `false` if hover is lost to another element or [tryClaimHover] starts returning false.
+     * Is set to `true` iff [shouldCapture] returned true and there is no other component that should rather have
+     * the hover. Is set to `false` if hover is lost to another element or [shouldCapture] starts returning false.
      */
     var isHovered: Boolean
 
@@ -36,6 +36,8 @@ sealed interface RouteBoundComponent {
      * this component is selected
      */
     fun onSelected(addComponent: (Component) -> Unit) {}
+
+    fun onDeselected()
 
     /**
      * Visualize this element by drawing on top of the current track view.

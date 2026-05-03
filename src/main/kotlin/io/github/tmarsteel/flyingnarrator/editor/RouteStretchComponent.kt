@@ -49,7 +49,7 @@ abstract class RouteStretchComponent(
         createTrackOutlineShape(trackPoints, HOVER_TRIGGER_SHAPE_THICKNESS)
     }
 
-    final override fun tryClaimHover(pointedTrackLocation: Vector3): Boolean {
+    final override fun shouldCapture(pointedTrackLocation: Vector3): Boolean {
         return hoverTriggerShape.contains(pointedTrackLocation.x, pointedTrackLocation.y)
     }
 
@@ -70,9 +70,6 @@ abstract class RouteStretchComponent(
 
             g.color = displayColor
             g.fill(displayShape)
-            if (segmentIndices.first == 122) {
-                println(displayShape.hashCode())
-            }
         }
     }
 
@@ -120,6 +117,10 @@ abstract class RouteStretchComponent(
         }
         addComponent(startPointHandle!!)
         addComponent(endPointHandle!!)
+    }
+
+    override fun onDeselected() {
+
     }
 
     private abstract inner class EndPointHandle(
