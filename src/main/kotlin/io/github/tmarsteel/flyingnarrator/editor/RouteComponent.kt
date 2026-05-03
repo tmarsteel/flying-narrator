@@ -118,7 +118,9 @@ class RouteComponent(
         val subG = g.create() as Graphics2D
         subG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         try {
+            val transform = subG.transform
             for (component in routeBoundComponents) {
+                subG.transform = transform
                 component.paint(subG)
             }
         } finally {

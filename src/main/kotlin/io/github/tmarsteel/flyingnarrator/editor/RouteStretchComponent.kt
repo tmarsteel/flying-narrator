@@ -16,7 +16,6 @@ import java.awt.Polygon
 import java.awt.Shape
 import java.awt.geom.AffineTransform
 import java.awt.geom.Ellipse2D
-import java.awt.geom.Point2D
 import kotlin.math.roundToInt
 
 abstract class RouteStretchComponent(
@@ -127,7 +126,7 @@ abstract class RouteStretchComponent(
         segmentIndex: Int,
         atStart: Boolean,
         editGovernor: EditGovernor,
-    ) : SinglePointOnRouteComponent(
+    ) : EditableSinglePointOnRouteComponent(
         viewModel,
         segmentIndex,
         atStart,
@@ -208,8 +207,4 @@ abstract class RouteStretchComponent(
                 }
         }
     }
-}
-
-private fun AffineTransform.transform(point: Vector3, dst: Point2D?): Point2D {
-    return transform(Point2D.Double(point.x, point.y), dst)
 }

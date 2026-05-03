@@ -43,6 +43,8 @@ class RouteEditorApp {
             val routeComponent = RouteComponent(route).also {
                 it.distanceMarkersEvery = 500.meters
             }
+            routeComponent.addRouteBoundComponent(StartMarker(viewModel))
+            routeComponent.addRouteBoundComponent(FinishMarker(viewModel))
             Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
                 .map { CornerFeatureComponent(viewModel, it) }

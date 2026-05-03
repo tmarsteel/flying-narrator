@@ -37,7 +37,7 @@ sealed interface RouteBoundComponent {
      */
     fun onSelected(addComponent: (Component) -> Unit) {}
 
-    fun onDeselected()
+    fun onDeselected() {}
 
     /**
      * Visualize this element by drawing on top of the current track view.

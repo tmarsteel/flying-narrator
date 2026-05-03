@@ -20,7 +20,7 @@ import kotlin.math.roundToInt
  * Represents a single point on the route. It assumes that it is a child of [RouteComponent] and will always position
  * itself so that the center of the component is at the track location determined from [segmentIndex] and [atStart].
  */
-abstract class SinglePointOnRouteComponent(
+abstract class EditableSinglePointOnRouteComponent(
     val viewModel: RouteEditorViewModel,
     initialSegmentIndex: Int,
     val atStart: Boolean,
@@ -168,7 +168,7 @@ abstract class SinglePointOnRouteComponent(
             /**
              * Called when the user has indicated movement to [segmentIndex]. Serves as both a callback/notification
              * and movement validity check
-             * @param atStart pass-through of [SinglePointOnRouteComponent.atStart]
+             * @param atStart pass-through of [EditableSinglePointOnRouteComponent.atStart]
              * @return whether the move is allowed; if false, the point will remain where it was previously
              */
             fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean
