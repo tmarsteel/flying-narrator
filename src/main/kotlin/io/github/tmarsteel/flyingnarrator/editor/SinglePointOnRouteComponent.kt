@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.CustomCursor
 import java.awt.Cursor
@@ -11,6 +12,7 @@ import java.awt.event.MouseMotionListener
 import java.awt.geom.AffineTransform
 import java.awt.geom.Point2D
 import javax.swing.JComponent
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
@@ -113,12 +115,13 @@ abstract class SinglePointOnRouteComponent(
             Vector3(it.x, it.y, 0.0)
         }
 
-        val indexOfClosestSegment = viewModel.getIndexOfSegmentClosestTo(pointedLocation)
+        val searchWindow = (segmentIndex - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
+            (segmentIndex + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(viewModel.mathSegments.lastIndex)
+        val indexOfClosestSegment = viewModel.getIndexOfSegmentClosestTo(pointedLocation, searchWindow)
         if (indexOfClosestSegment < 0 || !editGovernor.tryMoveTo(indexOfClosestSegment, atStart)) {
             return
         }
 
-        println("$segmentIndex -> $indexOfClosestSegment")
         segmentIndex = indexOfClosestSegment
         repaint()
     }
@@ -152,6 +155,10 @@ abstract class SinglePointOnRouteComponent(
 
     override fun mouseExited(e: MouseEvent?) {
         // nothing to do
+    }
+
+    companion object {
+        private val DRAG_SEARCH_HALF_WINDOW = ceil(75.0 / OPTIMAL_ROAD_SEGMENT_LENGTH).toInt()
     }
 
     sealed interface EditGovernor {

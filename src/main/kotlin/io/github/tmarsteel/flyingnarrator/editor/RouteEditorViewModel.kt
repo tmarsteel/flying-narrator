@@ -18,15 +18,20 @@ class RouteEditorViewModel(
         .toList()
 
     /**
+     * @param searchRange limit the search to this index range; defaults to the full route.
+     *   Pass a window around the current position during drag to prevent the point from jumping
+     *   to distant segments when the cursor strays far from the route.
      * @return the index of the segment closest to [point], or `-1` if none is reasonably close
      */
-    fun getIndexOfSegmentClosestTo(point: Vector3): Int {
+    fun getIndexOfSegmentClosestTo(point: Vector3, searchRange: IntRange = mathSegments.indices): Int {
         return mathSegments
             .asSequence()
-            .mapIndexedNotNull { segmentIndex, segmentLine ->
+            .withIndex()
+            .filter { (index, _) -> index in searchRange }
+            .mapNotNull { (segmentIndex, segmentLine) ->
                 val vertical = segmentLine.findVerticalLineThrough(point, onlyIfOnSegment = true)
                 if (vertical == null && !segmentLine.contains2d(point)) {
-                    return@mapIndexedNotNull null
+                    return@mapNotNull null
                 }
                 val distance = vertical?.direction?.length2d ?: 0.0
                 Pair(segmentIndex, distance)
