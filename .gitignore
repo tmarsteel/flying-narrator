@@ -32,3 +32,6 @@ gradle-app.setting
 
 # Scratch files / development data
 **/dr2-telemetry-*.csv
+
+# Claude Code
+.claude/
