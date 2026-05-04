@@ -20,9 +20,9 @@ abstract class ImageSinglePointOnRouteComponent(
     val image = mutableSignalOf(initialImage)
     val location = mutableSignalOf(initialLocation)
 
-    protected abstract val editGovernor: SinglePointOnTrackEditHandle.EditGovernor
+    protected abstract val editGovernor: PointOnTrackEditHandle.EditGovernor
 
-    override val isSelectable: Boolean get()= editGovernor is SinglePointOnTrackEditHandle.EditGovernor.Editable
+    override val isSelectable: Boolean get()= editGovernor is PointOnTrackEditHandle.EditGovernor.Editable
 
     private val routeTransform = parent.flatMap { it?.routeTransform ?: signalOf(AffineTransform()) }
     private val centerPointInParentPixelSpace = combine(routeTransform, location) { routeTransform, location ->
@@ -42,12 +42,12 @@ abstract class ImageSinglePointOnRouteComponent(
         )
     }
 
-    private var editHandle: SinglePointOnTrackEditHandle? = null
+    private var editHandle: PointOnTrackEditHandle? = null
     init {
         selected.subscribeOn(lifecycle) { isSelected ->
             if (isSelected) {
                 if (editHandle == null) {
-                    editHandle = object : SinglePointOnTrackEditHandle(
+                    editHandle = object : PointOnTrackEditHandle(
                         routeModel,
                         location.value,
                         Snapping.FreeMovement,

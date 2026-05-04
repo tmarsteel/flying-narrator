@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
  * Represents a single point on the route. It assumes that it is a child of [RouteComponent] and will always position
  * itself so that the center of the component is at the track location determined from [segmentIndex] and [atStart].
  */
-abstract class SinglePointOnTrackEditHandle(
+abstract class PointOnTrackEditHandle(
     val viewModel: RouteEditorViewModel,
     initialLocation: RouteEditorViewModel.PreciseLocation,
     val snapping: Snapping,

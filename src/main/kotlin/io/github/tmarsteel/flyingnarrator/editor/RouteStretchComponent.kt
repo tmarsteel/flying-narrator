@@ -116,7 +116,7 @@ abstract class RouteStretchComponent(
         segmentIndex: Int,
         atStart: Boolean,
         editGovernor: EditGovernor,
-    ) : SinglePointOnTrackEditHandle(
+    ) : PointOnTrackEditHandle(
         routeViewModel,
         if (atStart) {
             RouteEditorViewModel.PreciseLocation.atSegmentStart(routeViewModel.segments[segmentIndex])
