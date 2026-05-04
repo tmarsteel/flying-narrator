@@ -1,11 +1,12 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
 import com.formdev.flatlaf.ui.FlatUIUtils
+import io.github.fenrur.signal.mutableSignalOf
+import io.github.fenrur.signal.operators.map
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
-import io.github.tmarsteel.flyingnarrator.utils.DeriveFromDelegate.Companion.deriveFrom
 import io.github.tmarsteel.flyingnarrator.utils.foldInto
 import java.awt.BasicStroke
 import java.awt.Color
@@ -24,31 +25,27 @@ abstract class RouteStretchComponent(
     val hoverColor: Color,
     val isEditable: Boolean,
 ) : RouteBoundComponent {
-    var segmentIndices: IntRange = initialSegmentIndices
-        set(value) {
-            require(value.first >= 0)
-            require(value.last < viewModel.route.size)
-            field = value
-        }
+    val segmentIndices = mutableSignalOf(initialSegmentIndices)
 
-    private val trackPoints by deriveFrom(this::segmentIndices) { (idxs) ->
-        viewModel.mathSegments
+    private val trackPoints = segmentIndices.map { idxs ->
+        val starts = viewModel.mathSegments
             .subList(idxs.first, idxs.last + 1)
-            .map { it.somePoint }
+            .map { it.startPoint }
+        starts + listOf(viewModel.mathSegments[idxs.last].endPoint)
     }
 
-    protected val displayShape by deriveFrom(this::segmentIndices) {
-        createTrackOutlineShape(trackPoints, DISPLAY_SHAPE_THICKNESS)
+    protected val displayShape = trackPoints.map { pts ->
+        createTrackOutlineShape(pts, DISPLAY_SHAPE_THICKNESS)
     }
-    protected val highlightDisplayShape by deriveFrom(this::segmentIndices) {
-        createTrackOutlineShape(trackPoints, HIGHLIGHT_DISPLAY_SHAPE_THICKNESS)
+    protected val highlightDisplayShape = trackPoints.map { pts ->
+        createTrackOutlineShape(pts, HIGHLIGHT_DISPLAY_SHAPE_THICKNESS)
     }
-    protected val hoverTriggerShape by deriveFrom(this::segmentIndices) {
-        createTrackOutlineShape(trackPoints, HOVER_TRIGGER_SHAPE_THICKNESS)
+    protected val hoverTriggerShape= trackPoints.map { pts ->
+        createTrackOutlineShape(pts, HOVER_TRIGGER_SHAPE_THICKNESS)
     }
 
     final override fun shouldCapture(pointedTrackLocation: Vector3): Boolean {
-        return hoverTriggerShape.contains(pointedTrackLocation.x, pointedTrackLocation.y)
+        return hoverTriggerShape.value.contains(pointedTrackLocation.x, pointedTrackLocation.y)
     }
 
     final override var isHovered = false
@@ -65,11 +62,11 @@ abstract class RouteStretchComponent(
         withTransform(g, parent!!.routeTransform.value) {
             if (isHovered) {
                 g.color = hoverColor
-                g.fill(highlightDisplayShape)
+                g.fill(highlightDisplayShape.value)
             }
 
             g.color = displayColor
-            g.fill(displayShape)
+            g.fill(displayShape.value)
         }
     }
 
@@ -81,17 +78,17 @@ abstract class RouteStretchComponent(
     final override fun onSelected(addComponent: (Component) -> Unit) {
         if (startPointHandle == null) {
             startPointHandle = object : EndPointHandle(
-                segmentIndices.first,
+                segmentIndices.value.first,
                 true,
                 object : EditGovernor.Editable {
                     override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
-                        if (segmentIndex > segmentIndices.last) {
+                        if (segmentIndex > segmentIndices.value.last) {
                             return false
                         }
 
                         // TODO: validate not moving start into the previous corner
 
-                        segmentIndices = segmentIndex..segmentIndices.last
+                        segmentIndices.update { segmentIndex..it.last }
                         return true
                     }
                 }
@@ -99,17 +96,17 @@ abstract class RouteStretchComponent(
         }
         if (endPointHandle == null) {
             endPointHandle = object : EndPointHandle(
-                segmentIndices.last,
+                segmentIndices.value.last,
                 false,
                 object : EditGovernor.Editable {
                     override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
-                        if (segmentIndex < segmentIndices.first) {
+                        if (segmentIndex < segmentIndices.value.first) {
                             return false
                         }
 
                         // TODO: validate not moving end into the next corner
 
-                        segmentIndices = segmentIndices.first..segmentIndex
+                        segmentIndices.update  { it.first..segmentIndex }
                         return true
                     }
                 }
