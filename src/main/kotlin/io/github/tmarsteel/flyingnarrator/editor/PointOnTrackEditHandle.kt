@@ -5,6 +5,7 @@ import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
 import io.github.fenrur.signal.operators.flatMap
+import io.github.fenrur.signal.operators.increment
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
@@ -31,7 +32,7 @@ abstract class PointOnTrackEditHandle(
     val routeLocation: MutableSignal<RouteEditorViewModel.PreciseLocation>,
     val editGovernor: EditGovernor.Editable,
 ) : ReactiveRouteComponentChild(), MouseListener, MouseMotionListener {
-    private val resizeEvents = mutableSignalOf(Unit)
+    private val resizeEvents = mutableSignalOf(0L)
     private val selfRouteTransform: Signal<AffineTransform>
     init {
         val targetSelfLocation = combine(
@@ -61,8 +62,8 @@ abstract class PointOnTrackEditHandle(
 
     init {
         addComponentListener(object : ComponentListener {
-            override fun componentResized(e: ComponentEvent?) {
-                resizeEvents.value = Unit
+            override fun componentResized(e: ComponentEvent) {
+                resizeEvents.increment()
             }
 
             override fun componentMoved(e: ComponentEvent?) {
