@@ -35,6 +35,8 @@ class RouteEditorViewModel(
         .toList()
 
     val routeBounds: Rectangle2D.Double = computeRouteBounds(route)
+    val start: PreciseLocation = PreciseLocation.atSegmentStart(segments.first())
+    val finish: PreciseLocation = PreciseLocation.atSegmentEnd(segments.last())
 
     /**
      * @param searchRange limit the search to this index range; defaults to the full route.
@@ -153,6 +155,18 @@ class RouteEditorViewModel(
     class CornerModel(
         val segmentIndices: MutableSignal<IntRange>
     )
+
+    class ChicaneModel(
+        val location: MutableSignal<PreciseLocation>,
+        val entry: MutableSignal<Entry>,
+    ) {
+        enum class Entry {
+            LEFT,
+            RIGHT,
+            UNSPECIFIED,
+            ;
+        }
+    }
 
     companion object {
         private fun computeRouteBounds(route: Route): Rectangle2D.Double {

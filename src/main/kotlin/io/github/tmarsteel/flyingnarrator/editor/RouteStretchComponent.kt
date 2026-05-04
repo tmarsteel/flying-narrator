@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.editor
 import com.formdev.flatlaf.ui.FlatUIUtils
 import io.github.fenrur.signal.operators.map
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
@@ -44,11 +45,9 @@ abstract class RouteStretchComponent(
         return hoverTriggerShape.value.contains(pointedTrackLocation.x, pointedTrackLocation.y)
     }
 
-    final override var isHovered = false
-
     final override fun paint(g: Graphics2D) {
         withTransform(g, parent.value!!.routeTransform.value) {
-            if (isHovered) {
+            if (hovered.value) {
                 g.color = hoverColor
                 g.fill(highlightDisplayShape.value)
             }
@@ -63,50 +62,52 @@ abstract class RouteStretchComponent(
     private var startPointHandle: EndPointHandle? = null
     private var endPointHandle: EndPointHandle? = null
 
-    final override fun onSelected() {
-        if (startPointHandle == null) {
-            startPointHandle = object : EndPointHandle(
-                stretchModel.segmentIndices.value.first,
-                true,
-                object : EditGovernor.Editable {
-                    override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
-                        if (location.segment.index > stretchModel.segmentIndices.value.last) {
-                            return false
+    init {
+        selected.subscribeOn(lifecycle) { isSelected ->
+            if (isSelected) {
+                if (startPointHandle == null) {
+                    startPointHandle = object : EndPointHandle(
+                        stretchModel.segmentIndices.value.first,
+                        true,
+                        object : EditGovernor.Editable {
+                            override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
+                                if (location.segment.index > stretchModel.segmentIndices.value.last) {
+                                    return false
+                                }
+
+                                // TODO: validate not moving start into the previous corner
+
+                                stretchModel.segmentIndices.update { location.segment.index..it.last }
+                                return true
+                            }
                         }
-
-                        // TODO: validate not moving start into the previous corner
-
-                        stretchModel.segmentIndices.update { location.segment.index..it.last }
-                        return true
-                    }
+                    ) {}
                 }
-            ) {}
-        }
-        if (endPointHandle == null) {
-            endPointHandle = object : EndPointHandle(
-                stretchModel.segmentIndices.value.last,
-                false,
-                object : EditGovernor.Editable {
-                    override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
-                        if (location.segment.index < stretchModel.segmentIndices.value.first) {
-                            return false
+                if (endPointHandle == null) {
+                    endPointHandle = object : EndPointHandle(
+                        stretchModel.segmentIndices.value.last,
+                        false,
+                        object : EditGovernor.Editable {
+                            override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
+                                if (location.segment.index < stretchModel.segmentIndices.value.first) {
+                                    return false
+                                }
+
+                                // TODO: validate not moving end into the next corner
+
+                                stretchModel.segmentIndices.update { it.first..location.segment.index }
+                                return true
+                            }
                         }
-
-                        // TODO: validate not moving end into the next corner
-
-                        stretchModel.segmentIndices.update  { it.first..location.segment.index }
-                        return true
-                    }
+                    ) {}
                 }
-            ) {}
+                parent.value!!.add(startPointHandle!!)
+                parent.value!!.add(endPointHandle!!)
+            } else {
+                startPointHandle?.let { parent.value?.remove(it) }
+                endPointHandle?.let { parent.value?.remove(it) }
+            }
         }
-        parent.value!!.add(startPointHandle!!)
-        parent.value!!.add(endPointHandle!!)
-    }
-
-    override fun onDeselected() {
-        startPointHandle?.let { parent.value?.remove(it) }
-        endPointHandle?.let { parent.value?.remove(it) }
     }
 
     private abstract inner class EndPointHandle(

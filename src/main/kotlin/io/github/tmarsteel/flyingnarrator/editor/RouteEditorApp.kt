@@ -45,6 +45,7 @@ class RouteEditorApp {
             }
             routeComponent.addRouteBoundComponent(StartMarker(viewModel))
             routeComponent.addRouteBoundComponent(FinishMarker(viewModel))
+            routeComponent.addRouteBoundComponent(Chicane(viewModel, 5610.meters))
             Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
                 .map { CornerFeatureComponent(viewModel, viewModel.makeCornerModel(it)) }

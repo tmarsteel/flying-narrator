@@ -253,7 +253,7 @@ class RouteComponent(
         hoverEnteredAt: Point,
     ) : SubComponentState {
         init {
-            hovered.isHovered = true
+            hovered.hovered.value = true
             if (hovered.isSelectable) {
                 this@RouteComponent.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
             }
@@ -265,7 +265,7 @@ class RouteComponent(
                 hovered.tooltip?.location = Point(e.point.x + TOOLTIP_OFFSET_X, e.point.y + TOOLTIP_OFFSET_Y)
             } else {
                 subComponentState = subComponentsIdleState
-                hovered.isHovered = false
+                hovered.hovered.value = false
                 this@RouteComponent.setCursor(null)
                 subComponentsIdleState.mouseMoved(e)
             }
@@ -293,13 +293,13 @@ class RouteComponent(
         val selected: RouteBoundComponent,
     ) : SubComponentState {
         init {
-            selected.isHovered = false
+            selected.hovered.value = false
             this@RouteComponent.setCursor(null)
-            selected.onSelected()
+            selected.selected.value = true
         }
 
         private fun deselect() {
-            selected.onDeselected()
+            selected.selected.value = false
             subComponentState = subComponentsIdleState
         }
 

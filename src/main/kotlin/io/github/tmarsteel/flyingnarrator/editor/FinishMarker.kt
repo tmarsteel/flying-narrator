@@ -6,8 +6,7 @@ class FinishMarker(
     viewModel: RouteEditorViewModel,
 ) : ImageSinglePointOnRouteComponent(
     ICON,
-    viewModel,
-    viewModel.segments.last().line.endPoint,
+    viewModel.finish,
     SinglePointOnTrackEditHandle.EditGovernor.NotEditable,
 ) {
     companion object {

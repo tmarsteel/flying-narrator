@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.MutableSignal
 import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.mutableSignalOf
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
@@ -35,16 +36,14 @@ abstract class RouteBoundComponent {
      * Is set to `true` iff [shouldCapture] returned true and there is no other component that should rather have
      * the hover. Is set to `false` if hover is lost to another element or [shouldCapture] starts returning false.
      */
-    open var isHovered: Boolean = false
-
-    open val isSelectable: Boolean get()= false
+    val hovered: MutableSignal<Boolean> = mutableSignalOf(false)
 
     /**
-     * Called when the user selects this component (e.g., by clicking on it).
+     * Is set to `true` when the user selects this element. That can never happen as long as [isSelectable] is `false`.
      */
-    open fun onSelected() {}
+    val selected: MutableSignal<Boolean> = mutableSignalOf(false)
 
-    open fun onDeselected() {}
+    open val isSelectable: Boolean get()= false
 
     /**
      * Visualize this element by drawing on top of the current track view.

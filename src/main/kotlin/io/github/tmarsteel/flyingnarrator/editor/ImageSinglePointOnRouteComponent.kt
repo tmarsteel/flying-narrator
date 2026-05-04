@@ -1,33 +1,48 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.mutableSignalOf
+import io.github.fenrur.signal.operators.combine
+import io.github.fenrur.signal.operators.flatMap
+import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import java.awt.Graphics2D
+import java.awt.geom.AffineTransform
+import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 
 abstract class ImageSinglePointOnRouteComponent(
-    val image: BufferedImage,
-    private val viewModel: RouteEditorViewModel,
-    val point: Vector3,
+    initialImage: BufferedImage,
+    initialLocation: RouteEditorViewModel.PreciseLocation,
     editGovernor: SinglePointOnTrackEditHandle.EditGovernor,
 ) : RouteBoundComponent() {
-    init {
-        check(editGovernor is SinglePointOnTrackEditHandle.EditGovernor.NotEditable) {
-            "not supported yet"
-        }
+    val image = mutableSignalOf(initialImage)
+    val location = mutableSignalOf(initialLocation)
+
+    override val isSelectable: Boolean = false
+
+    private val routeTransform = parent.flatMap { it?.routeTransform ?: signalOf(AffineTransform()) }
+    private val centerPointInParentPixelSpace = combine(routeTransform, location) { routeTransform, location ->
+        routeTransform.transform(location.point, null)
+    }
+
+    private val selfShapeInParentPixelSpace = combine(
+        centerPointInParentPixelSpace,
+        image,
+    ) { centerPoint, image ->
+        Rectangle2D.Double(centerPoint.x - image.width / 2.0, centerPoint.y - image.height / 2.0, image.width.toDouble(), image.height.toDouble())
     }
 
     override fun shouldCapture(pointedTrackLocation: Vector3): Boolean {
-        // TODO: implement editing for e.g. jumps
-        return false
+        return selfShapeInParentPixelSpace.value.contains(
+            routeTransform.value.transform(pointedTrackLocation, null)
+        )
     }
 
-    override var isHovered: Boolean = false
-    override val isSelectable: Boolean = false
-
     override fun paint(g: Graphics2D) {
-        val centerPoint = parent.value!!.routeTransform.value.transform(point, null)
-        g.translate(centerPoint.x, centerPoint.y)
-        g.translate(-image.width / 2.0, -image.height / 2.0)
+        val image = image.value
+        val selfShape = selfShapeInParentPixelSpace.value
+
+        g.translate(selfShape.x, selfShape.y)
         g.drawImage(image, 0, 0, null)
     }
 }

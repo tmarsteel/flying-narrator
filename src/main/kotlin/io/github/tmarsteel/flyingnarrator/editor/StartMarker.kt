@@ -6,8 +6,7 @@ class StartMarker(
     viewModel: RouteEditorViewModel,
 ) : ImageSinglePointOnRouteComponent(
     ICON,
-    viewModel,
-    viewModel.segments.first().line.startPoint,
+    viewModel.start,
     SinglePointOnTrackEditHandle.EditGovernor.NotEditable,
 ) {
     companion object {
