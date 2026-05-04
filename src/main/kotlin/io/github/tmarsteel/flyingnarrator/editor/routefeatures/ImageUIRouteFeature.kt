@@ -1,4 +1,4 @@
-package io.github.tmarsteel.flyingnarrator.editor
+package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import io.github.fenrur.signal.MutableSignal
 import io.github.fenrur.signal.Signal
@@ -6,6 +6,9 @@ import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
 import io.github.fenrur.signal.operators.flatMap
 import io.github.fenrur.signal.signalOf
+import io.github.tmarsteel.flyingnarrator.editor.PointOnTrackEditHandle
+import io.github.tmarsteel.flyingnarrator.editor.RouteEditorViewModel
+import io.github.tmarsteel.flyingnarrator.editor.transform
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import java.awt.Graphics
@@ -14,11 +17,11 @@ import java.awt.geom.AffineTransform
 import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 
-abstract class ImageSinglePointOnRouteComponent(
+abstract class ImageUIRouteFeature(
     val routeModel: RouteEditorViewModel,
     initialImage: BufferedImage,
     val location: Signal<RouteEditorViewModel.PreciseLocation>,
-) : RouteBoundComponent() {
+) : UIRouteFeature() {
     val image = mutableSignalOf(initialImage)
 
     private val editableLocation: MutableSignal<RouteEditorViewModel.PreciseLocation>? = location as MutableSignal<RouteEditorViewModel.PreciseLocation>?

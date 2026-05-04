@@ -1,8 +1,11 @@
-package io.github.tmarsteel.flyingnarrator.editor
+package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import com.formdev.flatlaf.ui.FlatUIUtils
 import io.github.fenrur.signal.operators.bimap
 import io.github.fenrur.signal.operators.map
+import io.github.tmarsteel.flyingnarrator.editor.IntArrayAccumulator
+import io.github.tmarsteel.flyingnarrator.editor.PointOnTrackEditHandle
+import io.github.tmarsteel.flyingnarrator.editor.RouteEditorViewModel
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
@@ -18,13 +21,13 @@ import java.awt.Shape
 import java.awt.geom.Ellipse2D
 import kotlin.math.roundToInt
 
-abstract class RouteStretchComponent(
+abstract class StretchUIRouteFeature(
     val routeViewModel: RouteEditorViewModel,
     val stretchModel: RouteEditorViewModel.CornerModel,
     val displayColor: Color,
     val hoverColor: Color,
     val isEditable: Boolean,
-) : RouteBoundComponent() {
+) : UIRouteFeature() {
     private val trackPoints = stretchModel.segmentIndices.map { idxs ->
         val starts = routeViewModel.segments
             .slice(idxs)

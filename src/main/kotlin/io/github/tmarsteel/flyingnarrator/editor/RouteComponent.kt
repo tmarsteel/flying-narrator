@@ -5,6 +5,7 @@ import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.operators.scan
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.UIRouteFeature
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJComponent
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
@@ -44,18 +45,18 @@ class RouteComponent(
     val routeStyling = mutableSignalOf(RouteStyling())
     val carMarker = mutableSignalOf(CarMarker())
 
-    private val routeBoundComponents = mutableListOf<RouteBoundComponent>()
-    fun addRouteBoundComponent(component: RouteBoundComponent) {
-        if (routeBoundComponents.add(component)) {
-            routeBoundComponents.sortBy { it.zIndex }
+    private val routeFeatures = mutableListOf<UIRouteFeature>()
+    fun addRouteBoundComponent(component: UIRouteFeature) {
+        if (routeFeatures.add(component)) {
+            routeFeatures.sortBy { it.zIndex }
             component.onMounted(this)
         }
     }
-    fun removeRouteBoundComponent(component: RouteBoundComponent) {
-        if (component in routeBoundComponents) {
+    fun removeRouteBoundComponent(component: UIRouteFeature) {
+        if (component in routeFeatures) {
             component.onUnmounted()
         }
-        routeBoundComponents.remove(component)
+        routeFeatures.remove(component)
     }
 
     val routeTransform = routeStyling.map { style ->
@@ -153,7 +154,7 @@ class RouteComponent(
         subG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         try {
             val transform = subG.transform
-            for (component in routeBoundComponents) {
+            for (component in routeFeatures) {
                 subG.transform = transform
                 component.paint(subG)
             }
@@ -232,7 +233,7 @@ class RouteComponent(
     private val subComponentsIdleState = object : SubComponentState {
         override fun mouseMoved(e: MouseEvent) {
             val pointedLocation = toRouteSpace(e.point)
-            for (component in routeBoundComponents.asReversed()) {
+            for (component in routeFeatures.asReversed()) {
                 if (component.shouldCapture(pointedLocation)) {
                     subComponentState = SubComponentHoveredState(component, e.point)
                     repaint()
@@ -250,7 +251,7 @@ class RouteComponent(
         }
     }
     private inner class SubComponentHoveredState(
-        val hovered: RouteBoundComponent,
+        val hovered: UIRouteFeature,
         hoverEnteredAt: Point,
     ) : SubComponentState {
         init {
@@ -264,7 +265,7 @@ class RouteComponent(
 
         override fun mouseMoved(e: MouseEvent) {
             val pointedLocation = toRouteSpace(e.point)
-            for (component in routeBoundComponents.asReversed()) {
+            for (component in routeFeatures.asReversed()) {
                 if (component.shouldCapture(pointedLocation)) {
                     if (component === hovered) {
                         return
@@ -302,7 +303,7 @@ class RouteComponent(
     }
 
     private inner class SubComponentSelectedState(
-        val selected: RouteBoundComponent,
+        val selected: UIRouteFeature,
     ) : SubComponentState {
         init {
             selected.hovered.value = false

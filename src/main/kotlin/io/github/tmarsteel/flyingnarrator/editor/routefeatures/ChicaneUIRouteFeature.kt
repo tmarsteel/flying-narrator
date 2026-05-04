@@ -1,16 +1,17 @@
-package io.github.tmarsteel.flyingnarrator.editor
+package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
+import io.github.tmarsteel.flyingnarrator.editor.RouteEditorViewModel
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 
-class Chicane(
+class ChicaneUIRouteFeature(
     routeModel: RouteEditorViewModel,
     val chicaneModel: RouteEditorViewModel.ChicaneModel,
-) : ImageSinglePointOnRouteComponent(
+) : ImageUIRouteFeature(
     routeModel,
     iconFor(chicaneModel.entry.value, false),
     chicaneModel.location,
@@ -37,7 +38,7 @@ class Chicane(
 
     companion object {
         private val TILE by lazy {
-            ImageIO.read(StartMarker::class.java.getResource("chicane-24-tiled.png")!!)
+            ImageIO.read(StartUIRouteFeature::class.java.getResource("chicane-24-tiled.png")!!)
         }
         val ICON_ENTRY_LEFT_DEFAULT by lazy {
             TILE.getSubimage(0, 0, 24, 24)

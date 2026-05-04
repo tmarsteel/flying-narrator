@@ -1,6 +1,7 @@
-package io.github.tmarsteel.flyingnarrator.editor
+package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import io.github.fenrur.signal.operators.map
+import io.github.tmarsteel.flyingnarrator.editor.RouteEditorViewModel
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sum
@@ -8,10 +9,10 @@ import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import java.awt.Color
 import javax.swing.JToolTip
 
-class CornerFeatureComponent(
+class CornerUIRouteFeature(
     routeModel: RouteEditorViewModel,
     stretchModel: RouteEditorViewModel.CornerModel,
-) : RouteStretchComponent(
+) : StretchUIRouteFeature(
     routeModel,
     stretchModel,
     Color.ORANGE,

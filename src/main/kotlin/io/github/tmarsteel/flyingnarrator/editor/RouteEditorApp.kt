@@ -2,6 +2,10 @@ package io.github.tmarsteel.flyingnarrator.editor
 
 import com.formdev.flatlaf.FlatLightLaf
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ChicaneUIRouteFeature
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CornerUIRouteFeature
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishUIRouteFeature
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.route.Speedmap
@@ -43,12 +47,12 @@ class RouteEditorApp {
             val routeComponent = RouteComponent(viewModel).also {
                 it.routeStyling.update { rs -> rs.copy(distanceMarkersEvery = 500.meters) }
             }
-            routeComponent.addRouteBoundComponent(StartMarker(viewModel))
-            routeComponent.addRouteBoundComponent(FinishMarker(viewModel))
-            routeComponent.addRouteBoundComponent(Chicane(viewModel, 5610.meters))
+            routeComponent.addRouteBoundComponent(StartUIRouteFeature(viewModel))
+            routeComponent.addRouteBoundComponent(FinishUIRouteFeature(viewModel))
+            routeComponent.addRouteBoundComponent(ChicaneUIRouteFeature(viewModel, 5610.meters))
             Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
-                .map { CornerFeatureComponent(viewModel, viewModel.makeCornerModel(it)) }
+                .map { CornerUIRouteFeature(viewModel, viewModel.makeCornerModel(it)) }
                 .forEach(routeComponent::addRouteBoundComponent)
 
             val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)

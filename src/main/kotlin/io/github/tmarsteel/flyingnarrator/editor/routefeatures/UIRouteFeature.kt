@@ -1,14 +1,15 @@
-package io.github.tmarsteel.flyingnarrator.editor
+package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import io.github.fenrur.signal.MutableSignal
 import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.mutableSignalOf
+import io.github.tmarsteel.flyingnarrator.editor.RouteComponent
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveComponentLifecycle
 import java.awt.Graphics2D
 import javax.swing.JToolTip
 
-abstract class RouteBoundComponent {
+abstract class UIRouteFeature {
     protected val lifecycle = ReactiveComponentLifecycle()
 
     private val _parent = mutableSignalOf<RouteComponent?>(null)
@@ -25,10 +26,10 @@ abstract class RouteBoundComponent {
     }
 
     /**
-     * Called to determine whether a mouse position in the parent [RouteComponent] belongs to this [RouteBoundComponent].
+     * Called to determine whether a mouse position in the parent [RouteComponent] belongs to this [UIRouteFeature].
      * @param pointedTrackLocation where the mouse points, in the track coordinate space, but with [Vector3.z] being `0`
      * because [RouteComponent] is 2-dimensional top-down
-     * @return whether the mouse interaction at this point belongs to this [RouteBoundComponent]
+     * @return whether the mouse interaction at this point belongs to this [UIRouteFeature]
      */
     abstract fun shouldCapture(pointedTrackLocation: Vector3): Boolean
 
