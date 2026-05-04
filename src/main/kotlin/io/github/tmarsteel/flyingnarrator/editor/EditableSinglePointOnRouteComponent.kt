@@ -1,18 +1,23 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.Signal
+import io.github.fenrur.signal.mutableSignalOf
+import io.github.fenrur.signal.operators.combine
+import io.github.fenrur.signal.operators.flatMap
+import io.github.fenrur.signal.operators.map
+import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.CustomCursor
-import io.github.tmarsteel.flyingnarrator.utils.DeriveFromDelegate.Companion.deriveFrom
+import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import java.awt.Cursor
+import java.awt.Point
 import java.awt.event.ComponentEvent
 import java.awt.event.ComponentListener
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import java.awt.geom.AffineTransform
-import java.awt.geom.Point2D
-import javax.swing.JComponent
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -25,58 +30,47 @@ abstract class EditableSinglePointOnRouteComponent(
     initialSegmentIndex: Int,
     val atStart: Boolean,
     val editGovernor: EditGovernor = EditGovernor.NotEditable,
-    /**
-     * @see routeTransform
-     */
-    initialRouteTransform: AffineTransform = AffineTransform()
-) : JComponent(), MouseListener, MouseMotionListener {
-    /**
-     * Transforms from route coordinate space to the pixel space of the parent [RouteComponent].
-     * **Must be kept up to date as the [RouteComponent] zooms etc.**
-     * TODO: automatically propagate through the view model??
-     */
-    var routeTransform: AffineTransform = initialRouteTransform
-        set(value) {
-            field = value
-            centerOnTrackPoint()
-        }
+) : ReactiveRouteComponentChild(), MouseListener, MouseMotionListener {
+    private val segmentIndex = mutableSignalOf(initialSegmentIndex)
 
-    private var segmentIndex: Int = -1
-        set(value) {
-            check(value in viewModel.route.indices)
-            field = value
-            centerOnTrackPoint()
-        }
-
-    private val routePoint: Point2D by deriveFrom(this::segmentIndex) { (idx)  ->
+    private val routePoint = segmentIndex.map { idx ->
         viewModel.mathSegments[idx]
             .let { if (atStart) it.startPoint else it.endPoint }
             .toPoint2D()
     }
 
-    private lateinit var selfRouteTransform: AffineTransform
-
-    /**
-     * Call to update [x] and [y] so that the center of the component is at the point on the route
-     */
-    private fun centerOnTrackPoint() {
-        val locationAsDouble = routeTransform.transform(routePoint, null)
-        setLocation(locationAsDouble.x.roundToInt() - width / 2, locationAsDouble.y.roundToInt() - height / 2)
-        selfRouteTransform = AffineTransform().apply {
-            translate(-x.toDouble(), -y.toDouble())
-            concatenate(routeTransform)
-        }
-    }
-
+    private val resizeEvents = mutableSignalOf(Unit)
+    private val selfRouteTransform: Signal<AffineTransform>
     init {
-        // forces proper initialization of segmentIndex and selfRouteTransform through setter
-        segmentIndex = initialSegmentIndex
+        val targetSelfLocation = combine(
+            routePoint,
+            parentRouteComponent.flatMap { pc -> pc?.routeTransform ?: signalOf(AffineTransform()) },
+            resizeEvents,
+        ) { routePoint, routeTransform, _ ->
+            val locationAsDouble = routeTransform.transform(routePoint, null)
+            Pair(
+                Point(locationAsDouble.x.roundToInt() - width / 2, locationAsDouble.y.roundToInt() - height / 2),
+                routeTransform
+            )
+        }
+        targetSelfLocation.subscribeOn(lifecycle) {
+            location = it.first
+        }
+        routePoint.subscribeOn(lifecycle) {
+            repaint()
+        }
+        selfRouteTransform = targetSelfLocation.map { (pt, transform) ->
+            AffineTransform().apply {
+                translate(-pt.x.toDouble(), -pt.y.toDouble())
+                concatenate(transform)
+            }
+        }
     }
 
     init {
         addComponentListener(object : ComponentListener {
             override fun componentResized(e: ComponentEvent?) {
-                centerOnTrackPoint()
+                resizeEvents.value = Unit
             }
 
             override fun componentMoved(e: ComponentEvent?) {
@@ -99,7 +93,6 @@ abstract class EditableSinglePointOnRouteComponent(
             addMouseMotionListener(this)
             addMouseListener(this)
         }
-        centerOnTrackPoint()
     }
 
     private var isDragging = false
@@ -113,18 +106,18 @@ abstract class EditableSinglePointOnRouteComponent(
             cursor = CustomCursor.GRABBING
         }
 
-        val pointedLocation = selfRouteTransform.inverseTransform(e.point, null).let {
+        val pointedLocation = selfRouteTransform.value.inverseTransform(e.point, null).let {
             Vector3(it.x, it.y, 0.0)
         }
 
-        val searchWindow = (segmentIndex - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
-            (segmentIndex + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(viewModel.mathSegments.lastIndex)
+        val searchWindow = (segmentIndex.value - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
+            (segmentIndex.value + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(viewModel.mathSegments.lastIndex)
         val indexOfClosestSegment = viewModel.getIndexOfSegmentClosestTo(pointedLocation, searchWindow)
         if (indexOfClosestSegment < 0 || !editGovernor.tryMoveTo(indexOfClosestSegment, atStart)) {
             return
         }
 
-        segmentIndex = indexOfClosestSegment
+        segmentIndex.value = indexOfClosestSegment
     }
 
     override fun mouseReleased(e: MouseEvent?) {

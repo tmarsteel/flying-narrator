@@ -7,11 +7,11 @@ abstract class ReactiveJComponent : JComponent() {
 
     override fun addNotify() {
         super.addNotify()
-        lifecycle.notifyAdd()
+        lifecycle.onComponentMounted()
     }
 
     override fun removeNotify() {
-        lifecycle.notifyRemove()
+        lifecycle.onComponentUnmounted()
         super.removeNotify()
     }
 }

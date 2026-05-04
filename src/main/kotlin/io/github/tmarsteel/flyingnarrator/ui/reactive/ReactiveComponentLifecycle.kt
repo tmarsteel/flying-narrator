@@ -9,7 +9,7 @@ class ReactiveComponentLifecycle {
     private val mounted = AtomicBoolean(false)
     private val lifecycleAwares = CopyOnWriteArrayList<LifecycleAware>()
 
-    fun notifyAdd() {
+    fun onComponentMounted() {
         if (!mounted.compareAndSet(expectedValue = false, newValue = true)) {
             return
         }
@@ -19,7 +19,7 @@ class ReactiveComponentLifecycle {
         }
     }
 
-    fun notifyRemove() {
+    fun onComponentUnmounted() {
         if (!mounted.compareAndSet(expectedValue = true, newValue = false)) {
             return
         }

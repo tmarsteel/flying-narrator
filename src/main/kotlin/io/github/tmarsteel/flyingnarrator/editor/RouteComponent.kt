@@ -48,14 +48,18 @@ class RouteComponent(
 
     private val routeBoundComponents = mutableListOf<RouteBoundComponent>()
     fun addRouteBoundComponent(component: RouteBoundComponent) {
-        routeBoundComponents.add(component)
-        component.routeTransform = routeTransform.value
+        if (routeBoundComponents.add(component)) {
+            component.onMounted(this)
+        }
     }
     fun removeRouteBoundComponent(component: RouteBoundComponent) {
+        if (component in routeBoundComponents) {
+            component.onUnmounted()
+        }
         routeBoundComponents.remove(component)
     }
 
-    private val routeTransform = routeStyling.map { style ->
+    val routeTransform = routeStyling.map { style ->
         AffineTransform().apply {
             translate(style.paddingPx.toDouble(), style.paddingPx.toDouble())
             scale(style.scale, -style.scale)

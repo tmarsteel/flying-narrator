@@ -14,7 +14,6 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Polygon
 import java.awt.Shape
-import java.awt.geom.AffineTransform
 import java.awt.geom.Ellipse2D
 import kotlin.math.roundToInt
 
@@ -53,15 +52,17 @@ abstract class RouteStretchComponent(
     }
 
     final override var isHovered = false
-    final override var routeTransform: AffineTransform = AffineTransform()
-        set(value) {
-            field = value
-            startPointHandle?.routeTransform = value
-            endPointHandle?.routeTransform = value
-        }
+    private var parent: RouteComponent? = null
+    override fun onMounted(parent: RouteComponent) {
+        this.parent = parent
+    }
+
+    override fun onUnmounted() {
+        this.parent = null
+    }
 
     final override fun paint(g: Graphics2D) {
-        withTransform(g, routeTransform) {
+        withTransform(g, parent!!.routeTransform.value) {
             if (isHovered) {
                 g.color = hoverColor
                 g.fill(highlightDisplayShape)
@@ -131,7 +132,6 @@ abstract class RouteStretchComponent(
         segmentIndex,
         atStart,
         editGovernor,
-        routeTransform,
     ) {
         init {
             setSize(20, 20)

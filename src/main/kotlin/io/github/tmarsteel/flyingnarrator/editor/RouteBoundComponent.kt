@@ -1,13 +1,14 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
-import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import java.awt.Component
 import java.awt.Graphics2D
-import java.awt.geom.AffineTransform
 import javax.swing.JToolTip
 
 sealed interface RouteBoundComponent {
+    fun onMounted(parent: RouteComponent) {}
+    fun onUnmounted() {}
+
     /**
      * Called to determine whether a mouse position in the parent [RouteComponent] belongs to this [RouteBoundComponent].
      * @param pointedTrackLocation where the mouse points, in the track coordinate space, but with [Vector3.z] being `0`
@@ -23,12 +24,6 @@ sealed interface RouteBoundComponent {
     var isHovered: Boolean
 
     val isSelectable: Boolean
-
-    /**
-     * translates from the routes coordinate space to that of the [RouteComponent], is set by the parent
-     * [RouteComponent]. Can be used in [paint] with [withTransform]
-     */
-    var routeTransform: AffineTransform
 
     /**
      * Called when the user selects this component (e.g., by clicking on it).
