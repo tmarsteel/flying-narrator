@@ -6,7 +6,6 @@ import io.github.fenrur.signal.operators.combine
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.operators.scan
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
-import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJComponent
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.ui.toPoint
@@ -86,7 +85,7 @@ class RouteComponent(
             Pair(routeStyle, nextBaseImage)
         }
         baseImage = combine(styleAndBuffer, routeTransform) { (style, image), transform ->
-            drawRoute(viewModel.route, image, style, transform)
+            drawRoute(viewModel.segments, image, style, transform)
             image
         }
     }
@@ -173,23 +172,16 @@ class RouteComponent(
             return@combine null
         }
 
-        var distanceCarry = 0.meters
-        var positionCarry = Vector3.ORIGIN
-        for (segment in viewModel.route) {
-            val nextDistanceCarry = distanceCarry + segment.length
-            if (marker.distanceAlongTrack in distanceCarry..nextDistanceCarry) {
-                val positionInRouteSpace = positionCarry + segment.forward.withLength((marker.distanceAlongTrack - distanceCarry).toDoubleInMeters())
-                return@combine Pair(
-                    routeTransform.transform(positionInRouteSpace.toPoint2D(), null).toPoint(),
-                    segment.forward.clockwiseAngleFromPositiveY()
-                )
-            }
-
-            positionCarry += segment.forward
-            distanceCarry = nextDistanceCarry
+        val segmentAndExtraDistance = viewModel.findSegmentForDistanceAlongTrack(marker.distanceAlongTrack)
+        if (segmentAndExtraDistance == null) {
+            return@combine null
         }
-
-        return@combine null
+        val (segment, extraDistance) = segmentAndExtraDistance
+        val positionInRouteSpace = segment.getLocationOfDistanceIntoSegment(extraDistance)
+        Pair(
+            routeTransform.transform(positionInRouteSpace.toPoint2D(), null).toPoint(),
+            segment.base.forward.clockwiseAngleFromPositiveY()
+        )
     }
 
     private val carMarkerShape = Polygon(
@@ -401,7 +393,7 @@ class RouteComponent(
         const val TOOLTIP_OFFSET_X = 15
         const val TOOLTIP_OFFSET_Y = 15
 
-        private fun drawRoute(route: Route, baseImage: BufferedImage, routeStyle: RouteStyling, routeTransform: AffineTransform) {
+        private fun drawRoute(route: List<RouteEditorViewModel.RouteSegmentModel>, baseImage: BufferedImage, routeStyle: RouteStyling, routeTransform: AffineTransform) {
             val bgColor = Color.WHITE
             val g = baseImage.createGraphics()
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -413,10 +405,9 @@ class RouteComponent(
             var carryPoint = Vector3.ORIGIN
             var prevX = carryPoint.x
             var prevY = carryPoint.y
-            var distanceCarry = 0.meters
-            var distanceSinceLastMarker = 0.meters
+            var lastDistanceMarkerAt = 0.meters
             for (segment in route) {
-                carryPoint += segment.forward
+                carryPoint += segment.base.forward
 
                 val x = carryPoint.x
                 val y = carryPoint.y
@@ -428,14 +419,12 @@ class RouteComponent(
                     g.draw(Line2D.Double(prevX, prevY, x, y))
                 }
 
-                distanceCarry += segment.length
-                distanceSinceLastMarker += segment.length
-                if (distanceSinceLastMarker >= routeStyle.distanceMarkersEvery && routeStyle.distanceMarkerColor != null) {
-                    distanceSinceLastMarker = 0.meters
+                if (segment.startsAtDistance - lastDistanceMarkerAt >= routeStyle.distanceMarkersEvery && routeStyle.distanceMarkerColor != null) {
+                    lastDistanceMarkerAt = segment.startsAtDistance
                     val labelPt = routeTransform.transform(Point2D.Double(x, y), null)
                     withTransform(g, AffineTransform()) {
                         g.color = routeStyle.distanceMarkerColor
-                        g.drawString(distanceCarry.toString(), (labelPt.x + 30).toInt(), (labelPt.y + 10).toInt())
+                        g.drawString(segment.startsAtDistance.toString(), (labelPt.x + 30).toInt(), (labelPt.y + 10).toInt())
                     }
                 }
 
@@ -447,9 +436,9 @@ class RouteComponent(
 
             val finishPt = routeTransform.transform(Point2D.Double(prevX, prevY), null)
             withTransform(g, AffineTransform()) {
+                val finalDistance = route.last().let{ it.startsAtDistance + it.base.length }
                 g.color = routeStyle.distanceMarkerColor
-                val distanceText = String.format("%3.2f km", (distanceCarry.toDoubleInMeters() / 1000.0))
-                g.drawString(distanceText, finishPt.x.toInt(), (finishPt.y + 10).toInt())
+                g.drawString(finalDistance.toString(), finishPt.x.toInt(), (finishPt.y + 10).toInt())
             }
 
             g.dispose()

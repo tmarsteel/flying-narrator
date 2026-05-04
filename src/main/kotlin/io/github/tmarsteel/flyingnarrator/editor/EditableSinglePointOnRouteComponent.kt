@@ -34,8 +34,8 @@ abstract class EditableSinglePointOnRouteComponent(
     private val segmentIndex = mutableSignalOf(initialSegmentIndex)
 
     private val routePoint = segmentIndex.map { idx ->
-        viewModel.mathSegments[idx]
-            .let { if (atStart) it.startPoint else it.endPoint }
+        viewModel.segments[idx]
+            .let { if (atStart) it.line.startPoint else it.line.endPoint }
             .toPoint2D()
     }
 
@@ -111,7 +111,7 @@ abstract class EditableSinglePointOnRouteComponent(
         }
 
         val searchWindow = (segmentIndex.value - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
-            (segmentIndex.value + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(viewModel.mathSegments.lastIndex)
+            (segmentIndex.value + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(viewModel.segments.lastIndex)
         val indexOfClosestSegment = viewModel.getIndexOfSegmentClosestTo(pointedLocation, searchWindow)
         if (indexOfClosestSegment < 0 || !editGovernor.tryMoveTo(indexOfClosestSegment, atStart)) {
             return

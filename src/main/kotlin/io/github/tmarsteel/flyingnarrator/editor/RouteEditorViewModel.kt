@@ -5,19 +5,30 @@ import io.github.fenrur.signal.mutableSignalOf
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.MLine
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.route.RoadSegment
 import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.unit.Distance
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.geom.Rectangle2D
 
 class RouteEditorViewModel(
-    val route: Route,
+    route: Route,
 ) {
-    val mathSegments = route
+    val segments = route
         .asSequence()
         .drop(1)
         .runningFold(
-            MLine(Vector3.ORIGIN, route.first().forward)
-        ) { previousMathSegment, roadSegment ->
-            MLine(previousMathSegment.somePoint + previousMathSegment.direction, roadSegment.forward)
+            RouteSegmentModel(
+                route.first(),
+                MLine(Vector3.ORIGIN, route.first().forward),
+                0.meters,
+            )
+        ) { previousSegmentModel, roadSegment ->
+            RouteSegmentModel(
+                roadSegment,
+                MLine(previousSegmentModel.line.endPoint, roadSegment.forward),
+                previousSegmentModel.startsAtDistance + roadSegment.length,
+            )
         }
         .toList()
 
@@ -29,14 +40,14 @@ class RouteEditorViewModel(
      *   to distant segments when the cursor strays far from the route.
      * @return the index of the segment closest to [point], or `-1` if none is reasonably close
      */
-    fun getIndexOfSegmentClosestTo(point: Vector3, searchRange: IntRange = mathSegments.indices): Int {
-        return mathSegments
+    fun getIndexOfSegmentClosestTo(point: Vector3, searchRange: IntRange = segments.indices): Int {
+        return segments
             .asSequence()
             .withIndex()
             .filter { (index, _) -> index in searchRange }
-            .mapNotNull { (segmentIndex, segmentLine) ->
-                val vertical = segmentLine.findVerticalLineThrough(point, onlyIfOnSegment = true)
-                if (vertical == null && !segmentLine.contains2d(point)) {
+            .mapNotNull { (segmentIndex, segmentModel) ->
+                val vertical = segmentModel.line.findVerticalLineThrough(point, onlyIfOnSegment = true)
+                if (vertical == null && !segmentModel.line.contains2d(point)) {
                     return@mapNotNull null
                 }
                 val distance = vertical?.direction?.length2d ?: 0.0
@@ -47,16 +58,46 @@ class RouteEditorViewModel(
             ?: -1
     }
 
-    fun makeCornerModel(corner: Feature.Corner): Corner = Corner(
+    /**
+     * @return the segment that contains the given [distanceAlongTrack] along with the distance offset into it to
+     * the precise location, or null of [distanceAlongTrack] is before the start or beyond the finish
+     */
+    fun findSegmentForDistanceAlongTrack(distanceAlongTrack: Distance): Pair<RouteSegmentModel, Distance>? {
+        val idx = segments.binarySearchBy(distanceAlongTrack) { it.startsAtDistance }
+        if (idx >= 0) {
+            // exact hit on the start point
+            return Pair(segments[idx], 0.meters)
+        }
+
+        val insertionPoint = -(idx + 1)
+        if (insertionPoint == 0 || insertionPoint >= segments.size) {
+            return null
+        }
+        val segment = segments[insertionPoint]
+        return Pair(segment, distanceAlongTrack - segment.startsAtDistance)
+    }
+
+    fun makeCornerModel(corner: Feature.Corner): CornerModel = CornerModel(
         mutableSignalOf(
             IntRange(
-                route.indexOf(corner.segments.first()),
-                route.indexOf(corner.segments.last())
+                segments.asSequence().map { it.base }.indexOf(corner.segments.first()),
+                segments.asSequence().map { it.base }.indexOf(corner.segments.last())
             )
         )
     )
 
-    class Corner(
+    class RouteSegmentModel(
+        val base: RoadSegment,
+        val line: MLine,
+        val startsAtDistance: Distance,
+    ) {
+        fun getLocationOfDistanceIntoSegment(distance: Distance): Vector3 {
+            check(distance <= base.length)
+            return line.startPoint + line.direction.withLength(distance.toDoubleInMeters())
+        }
+    }
+
+    class CornerModel(
         val segmentIndices: MutableSignal<IntRange>
     )
 

@@ -18,16 +18,16 @@ import kotlin.math.roundToInt
 
 abstract class RouteStretchComponent(
     val routeViewModel: RouteEditorViewModel,
-    val stretchModel: RouteEditorViewModel.Corner,
+    val stretchModel: RouteEditorViewModel.CornerModel,
     val displayColor: Color,
     val hoverColor: Color,
     val isEditable: Boolean,
 ) : RouteBoundComponent() {
     private val trackPoints = stretchModel.segmentIndices.map { idxs ->
-        val starts = routeViewModel.mathSegments
-            .subList(idxs.first, idxs.last + 1)
-            .map { it.startPoint }
-        starts + listOf(routeViewModel.mathSegments[idxs.last].endPoint)
+        val starts = routeViewModel.segments
+            .slice(idxs)
+            .map { it.line.startPoint }
+        starts + listOf(routeViewModel.segments[idxs.last].line.endPoint)
     }
 
     protected val displayShape = trackPoints.map { pts ->

@@ -10,7 +10,7 @@ import javax.swing.JToolTip
 
 class CornerFeatureComponent(
     routeModel: RouteEditorViewModel,
-    stretchModel: RouteEditorViewModel.Corner,
+    stretchModel: RouteEditorViewModel.CornerModel,
 ) : RouteStretchComponent(
     routeModel,
     stretchModel,
@@ -19,25 +19,25 @@ class CornerFeatureComponent(
     true,
 ) {
     private val cornerSegments = stretchModel.segmentIndices.map { idxs ->
-        routeViewModel.route.subList(idxs.first, idxs.last + 1)
+        routeViewModel.segments.slice(idxs)
     }
 
     init {
         cornerSegments.subscribeOn(lifecycle) { segments ->
             val totalAngle = segments.asSequence()
                 .windowed(size = 2, step = 1, partialWindows = false)
-                .map { (a, b) -> a.forward.angleTo(b.forward) }
+                .map { (a, b) -> a.base.forward.angleTo(b.base.forward) }
                 .sum()
             val text = StringBuilder()
             text.append("<html>")
             text.append("Ør=")
-            text.append(segments.compoundRadius)
+            text.append(segments.map { it.base }.compoundRadius)
             text.append("<br>")
             text.append("∠=")
             text.append(totalAngle)
             text.append("<br>")
             text.append("d=")
-            text.append(segments.sumOf { it.length }.toString())
+            text.append(segments.sumOf { it.base.length }.toString())
             text.append("m<br>")
             text.append("@")
             text.append("??")
