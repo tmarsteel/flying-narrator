@@ -1,5 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.MutableSignal
+import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
 import io.github.fenrur.signal.operators.flatMap
@@ -15,14 +17,13 @@ import java.awt.image.BufferedImage
 abstract class ImageSinglePointOnRouteComponent(
     val routeModel: RouteEditorViewModel,
     initialImage: BufferedImage,
-    initialLocation: RouteEditorViewModel.PreciseLocation,
+    val location: Signal<RouteEditorViewModel.PreciseLocation>,
 ) : RouteBoundComponent() {
     val image = mutableSignalOf(initialImage)
-    val location = mutableSignalOf(initialLocation)
 
-    protected abstract val editGovernor: PointOnTrackEditHandle.EditGovernor
+    private val editableLocation: MutableSignal<RouteEditorViewModel.PreciseLocation>? = location as MutableSignal<RouteEditorViewModel.PreciseLocation>?
 
-    override val isSelectable: Boolean get()= editGovernor is PointOnTrackEditHandle.EditGovernor.Editable
+    override val isSelectable: Boolean get()= editableLocation != null
 
     private val routeTransform = parent.flatMap { it?.routeTransform ?: signalOf(AffineTransform()) }
     private val centerPointInParentPixelSpace = combine(routeTransform, location) { routeTransform, location ->
@@ -42,30 +43,29 @@ abstract class ImageSinglePointOnRouteComponent(
         )
     }
 
-    private var editHandle: PointOnTrackEditHandle? = null
+    private val editHandle by lazy {
+        object : PointOnTrackEditHandle(
+            routeModel,
+            editableLocation ?: error("the location is not editable, why was the edit handle requested?"),
+            EditGovernor.FreelyMovable,
+        ) {
+            init {
+                image.subscribeOn(lifecycle) { image ->
+                    setSize(image.width, image.height)
+                }
+            }
+            override fun paintComponent(g: Graphics) {
+                g.drawImage(image.value, 0, 0, null)
+            }
+        }
+    }
+
     init {
         selected.subscribeOn(lifecycle) { isSelected ->
             if (isSelected) {
-                if (editHandle == null) {
-                    editHandle = object : PointOnTrackEditHandle(
-                        routeModel,
-                        location.value,
-                        Snapping.FreeMovement,
-                        editGovernor,
-                    ) {
-                        init {
-                            image.subscribeOn(lifecycle) { image ->
-                                setSize(image.width, image.height)
-                            }
-                        }
-                        override fun paintComponent(g: Graphics) {
-                            g.drawImage(image.value, 0, 0, null)
-                        }
-                    }
-                }
-                parent.value?.add(editHandle!!)
+                parent.value?.add(editHandle)
             } else {
-                editHandle?.let { parent.value?.remove(it) }
+                parent.value?.remove(editHandle)
             }
         }
     }

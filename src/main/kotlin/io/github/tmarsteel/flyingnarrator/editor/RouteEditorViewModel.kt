@@ -1,7 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
 import io.github.fenrur.signal.MutableSignal
+import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.mutableSignalOf
+import io.github.fenrur.signal.operators.combine
+import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.MLine
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
@@ -35,8 +38,8 @@ class RouteEditorViewModel(
         .toList()
 
     val routeBounds: Rectangle2D.Double = computeRouteBounds(route)
-    val start: PreciseLocation = PreciseLocation.atSegmentStart(segments.first())
-    val finish: PreciseLocation = PreciseLocation.atSegmentEnd(segments.last())
+    val start: Signal<PreciseLocation> = signalOf(PreciseLocation.atSegmentStart(segments.first()))
+    val finish: Signal<PreciseLocation> = signalOf(PreciseLocation.atSegmentEnd(segments.last()))
 
     /**
      * @param searchRange limit the search to this index range; defaults to the full route.
@@ -82,12 +85,8 @@ class RouteEditorViewModel(
     }
 
     fun makeCornerModel(corner: Feature.Corner): CornerModel = CornerModel(
-        mutableSignalOf(
-            IntRange(
-                segments.asSequence().map { it.base }.indexOf(corner.segments.first()),
-                segments.asSequence().map { it.base }.indexOf(corner.segments.last())
-            )
-        )
+        mutableSignalOf(segments.asSequence().map { it.base }.indexOf(corner.segments.first())),
+        mutableSignalOf(segments.asSequence().map { it.base }.indexOf(corner.segments.last())),
     )
 
     class RouteSegmentModel(
@@ -125,17 +124,21 @@ class RouteEditorViewModel(
             check(segment.line.contains2d(point))
         }
 
-        fun atSegmentStart(): PreciseLocation = PreciseLocation(
-            segment,
-            0.meters,
-            segment.line.startPoint,
-        )
+        fun atSegmentStart(): PreciseLocation = if (distanceAlongSegment == 0.meters) this else {
+            PreciseLocation(
+                segment,
+                0.meters,
+                segment.line.startPoint,
+            )
+        }
 
-        fun atSegmentEnd(): PreciseLocation = PreciseLocation(
-            segment,
-            segment.base.length,
-            segment.line.endPoint,
-        )
+        fun atSegmentEnd(): PreciseLocation = if (distanceAlongSegment == segment.base.length) this else {
+            PreciseLocation(
+                segment,
+                segment.base.length,
+                segment.line.endPoint,
+            )
+        }
 
         companion object {
             fun atSegmentStart(segment: RouteSegmentModel): PreciseLocation = PreciseLocation(
@@ -153,8 +156,11 @@ class RouteEditorViewModel(
     }
 
     class CornerModel(
-        val segmentIndices: MutableSignal<IntRange>
-    )
+        val indexOfFirstSegment: MutableSignal<Int>,
+        val indexOfLastSegment: MutableSignal<Int>,
+    ) {
+        val segmentIndices: Signal<IntRange> = combine(indexOfFirstSegment, indexOfLastSegment, ::IntRange)
+    }
 
     class ChicaneModel(
         val location: MutableSignal<PreciseLocation>,

@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.MutableSignal
 import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
@@ -22,17 +23,14 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
- * Represents a single point on the route. It assumes that it is a child of [RouteComponent] and will always position
- * itself so that the center of the component is at the track location determined from [segmentIndex] and [atStart].
+ * Provides a grabbable(draggable) "handle" for a single point on the route. The location is obtained from [routeLocation]
+ * and published back into it.
  */
 abstract class PointOnTrackEditHandle(
     val viewModel: RouteEditorViewModel,
-    initialLocation: RouteEditorViewModel.PreciseLocation,
-    val snapping: Snapping,
-    val editGovernor: EditGovernor = EditGovernor.NotEditable,
+    val routeLocation: MutableSignal<RouteEditorViewModel.PreciseLocation>,
+    val editGovernor: EditGovernor.Editable,
 ) : ReactiveRouteComponentChild(), MouseListener, MouseMotionListener {
-    private val routeLocation = mutableSignalOf(initialLocation)
-
     private val resizeEvents = mutableSignalOf(Unit)
     private val selfRouteTransform: Signal<AffineTransform>
     init {
@@ -80,21 +78,15 @@ abstract class PointOnTrackEditHandle(
             }
         })
 
-        if (editGovernor is EditGovernor.Editable) {
-            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-            addMouseMotionListener(this)
-            addMouseListener(this)
-        }
+        cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+        addMouseMotionListener(this)
+        addMouseListener(this)
     }
 
     private var isDragging = false
     private var draggingStartedAt = Point()
     private var initialInertiaBroken = false
     override fun mouseDragged(e: MouseEvent) {
-        if (editGovernor !is EditGovernor.Editable) {
-            return
-        }
-
         if (!isDragging) {
             isDragging = true
             draggingStartedAt = e.point
@@ -118,19 +110,13 @@ abstract class PointOnTrackEditHandle(
             (routeLocation.value.segment.index + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(viewModel.segments.lastIndex)
         val closestLocation = viewModel.findPreciseLocationClosestTo(pointedLocation, searchWindow)
             ?: return
-        val snappedLocation = snapping.getSnappedLocation(closestLocation)
-        if (!editGovernor.tryMoveTo(snappedLocation)) {
-            return
-        }
+        val processedLocation = editGovernor.processPotentialMove(closestLocation)
+            ?: return
 
-        routeLocation.value = snappedLocation
+        routeLocation.value = processedLocation
     }
 
     override fun mouseReleased(e: MouseEvent?) {
-        if (editGovernor !is EditGovernor.Editable) {
-            return
-        }
-
         if (isDragging) {
             isDragging = false
             cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
@@ -171,33 +157,14 @@ abstract class PointOnTrackEditHandle(
             val startEditingAfterMovementOfPixels: Int get()= 30
 
             /**
-             * Called when the user has indicated movement to [segmentIndex]. Serves as both a callback/notification
-             * and movement validity check
-             * @param location the location to move to, after [Snapping] has been applied
-             * @return whether the move is allowed; if false, the point will remain where it was previously
+             * Called when the user has indicated movement to [location].
+             * @return the position to actually move to (change to implement snapping), or `null` to indicate that the movement is invalid.
              */
-            fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean
+            fun processPotentialMove(location: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation?
         }
-    }
-
-    interface Snapping {
-        fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation
-
-        object ToSegmentStart : Snapping {
-            override fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation {
-                return trueLocation.atSegmentStart()
-            }
-        }
-
-        object ToSegmentEnd : Snapping {
-            override fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation {
-                return trueLocation.atSegmentEnd()
-            }
-        }
-
-        object FreeMovement : Snapping {
-            override fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation {
-                return trueLocation
+        object FreelyMovable : EditGovernor.Editable {
+            override fun processPotentialMove(location: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation? {
+                return location
             }
         }
     }

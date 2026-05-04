@@ -9,7 +9,6 @@ class FinishMarker(
     ICON,
     viewModel.finish,
 ) {
-    override val editGovernor = PointOnTrackEditHandle.EditGovernor.NotEditable
     override val zIndex: Int = 10
 
     companion object {

@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
 import com.formdev.flatlaf.ui.FlatUIUtils
+import io.github.fenrur.signal.operators.bimap
 import io.github.fenrur.signal.operators.map
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
@@ -66,42 +67,10 @@ abstract class RouteStretchComponent(
         selected.subscribeOn(lifecycle) { isSelected ->
             if (isSelected) {
                 if (startPointHandle == null) {
-                    startPointHandle = object : EndPointHandle(
-                        stretchModel.segmentIndices.value.first,
-                        true,
-                        object : EditGovernor.Editable {
-                            override val startEditingAfterMovementOfPixels: Int = 0
-                            override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
-                                if (location.segment.index > stretchModel.segmentIndices.value.last) {
-                                    return false
-                                }
-
-                                // TODO: validate not moving start into the previous corner
-
-                                stretchModel.segmentIndices.update { location.segment.index..it.last }
-                                return true
-                            }
-                        }
-                    ) {}
+                    startPointHandle = EndPointHandle(true)
                 }
                 if (endPointHandle == null) {
-                    endPointHandle = object : EndPointHandle(
-                        stretchModel.segmentIndices.value.last,
-                        false,
-                        object : EditGovernor.Editable {
-                            override val startEditingAfterMovementOfPixels: Int = 0
-                            override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
-                                if (location.segment.index < stretchModel.segmentIndices.value.first) {
-                                    return false
-                                }
-
-                                // TODO: validate not moving end into the next corner
-
-                                stretchModel.segmentIndices.update { it.first..location.segment.index }
-                                return true
-                            }
-                        }
-                    ) {}
+                    endPointHandle = EndPointHandle(false)
                 }
                 parent.value!!.add(startPointHandle!!)
                 parent.value!!.add(endPointHandle!!)
@@ -112,19 +81,34 @@ abstract class RouteStretchComponent(
         }
     }
 
-    private abstract inner class EndPointHandle(
-        segmentIndex: Int,
-        atStart: Boolean,
-        editGovernor: EditGovernor,
-    ) : PointOnTrackEditHandle(
+    private inner class EndPointHandle(isCornerEntry: Boolean) : PointOnTrackEditHandle(
         routeViewModel,
-        if (atStart) {
-            RouteEditorViewModel.PreciseLocation.atSegmentStart(routeViewModel.segments[segmentIndex])
+        if (isCornerEntry) {
+            stretchModel.indexOfFirstSegment.bimap(
+                forward = { RouteEditorViewModel.PreciseLocation.atSegmentStart(routeViewModel.segments[it]) },
+                reverse = { it.segment.index },
+            )
         } else {
-            RouteEditorViewModel.PreciseLocation.atSegmentEnd(routeViewModel.segments[segmentIndex])
+            stretchModel.indexOfLastSegment.bimap(
+                forward = { RouteEditorViewModel.PreciseLocation.atSegmentEnd(routeViewModel.segments[it]) },
+                reverse = { it.segment.index },
+            )
         },
-        if (atStart) Snapping.ToSegmentStart else Snapping.ToSegmentEnd,
-        editGovernor,
+        object : EditGovernor.Editable {
+            override fun processPotentialMove(location: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation? {
+                if (isCornerEntry) {
+                    if (location.segment.index > stretchModel.indexOfLastSegment.value) {
+                        return null
+                    }
+                    return location.atSegmentStart()
+                } else {
+                    if (location.segment.index < stretchModel.indexOfFirstSegment.value) {
+                        return null
+                    }
+                    return location.atSegmentEnd()
+                }
+            }
+        },
     ) {
         init {
             setSize(20, 20)
