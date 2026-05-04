@@ -79,9 +79,7 @@ abstract class SinglePointOnTrackEditHandle(
                 // nothing to do
             }
         })
-    }
 
-    init {
         if (editGovernor is EditGovernor.Editable) {
             cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
             addMouseMotionListener(this)
@@ -90,6 +88,8 @@ abstract class SinglePointOnTrackEditHandle(
     }
 
     private var isDragging = false
+    private var draggingStartedAt = Point()
+    private var initialInertiaBroken = false
     override fun mouseDragged(e: MouseEvent) {
         if (editGovernor !is EditGovernor.Editable) {
             return
@@ -97,7 +97,17 @@ abstract class SinglePointOnTrackEditHandle(
 
         if (!isDragging) {
             isDragging = true
+            draggingStartedAt = e.point
+            initialInertiaBroken = false
             cursor = CustomCursor.GRABBING
+        }
+
+        if (!initialInertiaBroken) {
+            val distance = e.point.distance(draggingStartedAt).toInt()
+            if (distance < editGovernor.startEditingAfterMovementOfPixels) {
+                return
+            }
+            initialInertiaBroken = true
         }
 
         val pointedLocation = selfRouteTransform.value.inverseTransform(e.point, null).let {
@@ -155,6 +165,12 @@ abstract class SinglePointOnTrackEditHandle(
         object NotEditable : EditGovernor
         interface Editable : EditGovernor {
             /**
+             * The drag-to-move will only start when the mouse has been dragged at least this number of pixels away from
+             * where the dragging started.
+             */
+            val startEditingAfterMovementOfPixels: Int get()= 30
+
+            /**
              * Called when the user has indicated movement to [segmentIndex]. Serves as both a callback/notification
              * and movement validity check
              * @param location the location to move to, after [Snapping] has been applied
@@ -179,7 +195,7 @@ abstract class SinglePointOnTrackEditHandle(
             }
         }
 
-        object None : Snapping {
+        object FreeMovement : Snapping {
             override fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation {
                 return trueLocation
             }

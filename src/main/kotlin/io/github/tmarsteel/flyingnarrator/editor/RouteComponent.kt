@@ -259,17 +259,28 @@ class RouteComponent(
                 this@RouteComponent.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
             }
             hovered.tooltip?.location = Point(hoverEnteredAt.x + TOOLTIP_OFFSET_X, hoverEnteredAt.y + TOOLTIP_OFFSET_Y)
+            repaint()
         }
 
         override fun mouseMoved(e: MouseEvent) {
-            if (hovered.shouldCapture(toRouteSpace(e.point))) {
-                hovered.tooltip?.location = Point(e.point.x + TOOLTIP_OFFSET_X, e.point.y + TOOLTIP_OFFSET_Y)
-            } else {
-                subComponentState = subComponentsIdleState
-                hovered.hovered.value = false
-                this@RouteComponent.setCursor(null)
-                subComponentsIdleState.mouseMoved(e)
+            val pointedLocation = toRouteSpace(e.point)
+            for (component in routeBoundComponents.asReversed()) {
+                if (component.shouldCapture(pointedLocation)) {
+                    if (component === hovered) {
+                        return
+                    }
+                    hovered.hovered.value = false
+                    this@RouteComponent.setCursor(null)
+                    subComponentState = SubComponentHoveredState(component, e.point)
+
+                    return
+                }
             }
+
+            subComponentState = subComponentsIdleState
+            hovered.hovered.value = false
+            this@RouteComponent.setCursor(null)
+            subComponentsIdleState.mouseMoved(e)
             repaint()
         }
 

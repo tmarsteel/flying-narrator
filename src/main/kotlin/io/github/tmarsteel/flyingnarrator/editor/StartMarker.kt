@@ -8,8 +8,8 @@ class StartMarker(
     viewModel,
     ICON,
     viewModel.start,
-    SinglePointOnTrackEditHandle.EditGovernor.NotEditable,
 ) {
+    override val editGovernor = SinglePointOnTrackEditHandle.EditGovernor.NotEditable
     override val zIndex: Int = 10
 
     companion object {

@@ -70,6 +70,7 @@ abstract class RouteStretchComponent(
                         stretchModel.segmentIndices.value.first,
                         true,
                         object : EditGovernor.Editable {
+                            override val startEditingAfterMovementOfPixels: Int = 0
                             override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
                                 if (location.segment.index > stretchModel.segmentIndices.value.last) {
                                     return false
@@ -88,6 +89,7 @@ abstract class RouteStretchComponent(
                         stretchModel.segmentIndices.value.last,
                         false,
                         object : EditGovernor.Editable {
+                            override val startEditingAfterMovementOfPixels: Int = 0
                             override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
                                 if (location.segment.index < stretchModel.segmentIndices.value.first) {
                                     return false
