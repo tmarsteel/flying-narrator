@@ -56,6 +56,7 @@ abstract class ImageUIRouteFeature(
                 image.subscribeOn(lifecycle) { image ->
                     setSize(image.width, image.height)
                 }
+                componentPopupMenu = this@ImageUIRouteFeature.popupMenu
             }
             override fun paintComponent(g: Graphics) {
                 g.drawImage(image.value, 0, 0, null)

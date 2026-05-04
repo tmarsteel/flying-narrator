@@ -287,9 +287,14 @@ class RouteComponent(
 
         override fun mouseClicked(e: MouseEvent) {
             if (hovered.shouldCapture(toRouteSpace(e.point))) {
-                subComponentState = SubComponentSelectedState(hovered)
-                e.consume()
-                repaint()
+                when {
+                    e.isPopupTrigger || e.button == MouseEvent.BUTTON3 -> hovered.popupMenu?.show(this@RouteComponent, e.x, e.y)
+                    e.button == MouseEvent.BUTTON1 -> {
+                        subComponentState = SubComponentSelectedState(hovered)
+                        e.consume()
+                        repaint()
+                    }
+                }
             }
         }
 

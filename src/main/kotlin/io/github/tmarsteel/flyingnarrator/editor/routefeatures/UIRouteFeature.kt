@@ -7,6 +7,7 @@ import io.github.tmarsteel.flyingnarrator.editor.RouteComponent
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveComponentLifecycle
 import java.awt.Graphics2D
+import javax.swing.JPopupMenu
 import javax.swing.JToolTip
 
 abstract class UIRouteFeature {
@@ -58,4 +59,5 @@ abstract class UIRouteFeature {
     abstract fun paint(g: Graphics2D)
 
     open val tooltip: JToolTip? get()= null
+    open val popupMenu: JPopupMenu? get()= null
 }

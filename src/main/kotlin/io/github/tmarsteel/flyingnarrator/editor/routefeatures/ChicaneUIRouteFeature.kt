@@ -7,6 +7,8 @@ import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
+import javax.swing.JPopupMenu
+import javax.swing.JRadioButtonMenuItem
 
 class ChicaneUIRouteFeature(
     routeModel: RouteEditorViewModel,
@@ -35,6 +37,31 @@ class ChicaneUIRouteFeature(
     }
 
     override val zIndex: Int = 10
+
+    private val entryLeftMenuItem = JRadioButtonMenuItem("entry on the left")
+    private val entryRightMenuItem = JRadioButtonMenuItem("entry on the right")
+    private val entryUnspecifiedMenuItem = JRadioButtonMenuItem("entry side unknown")
+    override val popupMenu: JPopupMenu = JPopupMenu().apply {
+        add(entryLeftMenuItem)
+        add(entryRightMenuItem)
+        add(entryUnspecifiedMenuItem)
+    }
+    init {
+        chicaneModel.entry.subscribeOn(lifecycle) { entry ->
+            entryLeftMenuItem.isSelected = entry == RouteEditorViewModel.ChicaneModel.Entry.LEFT
+            entryRightMenuItem.isSelected = entry == RouteEditorViewModel.ChicaneModel.Entry.RIGHT
+            entryUnspecifiedMenuItem.isSelected = entry == RouteEditorViewModel.ChicaneModel.Entry.UNSPECIFIED
+        }
+        entryLeftMenuItem.addActionListener {
+            chicaneModel.entry.value = RouteEditorViewModel.ChicaneModel.Entry.LEFT
+        }
+        entryRightMenuItem.addActionListener {
+            chicaneModel.entry.value = RouteEditorViewModel.ChicaneModel.Entry.RIGHT
+        }
+        entryUnspecifiedMenuItem.addActionListener {
+            chicaneModel.entry.value = RouteEditorViewModel.ChicaneModel.Entry.UNSPECIFIED
+        }
+    }
 
     companion object {
         private val TILE by lazy {
