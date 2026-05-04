@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+        width="48"
+        height="48"
+        viewBox="0 0 12.7 12.7"
+        version="1.1"
+        id="svg1"
+        inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+        sodipodi:docname="crest.svg"
+        inkscape:export-filename="dip-24.png"
+        inkscape:export-xdpi="48"
+        inkscape:export-ydpi="48"
+        xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+        xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+        xmlns="http://www.w3.org/2000/svg"
+>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="11.762019"
+     inkscape:cx="28.141427"
+     inkscape:cy="20.702228"
+     inkscape:window-width="2560"
+     inkscape:window-height="1369"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="font-variation-settings:'wght' 462;opacity:0.993658;fill:none;stroke:#ffbf2d;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
+       d="m 11.344927,8.5599704 c 0,0 -1.4672696,-0.3377787 -2.1199466,-0.6939769 C 8.1441449,7.2761278 7.5903338,5.5173659 6.3591446,5.5352621 5.1661411,5.5526032 4.9774944,7.2428139 3.6490091,7.8734639 2.5658201,8.3876681 1.2446241,8.6176235 1.2446241,8.6176235"
+       id="path1"
+       sodipodi:nodetypes="caasc" />
+  </g>
+</svg>
