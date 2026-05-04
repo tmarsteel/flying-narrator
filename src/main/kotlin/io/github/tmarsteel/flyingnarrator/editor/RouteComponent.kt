@@ -1,9 +1,12 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
 import io.github.fenrur.signal.operators.map
+import io.github.fenrur.signal.operators.scan
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJComponent
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.ui.toPoint
@@ -63,9 +66,29 @@ class RouteComponent(
         }
     }
 
+    private val baseImage: Signal<BufferedImage>
+    init {
+        val styleAndBuffer = routeStyling.scan(Pair(routeStyling.value, BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB))) { (_, currentBaseImage), routeStyle ->
+            val targetWidth = ceil(viewModel.routeBounds.width * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
+            val targetHeight = ceil(viewModel.routeBounds.height * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
+            var nextBaseImage = if (currentBaseImage.width == targetWidth && currentBaseImage.height == targetHeight) {
+                currentBaseImage
+            } else {
+                BufferedImage(
+                    targetWidth.coerceAtLeast(1),
+                    targetHeight.coerceAtLeast(1),
+                    BufferedImage.TYPE_INT_RGB
+                )
+            }
+            Pair(routeStyle, nextBaseImage)
+        }
+        baseImage = combine(styleAndBuffer, routeTransform) { (style, image), transform ->
+            drawRoute(viewModel.route, image, style, transform)
+            image
+        }
+    }
     init {
         routeStyling.subscribeOn(lifecycle) {
-            invalidateBaseImage()
             revalidate()
             repaint()
         }
@@ -116,9 +139,8 @@ class RouteComponent(
 
     override fun paintComponent(g: Graphics) {
         g as Graphics2D
-        assureBaseImageIsUpToDate()
 
-        g.drawImage(baseImage, 0, 0, null)
+        g.drawImage(baseImage.value, 0, 0, null)
     }
 
     override fun paintChildren(g: Graphics) {
@@ -196,76 +218,6 @@ class RouteComponent(
         }
     }
 
-    private lateinit var baseImage: BufferedImage
-    private fun assureBaseImageIsUpToDate() {
-        val routeStyle = routeStyling.value
-        val targetWidth = ceil(viewModel.routeBounds.width * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
-        val targetHeight = ceil(viewModel.routeBounds.height * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
-        if (!baseImageNeedsRepaint && this::baseImage.isInitialized) {
-            return
-        }
-        if (!this::baseImage.isInitialized || this.baseImage.width != targetWidth || this.baseImage.height != targetHeight) {
-            baseImage = BufferedImage(
-                targetWidth.coerceAtLeast(1),
-                targetHeight.coerceAtLeast(1),
-                BufferedImage.TYPE_INT_RGB
-            )
-        }
-
-        val bgColor = Color.WHITE
-        val g = baseImage.createGraphics()
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        g.color = bgColor
-        g.fillRect(0, 0, baseImage.width, baseImage.height)
-
-        g.transform(routeTransform.value)
-        g.stroke = BasicStroke(routeStyle.trackWidth.toDoubleInMeters().toFloat())
-        var carryPoint = Vector3.ORIGIN
-        var prevX = carryPoint.x
-        var prevY = carryPoint.y
-        var distanceCarry = 0.meters
-        var distanceSinceLastMarker = 0.meters
-        for (segment in viewModel.route) {
-            carryPoint += segment.forward
-
-            val x = carryPoint.x
-            val y = carryPoint.y
-
-            val lineLength = Vector3(prevX - x, prevY - y, 0.0).length2d
-            val drawThisLine = lineLength > routeStyle.trackWidth.toDoubleInMeters() * 1.75
-            if (drawThisLine) {
-                g.color = routeStyle.trackColor
-                g.draw(Line2D.Double(prevX, prevY, x, y))
-            }
-
-            distanceCarry += segment.length
-            distanceSinceLastMarker += segment.length
-            if (distanceSinceLastMarker >= routeStyle.distanceMarkersEvery && routeStyle.distanceMarkerColor != null) {
-                distanceSinceLastMarker = 0.meters
-                val labelPt = routeTransform.value.transform(Point2D.Double(x, y), null)
-                withTransform(g, AffineTransform()) {
-                    g.color = routeStyle.distanceMarkerColor
-                    g.drawString(distanceCarry.toString(), (labelPt.x + 30).toInt(), (labelPt.y + 10).toInt())
-                }
-            }
-
-            if (drawThisLine) {
-                prevX = x
-                prevY = y
-            }
-        }
-
-        val finishPt = routeTransform.value.transform(Point2D.Double(prevX, prevY), null)
-        withTransform(g, AffineTransform()) {
-            g.color = routeStyle.distanceMarkerColor
-            val distanceText = String.format("%3.2f km", (distanceCarry.toDoubleInMeters() / 1000.0))
-            g.drawString(distanceText, finishPt.x.toInt(), (finishPt.y + 10).toInt())
-        }
-
-        g.dispose()
-        baseImageNeedsRepaint = false
-    }
-
     fun getRoutePositionFromComponentPosition(componentPosition: Point): Vector3 {
         val pt = routeTransform.value.inverseTransform(Point2D.Double(componentPosition.x.toDouble(), componentPosition.y.toDouble()), null)
         return Vector3(pt.x, pt.y, 0.0)
@@ -274,23 +226,6 @@ class RouteComponent(
     fun getComponentPositionFromRoutePosition(routePosition: Vector3): Point {
         val pt = routeTransform.value.transform(Point2D.Double(routePosition.x, routePosition.y), null)
         return Point(pt.x.roundToInt(), pt.y.roundToInt())
-    }
-
-    private inner class RepaintBaseImageOnChange<T>(
-        initial: T,
-        val alsoOnChange: (T) -> Unit = {},
-    ) {
-        private var value: T = initial
-        operator fun getValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>): T = value
-        operator fun setValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>, value: T) {
-            val changed = this.value != value
-            this.value = value
-            if (changed) {
-                invalidateBaseImage()
-                repaint()
-                alsoOnChange(value)
-            }
-        }
     }
 
     private interface SubComponentState {
@@ -469,5 +404,59 @@ class RouteComponent(
     companion object {
         const val TOOLTIP_OFFSET_X = 15
         const val TOOLTIP_OFFSET_Y = 15
+
+        private fun drawRoute(route: Route, baseImage: BufferedImage, routeStyle: RouteStyling, routeTransform: AffineTransform) {
+            val bgColor = Color.WHITE
+            val g = baseImage.createGraphics()
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g.color = bgColor
+            g.fillRect(0, 0, baseImage.width, baseImage.height)
+
+            g.transform(routeTransform)
+            g.stroke = BasicStroke(routeStyle.trackWidth.toDoubleInMeters().toFloat())
+            var carryPoint = Vector3.ORIGIN
+            var prevX = carryPoint.x
+            var prevY = carryPoint.y
+            var distanceCarry = 0.meters
+            var distanceSinceLastMarker = 0.meters
+            for (segment in route) {
+                carryPoint += segment.forward
+
+                val x = carryPoint.x
+                val y = carryPoint.y
+
+                val lineLength = Vector3(prevX - x, prevY - y, 0.0).length2d
+                val drawThisLine = lineLength > routeStyle.trackWidth.toDoubleInMeters() * 1.75
+                if (drawThisLine) {
+                    g.color = routeStyle.trackColor
+                    g.draw(Line2D.Double(prevX, prevY, x, y))
+                }
+
+                distanceCarry += segment.length
+                distanceSinceLastMarker += segment.length
+                if (distanceSinceLastMarker >= routeStyle.distanceMarkersEvery && routeStyle.distanceMarkerColor != null) {
+                    distanceSinceLastMarker = 0.meters
+                    val labelPt = routeTransform.transform(Point2D.Double(x, y), null)
+                    withTransform(g, AffineTransform()) {
+                        g.color = routeStyle.distanceMarkerColor
+                        g.drawString(distanceCarry.toString(), (labelPt.x + 30).toInt(), (labelPt.y + 10).toInt())
+                    }
+                }
+
+                if (drawThisLine) {
+                    prevX = x
+                    prevY = y
+                }
+            }
+
+            val finishPt = routeTransform.transform(Point2D.Double(prevX, prevY), null)
+            withTransform(g, AffineTransform()) {
+                g.color = routeStyle.distanceMarkerColor
+                val distanceText = String.format("%3.2f km", (distanceCarry.toDoubleInMeters() / 1000.0))
+                g.drawString(distanceText, finishPt.x.toInt(), (finishPt.y + 10).toInt())
+            }
+
+            g.dispose()
+        }
     }
 }
