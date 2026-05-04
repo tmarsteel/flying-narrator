@@ -16,7 +16,7 @@ import javax.swing.UIManager
 import kotlin.concurrent.thread
 import kotlin.io.path.inputStream
 import kotlin.system.exitProcess
-import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.TimeSource
 
 class RouteEditorApp {
     companion object {
@@ -40,8 +40,8 @@ class RouteEditorApp {
             val route = DirtRally2RouteReader(Paths.get(inputFilePath)).read()
             val viewModel = RouteEditorViewModel(route)
 
-            val routeComponent = RouteComponent(route).also {
-                it.distanceMarkersEvery = 500.meters
+            val routeComponent = RouteComponent(viewModel).also {
+                it.routeStyling.update { rs -> rs.copy(distanceMarkersEvery = 500.meters) }
             }
             routeComponent.addRouteBoundComponent(StartMarker(viewModel))
             routeComponent.addRouteBoundComponent(FinishMarker(viewModel))
@@ -83,12 +83,11 @@ class RouteEditorApp {
                     thread(start = true) {
                         val totalDistance = route.sumOf { it.length }
                         while (true) {
-                            routeComponent.carPositionOnTrack = 0.meters
+                            routeComponent.carMarker.update { it.copy(distanceAlongTrack = 0.meters) }
                             Thread.sleep(3000)
-                            val startedAt = System.nanoTime().nanoseconds
-                            while (routeComponent.carPositionOnTrack < totalDistance) {
-                                val timePassed = System.nanoTime().nanoseconds - startedAt
-                                routeComponent.carPositionOnTrack = speedmap.estimatePositionAtTime(timePassed)
+                            val startedAt = TimeSource.Monotonic.markNow()
+                            while (routeComponent.carMarker.value.distanceAlongTrack < totalDistance) {
+                                routeComponent.carMarker.update { it.copy(distanceAlongTrack = speedmap.estimatePositionAtTime(startedAt.elapsedNow())) }
                                 Thread.sleep(33)
                             }
                         }

@@ -33,6 +33,7 @@ dependencies {
     implementation("org.gagravarr:vorbis-java-core:0.8")
 
     implementation("com.formdev:flatlaf:3.7.1")
+    implementation("io.github.fenrur:signal-jvm:3.0.1")
 
     testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-assertions-core:6.1.5")

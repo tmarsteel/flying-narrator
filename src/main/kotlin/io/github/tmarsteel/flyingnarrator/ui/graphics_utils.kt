@@ -1,7 +1,9 @@
 package io.github.tmarsteel.flyingnarrator.ui
 
 import java.awt.Graphics2D
+import java.awt.Point
 import java.awt.geom.AffineTransform
+import java.awt.geom.Point2D
 
 inline fun withTransform(g: Graphics2D, transform: AffineTransform, crossinline block: () -> Unit) {
     g.transform(transform)
@@ -17,3 +19,5 @@ inline fun withTransform(g: Graphics2D, transform: AffineTransform, crossinline 
         }
     }
 }
+
+fun Point2D.toPoint(): Point = Point(x.toInt(), y.toInt())

@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.editor
 import io.github.tmarsteel.flyingnarrator.feature.MLine
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.route.Route
+import java.awt.geom.Rectangle2D
 
 class RouteEditorViewModel(
     val route: Route,
@@ -16,6 +17,8 @@ class RouteEditorViewModel(
             MLine(previousMathSegment.somePoint + previousMathSegment.direction, roadSegment.forward)
         }
         .toList()
+
+    val routeBounds: Rectangle2D.Double = computeRouteBounds(route)
 
     /**
      * @param searchRange limit the search to this index range; defaults to the full route.
@@ -39,5 +42,23 @@ class RouteEditorViewModel(
             .minByOrNull { it.second }
             ?.first
             ?: -1
+    }
+
+    companion object {
+        private fun computeRouteBounds(route: Route): Rectangle2D.Double {
+            var minX = Double.POSITIVE_INFINITY
+            var maxX = Double.NEGATIVE_INFINITY
+            var minY = Double.POSITIVE_INFINITY
+            var maxY = Double.NEGATIVE_INFINITY
+            route.fold(Vector3.ORIGIN) { carryPt, segment ->
+                val nextCarry = carryPt + segment.forward
+                minX = minX.coerceAtMost(nextCarry.x)
+                maxX = maxX.coerceAtLeast(nextCarry.x)
+                minY = minY.coerceAtMost(nextCarry.y)
+                maxY = maxY.coerceAtLeast(nextCarry.y)
+                nextCarry
+            }
+            return Rectangle2D.Double(minX, minY, maxX - minX, maxY - minY)
+        }
     }
 }

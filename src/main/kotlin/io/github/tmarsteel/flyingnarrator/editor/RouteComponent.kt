@@ -1,10 +1,14 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.mutableSignalOf
+import io.github.fenrur.signal.operators.combine
+import io.github.fenrur.signal.operators.map
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
-import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJComponent
+import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
+import io.github.tmarsteel.flyingnarrator.ui.toPoint
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Angle
-import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
@@ -27,46 +31,48 @@ import java.awt.event.MouseMotionListener
 import java.awt.geom.AffineTransform
 import java.awt.geom.Line2D
 import java.awt.geom.Point2D
-import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
-import javax.swing.JComponent
 import javax.swing.Scrollable
 import javax.swing.SwingUtilities
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 class RouteComponent(
-    val route: Route,
-) : JComponent(), Scrollable {
-    var scale by RepaintBaseImageOnChange(0.4, alsoOnChange = { updateRouteTransform(); revalidate() })
-    var distanceMarkersEvery by RepaintBaseImageOnChange(200.meters)
-    var distanceMarkerColor: Color? by RepaintBaseImageOnChange(Color.RED)
-    var trackWidth by RepaintBaseImageOnChange(5.meters)
-    var paddingPx by RepaintBaseImageOnChange(100, alsoOnChange = { updateRouteTransform(); revalidate() })
-    var trackColor: Color by RepaintBaseImageOnChange(Color.BLACK)
+    val viewModel: RouteEditorViewModel,
+) : ReactiveJComponent(), Scrollable {
+    val routeStyling = mutableSignalOf(RouteStyling())
+    val carMarker = mutableSignalOf(CarMarker())
 
     private val routeBoundComponents = mutableListOf<RouteBoundComponent>()
     fun addRouteBoundComponent(component: RouteBoundComponent) {
         routeBoundComponents.add(component)
-        component.routeTransform = routeTransform
+        component.routeTransform = routeTransform.value
     }
     fun removeRouteBoundComponent(component: RouteBoundComponent) {
         routeBoundComponents.remove(component)
     }
 
-    val routeBoundsInRouteCoordinateSpace: Rectangle2D = computeRouteBounds(route)
-    private fun updateRouteTransform(): AffineTransform {
-        val t = AffineTransform()
-        t.translate(paddingPx.toDouble(), paddingPx.toDouble())
-        t.scale(scale, -scale)
-        t.translate(-routeBoundsInRouteCoordinateSpace.x, -(routeBoundsInRouteCoordinateSpace.y + routeBoundsInRouteCoordinateSpace.height))
-
-        routeTransform = t
-        routeBoundComponents.forEach { it.routeTransform = t }
-
-        return t
+    private val routeTransform = routeStyling.map { style ->
+        AffineTransform().apply {
+            translate(style.paddingPx.toDouble(), style.paddingPx.toDouble())
+            scale(style.scale, -style.scale)
+            translate(
+                -viewModel.routeBounds.x,
+                -(viewModel.routeBounds.y + viewModel.routeBounds.height)
+            )
+        }
     }
-    private var routeTransform: AffineTransform = updateRouteTransform()
+
+    init {
+        routeStyling.subscribeOn(lifecycle) {
+            invalidateBaseImage()
+            revalidate()
+            repaint()
+        }
+        carMarker.subscribeOn(lifecycle) {
+            repaint()
+        }
+    }
 
     var baseImageNeedsRepaint = true
     fun invalidateBaseImage() {
@@ -78,9 +84,10 @@ class RouteComponent(
     override fun getMinimumSize(): Dimension = preferredScrollableViewportSize
 
     override fun getPreferredScrollableViewportSize(): Dimension {
+        val style = routeStyling.value
         return Dimension(
-            ceil(routeBoundsInRouteCoordinateSpace.width * scale).toInt() + paddingPx * 2,
-            ceil(routeBoundsInRouteCoordinateSpace.height * scale).toInt() + paddingPx * 2,
+            ceil(viewModel.routeBounds.width * style.scale).toInt() + style.paddingPx * 2,
+            ceil(viewModel.routeBounds.height * style.scale).toInt() + style.paddingPx * 2,
         )
     }
 
@@ -100,9 +107,11 @@ class RouteComponent(
     override fun getScrollableTracksViewportHeight(): Boolean = false
 
     fun fitScaleToSize(targetWidth: Int, targetHeight: Int) {
-        val scaleX = (targetWidth.toDouble() - paddingPx * 2) / routeBoundsInRouteCoordinateSpace.width
-        val scaleY = (targetHeight.toDouble() - paddingPx * 2) / routeBoundsInRouteCoordinateSpace.height
-        scale = scaleX.coerceAtMost(scaleY)
+        routeStyling.update { style ->
+            val scaleX = (targetWidth.toDouble() - style.paddingPx * 2) / viewModel.routeBounds.width
+            val scaleY = (targetHeight.toDouble() - style.paddingPx * 2) / viewModel.routeBounds.height
+            style.copy(scale = scaleX.coerceAtMost(scaleY))
+        }
     }
 
     override fun paintComponent(g: Graphics) {
@@ -134,37 +143,30 @@ class RouteComponent(
         subComponentState.paint(g)
     }
 
-    var carPositionOnTrack: Distance = -(1.meters)
-        set(value) {
-            field = value
-            updateCarMarkerState()
-            repaint()
+    private val carMarkerPositionPositionAndOrientation: Pair<Point, Angle>? by combine(carMarker, routeTransform) { marker, routeTransform ->
+        if (marker.distanceAlongTrack < 0.meters) {
+            return@combine null
         }
-    private var carMarkerPositionInTrackCoords: Vector3 = Vector3.ORIGIN
-    private var carMarkerOrientation: Angle = 0.radians
-    private fun updateCarMarkerState() {
-        if (carPositionOnTrack < 0.meters) {
-            return
-        }
+
         var distanceCarry = 0.meters
         var positionCarry = Vector3.ORIGIN
-        for (segment in route) {
+        for (segment in viewModel.route) {
             val nextDistanceCarry = distanceCarry + segment.length
-            if (carPositionOnTrack in distanceCarry..nextDistanceCarry) {
-                carMarkerPositionInTrackCoords = positionCarry + segment.forward.withLength((carPositionOnTrack - distanceCarry).toDoubleInMeters())
-                carMarkerOrientation = segment.forward.clockwiseAngleFromPositiveY()
-                break
+            if (marker.distanceAlongTrack in distanceCarry..nextDistanceCarry) {
+                val positionInRouteSpace = positionCarry + segment.forward.withLength((marker.distanceAlongTrack - distanceCarry).toDoubleInMeters())
+                return@combine Pair(
+                    routeTransform.transform(positionInRouteSpace.toPoint2D(), null).toPoint(),
+                    segment.forward.clockwiseAngleFromPositiveY()
+                )
             }
 
             positionCarry += segment.forward
             distanceCarry = nextDistanceCarry
         }
+
+        return@combine null
     }
-    var carMarkerColor: Color = Color(0xEC003D)
-        set(value) {
-            field = value
-            repaint()
-        }
+
     private val carMarkerShape = Polygon(
         intArrayOf(
             5, 10, 5, 0
@@ -175,15 +177,7 @@ class RouteComponent(
         4
     )
     private fun paintCarMarker(g: Graphics2D) {
-        if (carPositionOnTrack < 0.meters) {
-            return
-        }
-
-        val markerPt = routeTransform.transform(
-            Point2D.Double(carMarkerPositionInTrackCoords.x, carMarkerPositionInTrackCoords.y),
-            null,
-        )
-
+        val (markerPt, carMarkerOrientation) = carMarkerPositionPositionAndOrientation ?: return
         val carMarkerG = g.create() as Graphics2D
         carMarkerG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         try {
@@ -191,7 +185,7 @@ class RouteComponent(
             carMarkerG.rotate(carMarkerOrientation.toDoubleInRadians())
             carMarkerG.scale(1.5, 1.5)
             carMarkerG.translate(-carMarkerShape.bounds.width / 2, -carMarkerShape.bounds.height / 2)
-            carMarkerG.color = carMarkerColor
+            carMarkerG.color = carMarker.value.color
             carMarkerG.fillPolygon(carMarkerShape)
             carMarkerG.color = Color.BLACK
             carMarkerG.stroke = BasicStroke(1.5f)
@@ -204,8 +198,9 @@ class RouteComponent(
 
     private lateinit var baseImage: BufferedImage
     private fun assureBaseImageIsUpToDate() {
-        val targetWidth = ceil(routeBoundsInRouteCoordinateSpace.width * scale).toInt() + paddingPx * 2
-        val targetHeight = ceil(routeBoundsInRouteCoordinateSpace.height * scale).toInt() + paddingPx * 2
+        val routeStyle = routeStyling.value
+        val targetWidth = ceil(viewModel.routeBounds.width * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
+        val targetHeight = ceil(viewModel.routeBounds.height * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
         if (!baseImageNeedsRepaint && this::baseImage.isInitialized) {
             return
         }
@@ -223,33 +218,33 @@ class RouteComponent(
         g.color = bgColor
         g.fillRect(0, 0, baseImage.width, baseImage.height)
 
-        g.transform(routeTransform)
-        g.stroke = BasicStroke(trackWidth.toDoubleInMeters().toFloat())
+        g.transform(routeTransform.value)
+        g.stroke = BasicStroke(routeStyle.trackWidth.toDoubleInMeters().toFloat())
         var carryPoint = Vector3.ORIGIN
         var prevX = carryPoint.x
         var prevY = carryPoint.y
         var distanceCarry = 0.meters
         var distanceSinceLastMarker = 0.meters
-        for (segment in route) {
+        for (segment in viewModel.route) {
             carryPoint += segment.forward
 
             val x = carryPoint.x
             val y = carryPoint.y
 
             val lineLength = Vector3(prevX - x, prevY - y, 0.0).length2d
-            val drawThisLine = lineLength > trackWidth.toDoubleInMeters() * 1.75
+            val drawThisLine = lineLength > routeStyle.trackWidth.toDoubleInMeters() * 1.75
             if (drawThisLine) {
-                g.color = trackColor
+                g.color = routeStyle.trackColor
                 g.draw(Line2D.Double(prevX, prevY, x, y))
             }
 
             distanceCarry += segment.length
             distanceSinceLastMarker += segment.length
-            if (distanceSinceLastMarker >= distanceMarkersEvery && distanceMarkerColor != null) {
+            if (distanceSinceLastMarker >= routeStyle.distanceMarkersEvery && routeStyle.distanceMarkerColor != null) {
                 distanceSinceLastMarker = 0.meters
-                val labelPt = routeTransform.transform(Point2D.Double(x, y), null)
+                val labelPt = routeTransform.value.transform(Point2D.Double(x, y), null)
                 withTransform(g, AffineTransform()) {
-                    g.color = distanceMarkerColor
+                    g.color = routeStyle.distanceMarkerColor
                     g.drawString(distanceCarry.toString(), (labelPt.x + 30).toInt(), (labelPt.y + 10).toInt())
                 }
             }
@@ -260,9 +255,9 @@ class RouteComponent(
             }
         }
 
-        val finishPt = routeTransform.transform(Point2D.Double(prevX, prevY), null)
+        val finishPt = routeTransform.value.transform(Point2D.Double(prevX, prevY), null)
         withTransform(g, AffineTransform()) {
-            g.color = distanceMarkerColor
+            g.color = routeStyle.distanceMarkerColor
             val distanceText = String.format("%3.2f km", (distanceCarry.toDoubleInMeters() / 1000.0))
             g.drawString(distanceText, finishPt.x.toInt(), (finishPt.y + 10).toInt())
         }
@@ -272,12 +267,12 @@ class RouteComponent(
     }
 
     fun getRoutePositionFromComponentPosition(componentPosition: Point): Vector3 {
-        val pt = routeTransform.inverseTransform(Point2D.Double(componentPosition.x.toDouble(), componentPosition.y.toDouble()), null)
+        val pt = routeTransform.value.inverseTransform(Point2D.Double(componentPosition.x.toDouble(), componentPosition.y.toDouble()), null)
         return Vector3(pt.x, pt.y, 0.0)
     }
 
     fun getComponentPositionFromRoutePosition(routePosition: Vector3): Point {
-        val pt = routeTransform.transform(Point2D.Double(routePosition.x, routePosition.y), null)
+        val pt = routeTransform.value.transform(Point2D.Double(routePosition.x, routePosition.y), null)
         return Point(pt.x.roundToInt(), pt.y.roundToInt())
     }
 
@@ -306,9 +301,7 @@ class RouteComponent(
     }
     private val subComponentsIdleState = object : SubComponentState {
         override fun mouseMoved(e: MouseEvent) {
-            val pointedLocation = routeTransform.inverseTransform(e.point, null).let {
-                Vector3(it.x, it.y, 0.0)
-            }
+            val pointedLocation = toRouteSpace(e.point)
             for (component in routeBoundComponents) {
                 if (component.shouldCapture(pointedLocation)) {
                     subComponentState = SubComponentHoveredState(component, e.point)
@@ -413,7 +406,7 @@ class RouteComponent(
     private var subComponentState: SubComponentState = subComponentsIdleState
 
     private fun toRouteSpace(point: Point): Vector3 {
-        return routeTransform.inverseTransform(point, null).let {
+        return routeTransform.value.inverseTransform(point, null).let {
             Vector3(it.x, it.y, 0.0)
         }
     }
@@ -459,24 +452,22 @@ class RouteComponent(
         keyboardFocusManager.removeKeyEventDispatcher(listener)
     }
 
+    data class RouteStyling(
+        val scale: Double = 0.4,
+        val paddingPx: Int = 100,
+        val distanceMarkersEvery: Distance = 200.meters,
+        val distanceMarkerColor: Color? = Color.RED,
+        val trackWidth: Distance = 5.meters,
+        val trackColor: Color = Color.BLACK,
+    )
+
+    data class CarMarker(
+        val distanceAlongTrack: Distance = -(1.meters),
+        val color: Color = Color(0xEC003D),
+    )
+
     companion object {
         const val TOOLTIP_OFFSET_X = 15
         const val TOOLTIP_OFFSET_Y = 15
     }
-}
-
-private fun computeRouteBounds(route: Route): Rectangle2D.Double {
-    var minX = Double.POSITIVE_INFINITY
-    var maxX = Double.NEGATIVE_INFINITY
-    var minY = Double.POSITIVE_INFINITY
-    var maxY = Double.NEGATIVE_INFINITY
-    route.fold(Vector3.ORIGIN) { carryPt, segment ->
-        val nextCarry = carryPt + segment.forward
-        minX = minX.coerceAtMost(nextCarry.x)
-        maxX = maxX.coerceAtLeast(nextCarry.x)
-        minY = minY.coerceAtMost(nextCarry.y)
-        maxY = maxY.coerceAtLeast(nextCarry.y)
-        nextCarry
-    }
-    return Rectangle2D.Double(minX, minY, maxX - minX, maxY - minY)
 }

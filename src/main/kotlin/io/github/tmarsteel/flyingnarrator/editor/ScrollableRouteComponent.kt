@@ -1,6 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.operators.map
 import io.github.tmarsteel.flyingnarrator.ui.CustomCursor
+import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJComponent
+import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJPanel
+import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
 import java.awt.Color
@@ -19,7 +23,6 @@ import java.awt.event.MouseWheelListener
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
-import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JLayeredPane
 import javax.swing.JPanel
@@ -46,8 +49,8 @@ class ScrollableRouteComponent(
     )
 
     private val _mouseListener = object : MouseListener, MouseMotionListener, MouseWheelListener {
-        val scrollZoomDivisor = routeComponent.routeBoundsInRouteCoordinateSpace.width
-            .coerceAtLeast(routeComponent.routeBoundsInRouteCoordinateSpace.height)
+        val scrollZoomDivisor = routeComponent.viewModel.routeBounds.width
+            .coerceAtLeast(routeComponent.viewModel.routeBounds.height)
             .let { it / 100.0 }
 
         var dragStartedAt: Point? = null
@@ -75,14 +78,13 @@ class ScrollableRouteComponent(
         }
 
         override fun mouseWheelMoved(mwe: MouseWheelEvent) {
-            val newScale = (routeComponent.scale - mwe.preciseWheelRotation / scrollZoomDivisor).coerceIn(SCALE_RANGE)
-            if (routeComponent.scale == newScale) {
+            val newScale = (routeComponent.routeStyling.value.scale - mwe.preciseWheelRotation / scrollZoomDivisor).coerceIn(SCALE_RANGE)
+            if (routeComponent.routeStyling.value.scale == newScale) {
                 return
             }
             val pointedComponentPosition = Point(mwe.x, mwe.y)
             val pointedRoutePosition = routeComponent.getRoutePositionFromComponentPosition(pointedComponentPosition)
-            routeComponent.scale = newScale
-            zoomComponent.update()
+            routeComponent.routeStyling.update { it.copy(scale = newScale) }
             val newComponentPosition = routeComponent.getComponentPositionFromRoutePosition(pointedRoutePosition)
             val dX = newComponentPosition.x - pointedComponentPosition.x
             val dY = newComponentPosition.y - pointedComponentPosition.y
@@ -95,13 +97,14 @@ class ScrollableRouteComponent(
         override fun mouseClicked(e: MouseEvent?) {}
     }
 
-    private val scaleIndicatorComponent = object : JComponent() {
+    private val scaleIndicatorComponent = object : ReactiveJComponent() {
         private val indicatorLineStroke = BasicStroke(3f)
         private val indicatedDistance = 100.meters
         private val fontSize = 14.0f
 
-        private val indicatorLineLength: Int
-            get() = (routeComponent.scale * indicatedDistance.toDoubleInMeters()).toInt()
+        private val indicatorLineLength by routeComponent.routeStyling.map {
+            (it.scale * indicatedDistance.toDoubleInMeters()).toInt()
+        }
 
         override fun paintComponent(g: Graphics) {
             super.paintComponent(g)
@@ -128,7 +131,7 @@ class ScrollableRouteComponent(
         }
     }
 
-    private val zoomComponent = object : JPanel() {
+    private val zoomComponent = object : ReactiveJPanel() {
         private val zoomOutButton = JButton("-")
         private val zoomInButton = JButton("+")
         private val zoomLabel = JLabel("100%")
@@ -140,20 +143,17 @@ class ScrollableRouteComponent(
             add(Box.createHorizontalStrut(3))
             add(zoomInButton)
             isOpaque = false
-            update()
 
             zoomInButton.addActionListener {
-                routeComponent.scale = (routeComponent.scale * 1.1).coerceIn(SCALE_RANGE)
-                update()
+                routeComponent.routeStyling.update { it.copy(scale = (it.scale * 1.1).coerceIn(SCALE_RANGE)) }
             }
             zoomOutButton.addActionListener {
-                routeComponent.scale = (routeComponent.scale / 1.1).coerceIn(SCALE_RANGE)
-                update()
+                routeComponent.routeStyling.update { it.copy(scale = (it.scale / 1.1).coerceIn(SCALE_RANGE)) }
             }
-        }
 
-        fun update() {
-            zoomLabel.text = "${(routeComponent.scale * 100.0).toInt()}%"
+            routeComponent.routeStyling.subscribeOn(lifecycle) {
+                zoomLabel.text = "${(it.scale * 100.0).toInt()}%"
+            }
         }
 
         override fun revalidate() {
