@@ -8,7 +8,7 @@ class StartMarker(
     ICON,
     viewModel,
     viewModel.segments.first().line.startPoint,
-    EditableSinglePointOnRouteComponent.EditGovernor.NotEditable,
+    SinglePointOnTrackEditHandle.EditGovernor.NotEditable,
 ) {
     companion object {
         val ICON by lazy {

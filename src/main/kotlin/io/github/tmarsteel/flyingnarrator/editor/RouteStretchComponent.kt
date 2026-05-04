@@ -69,14 +69,14 @@ abstract class RouteStretchComponent(
                 stretchModel.segmentIndices.value.first,
                 true,
                 object : EditGovernor.Editable {
-                    override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
-                        if (segmentIndex > stretchModel.segmentIndices.value.last) {
+                    override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
+                        if (location.segment.index > stretchModel.segmentIndices.value.last) {
                             return false
                         }
 
                         // TODO: validate not moving start into the previous corner
 
-                        stretchModel.segmentIndices.update { segmentIndex..it.last }
+                        stretchModel.segmentIndices.update { location.segment.index..it.last }
                         return true
                     }
                 }
@@ -87,14 +87,14 @@ abstract class RouteStretchComponent(
                 stretchModel.segmentIndices.value.last,
                 false,
                 object : EditGovernor.Editable {
-                    override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
-                        if (segmentIndex < stretchModel.segmentIndices.value.first) {
+                    override fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean {
+                        if (location.segment.index < stretchModel.segmentIndices.value.first) {
                             return false
                         }
 
                         // TODO: validate not moving end into the next corner
 
-                        stretchModel.segmentIndices.update  { it.first..segmentIndex }
+                        stretchModel.segmentIndices.update  { it.first..location.segment.index }
                         return true
                     }
                 }
@@ -113,10 +113,14 @@ abstract class RouteStretchComponent(
         segmentIndex: Int,
         atStart: Boolean,
         editGovernor: EditGovernor,
-    ) : EditableSinglePointOnRouteComponent(
+    ) : SinglePointOnTrackEditHandle(
         routeViewModel,
-        segmentIndex,
-        atStart,
+        if (atStart) {
+            RouteEditorViewModel.PreciseLocation.atSegmentStart(routeViewModel.segments[segmentIndex])
+        } else {
+            RouteEditorViewModel.PreciseLocation.atSegmentEnd(routeViewModel.segments[segmentIndex])
+        },
+        if (atStart) Snapping.ToSegmentStart else Snapping.ToSegmentEnd,
         editGovernor,
     ) {
         init {

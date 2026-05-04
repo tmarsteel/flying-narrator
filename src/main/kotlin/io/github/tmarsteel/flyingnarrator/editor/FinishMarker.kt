@@ -8,7 +8,7 @@ class FinishMarker(
     ICON,
     viewModel,
     viewModel.segments.last().line.endPoint,
-    EditableSinglePointOnRouteComponent.EditGovernor.NotEditable,
+    SinglePointOnTrackEditHandle.EditGovernor.NotEditable,
 ) {
     companion object {
         val ICON by lazy {

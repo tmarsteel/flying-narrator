@@ -106,7 +106,8 @@ class MLine(
      * @param onlyIfOnSegment if true and the intersection point between the vertical and this line is not on this line
      * segment, will return `null`
      * @return a line through [point] and `this` which has a 90° angle to this line, or `null` if [point] is on this
-     * line or [onlyIfOnSegment] is true and the intersection point is not on this line segment
+     * line or [onlyIfOnSegment] is true and the intersection point is not on this line segment. The returned lines
+     * [startPoint] will be the intersection point. The returned lines [endPoint] will be identical to or close to [point].
      */
     fun findVerticalLineThrough(point: Vector3, onlyIfOnSegment: Boolean): MLine? {
         val denominator = -direction.x.pow(2) - direction.y.pow(2) - direction.z.pow(2)

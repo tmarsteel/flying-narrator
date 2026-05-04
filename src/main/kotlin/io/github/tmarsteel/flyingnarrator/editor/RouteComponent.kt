@@ -172,15 +172,14 @@ class RouteComponent(
             return@combine null
         }
 
-        val segmentAndExtraDistance = viewModel.findSegmentForDistanceAlongTrack(marker.distanceAlongTrack)
-        if (segmentAndExtraDistance == null) {
+        val location = viewModel.findPreciseLocation(marker.distanceAlongTrack)
+        if (location == null) {
             return@combine null
         }
-        val (segment, extraDistance) = segmentAndExtraDistance
-        val positionInRouteSpace = segment.getLocationOfDistanceIntoSegment(extraDistance)
+
         Pair(
-            routeTransform.transform(positionInRouteSpace.toPoint2D(), null).toPoint(),
-            segment.base.forward.clockwiseAngleFromPositiveY()
+            routeTransform.transform(location.point.toPoint2D(), null).toPoint(),
+            location.segment.base.forward.clockwiseAngleFromPositiveY()
         )
     }
 

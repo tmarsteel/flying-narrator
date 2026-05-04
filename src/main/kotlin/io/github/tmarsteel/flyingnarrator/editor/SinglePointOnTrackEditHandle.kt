@@ -25,29 +25,23 @@ import kotlin.math.roundToInt
  * Represents a single point on the route. It assumes that it is a child of [RouteComponent] and will always position
  * itself so that the center of the component is at the track location determined from [segmentIndex] and [atStart].
  */
-abstract class EditableSinglePointOnRouteComponent(
+abstract class SinglePointOnTrackEditHandle(
     val viewModel: RouteEditorViewModel,
-    initialSegmentIndex: Int,
-    val atStart: Boolean,
+    initialLocation: RouteEditorViewModel.PreciseLocation,
+    val snapping: Snapping,
     val editGovernor: EditGovernor = EditGovernor.NotEditable,
 ) : ReactiveRouteComponentChild(), MouseListener, MouseMotionListener {
-    private val segmentIndex = mutableSignalOf(initialSegmentIndex)
-
-    private val routePoint = segmentIndex.map { idx ->
-        viewModel.segments[idx]
-            .let { if (atStart) it.line.startPoint else it.line.endPoint }
-            .toPoint2D()
-    }
+    private val routeLocation = mutableSignalOf(initialLocation)
 
     private val resizeEvents = mutableSignalOf(Unit)
     private val selfRouteTransform: Signal<AffineTransform>
     init {
         val targetSelfLocation = combine(
-            routePoint,
+            routeLocation,
             parentRouteComponent.flatMap { pc -> pc?.routeTransform ?: signalOf(AffineTransform()) },
             resizeEvents,
-        ) { routePoint, routeTransform, _ ->
-            val locationAsDouble = routeTransform.transform(routePoint, null)
+        ) { routeLocation, routeTransform, _ ->
+            val locationAsDouble = routeTransform.transform(routeLocation.point, null)
             Pair(
                 Point(locationAsDouble.x.roundToInt() - width / 2, locationAsDouble.y.roundToInt() - height / 2),
                 routeTransform
@@ -56,7 +50,7 @@ abstract class EditableSinglePointOnRouteComponent(
         targetSelfLocation.subscribeOn(lifecycle) {
             location = it.first
         }
-        routePoint.subscribeOn(lifecycle) {
+        routeLocation.subscribeOn(lifecycle) {
             repaint()
         }
         selfRouteTransform = targetSelfLocation.map { (pt, transform) ->
@@ -110,14 +104,16 @@ abstract class EditableSinglePointOnRouteComponent(
             Vector3(it.x, it.y, 0.0)
         }
 
-        val searchWindow = (segmentIndex.value - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
-            (segmentIndex.value + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(viewModel.segments.lastIndex)
-        val indexOfClosestSegment = viewModel.getIndexOfSegmentClosestTo(pointedLocation, searchWindow)
-        if (indexOfClosestSegment < 0 || !editGovernor.tryMoveTo(indexOfClosestSegment, atStart)) {
+        val searchWindow = (routeLocation.value.segment.index - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
+            (routeLocation.value.segment.index + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(viewModel.segments.lastIndex)
+        val closestLocation = viewModel.findPreciseLocationClosestTo(pointedLocation, searchWindow)
+            ?: return
+        val snappedLocation = snapping.getSnappedLocation(closestLocation)
+        if (!editGovernor.tryMoveTo(snappedLocation)) {
             return
         }
 
-        segmentIndex.value = indexOfClosestSegment
+        routeLocation.value = snappedLocation
     }
 
     override fun mouseReleased(e: MouseEvent?) {
@@ -161,10 +157,32 @@ abstract class EditableSinglePointOnRouteComponent(
             /**
              * Called when the user has indicated movement to [segmentIndex]. Serves as both a callback/notification
              * and movement validity check
-             * @param atStart pass-through of [EditableSinglePointOnRouteComponent.atStart]
+             * @param location the location to move to, after [Snapping] has been applied
              * @return whether the move is allowed; if false, the point will remain where it was previously
              */
-            fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean
+            fun tryMoveTo(location: RouteEditorViewModel.PreciseLocation): Boolean
+        }
+    }
+
+    interface Snapping {
+        fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation
+
+        object ToSegmentStart : Snapping {
+            override fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation {
+                return trueLocation.atSegmentStart()
+            }
+        }
+
+        object ToSegmentEnd : Snapping {
+            override fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation {
+                return trueLocation.atSegmentEnd()
+            }
+        }
+
+        object None : Snapping {
+            override fun getSnappedLocation(trueLocation: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation {
+                return trueLocation
+            }
         }
     }
 }

@@ -8,10 +8,10 @@ abstract class ImageSinglePointOnRouteComponent(
     val image: BufferedImage,
     private val viewModel: RouteEditorViewModel,
     val point: Vector3,
-    editGovernor: EditableSinglePointOnRouteComponent.EditGovernor,
+    editGovernor: SinglePointOnTrackEditHandle.EditGovernor,
 ) : RouteBoundComponent() {
     init {
-        check(editGovernor is EditableSinglePointOnRouteComponent.EditGovernor.NotEditable) {
+        check(editGovernor is SinglePointOnTrackEditHandle.EditGovernor.NotEditable) {
             "not supported yet"
         }
     }

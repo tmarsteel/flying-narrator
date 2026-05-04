@@ -19,12 +19,14 @@ class RouteEditorViewModel(
         .drop(1)
         .runningFold(
             RouteSegmentModel(
+                0,
                 route.first(),
                 MLine(Vector3.ORIGIN, route.first().forward),
                 0.meters,
             )
         ) { previousSegmentModel, roadSegment ->
             RouteSegmentModel(
+                previousSegmentModel.index + 1,
                 roadSegment,
                 MLine(previousSegmentModel.line.endPoint, roadSegment.forward),
                 previousSegmentModel.startsAtDistance + roadSegment.length,
@@ -38,35 +40,35 @@ class RouteEditorViewModel(
      * @param searchRange limit the search to this index range; defaults to the full route.
      *   Pass a window around the current position during drag to prevent the point from jumping
      *   to distant segments when the cursor strays far from the route.
-     * @return the index of the segment closest to [point], or `-1` if none is reasonably close
+     * @return the [PreciseLocation] on the route that is closest to [point], or `null` if there is no reasonable
+     * choice in [searchRange].
      */
-    fun getIndexOfSegmentClosestTo(point: Vector3, searchRange: IntRange = segments.indices): Int {
+    fun findPreciseLocationClosestTo(point: Vector3, searchRange: IntRange = segments.indices): PreciseLocation? {
         return segments
             .asSequence()
-            .withIndex()
-            .filter { (index, _) -> index in searchRange }
-            .mapNotNull { (segmentIndex, segmentModel) ->
+            .filterIndexed { index, _ -> index in searchRange }
+            .mapNotNull { segmentModel ->
                 val vertical = segmentModel.line.findVerticalLineThrough(point, onlyIfOnSegment = true)
                 if (vertical == null && !segmentModel.line.contains2d(point)) {
                     return@mapNotNull null
                 }
-                val distance = vertical?.direction?.length2d ?: 0.0
-                Pair(segmentIndex, distance)
+                val pointOnSegment = vertical?.startPoint ?: point
+                val distanceFromSegment = vertical?.direction?.length2d ?: 0.0
+                Triple(segmentModel, pointOnSegment, distanceFromSegment)
             }
-            .minByOrNull { it.second }
-            ?.first
-            ?: -1
+            .minByOrNull { it.third }
+            ?.let { PreciseLocation(it.first, it.second) }
     }
 
     /**
      * @return the segment that contains the given [distanceAlongTrack] along with the distance offset into it to
      * the precise location, or null of [distanceAlongTrack] is before the start or beyond the finish
      */
-    fun findSegmentForDistanceAlongTrack(distanceAlongTrack: Distance): Pair<RouteSegmentModel, Distance>? {
+    fun findPreciseLocation(distanceAlongTrack: Distance): PreciseLocation? {
         val idx = segments.binarySearchBy(distanceAlongTrack) { it.startsAtDistance }
         if (idx >= 0) {
             // exact hit on the start point
-            return Pair(segments[idx], 0.meters)
+            return PreciseLocation(segments[idx], 0.meters)
         }
 
         val insertionPoint = -(idx + 1)
@@ -74,7 +76,7 @@ class RouteEditorViewModel(
             return null
         }
         val segment = segments[insertionPoint]
-        return Pair(segment, distanceAlongTrack - segment.startsAtDistance)
+        return PreciseLocation(segment, distanceAlongTrack - segment.startsAtDistance)
     }
 
     fun makeCornerModel(corner: Feature.Corner): CornerModel = CornerModel(
@@ -87,13 +89,64 @@ class RouteEditorViewModel(
     )
 
     class RouteSegmentModel(
+        val index: Int,
         val base: RoadSegment,
         val line: MLine,
         val startsAtDistance: Distance,
+    )
+
+    /**
+     * Models a precise location on the track using the [RouteSegmentModel] that contains the location
+     * and an additional [distanceAlongSegment] from the segment start point
+     */
+    class PreciseLocation private constructor(
+        val segment: RouteSegmentModel,
+        val distanceAlongSegment: Distance,
+        val point: Vector3,
     ) {
-        fun getLocationOfDistanceIntoSegment(distance: Distance): Vector3 {
-            check(distance <= base.length)
-            return line.startPoint + line.direction.withLength(distance.toDoubleInMeters())
+        constructor(segment: RouteSegmentModel, distanceAlongSegment: Distance) : this(
+            segment,
+            distanceAlongSegment,
+            segment.line.startPoint + segment.line.direction.withLength(distanceAlongSegment.toDoubleInMeters()),
+        ) {
+            check(distanceAlongSegment <= segment.base.length)
+        }
+
+        constructor(
+            segment: RouteSegmentModel,
+            point: Vector3,
+        ) : this(
+            segment,
+            (point - segment.line.startPoint).length.meters,
+            point,
+        ) {
+            check(segment.line.contains2d(point))
+        }
+
+        fun atSegmentStart(): PreciseLocation = PreciseLocation(
+            segment,
+            0.meters,
+            segment.line.startPoint,
+        )
+
+        fun atSegmentEnd(): PreciseLocation = PreciseLocation(
+            segment,
+            segment.base.length,
+            segment.line.endPoint,
+        )
+
+        companion object {
+            fun atSegmentStart(segment: RouteSegmentModel): PreciseLocation = PreciseLocation(
+                segment,
+                0.meters,
+                segment.line.startPoint,
+            )
+
+            fun atSegmentEnd(segment: RouteSegmentModel): PreciseLocation = PreciseLocation(
+                segment,
+                segment.base.length,
+                segment.line.endPoint,
+            )
         }
     }
 
