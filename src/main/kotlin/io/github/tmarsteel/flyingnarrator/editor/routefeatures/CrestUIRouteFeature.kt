@@ -34,7 +34,7 @@ class CrestUIRouteFeature(
 
     companion object {
         private val TILE by lazy {
-            ImageIO.read(ChicaneUIRouteFeature::class.java.getResource("crest-24-tiled.png")!!)
+            ImageIO.read(CrestUIRouteFeature::class.java.getResource("crest-24-tiled.png")!!)
         }
         val ICON_DEFAULT by lazy { TILE.getSubimage(0, 0, 24, 24) }
         val ICON_SELECTED by lazy { TILE.getSubimage(24, 0, 24, 24) }
