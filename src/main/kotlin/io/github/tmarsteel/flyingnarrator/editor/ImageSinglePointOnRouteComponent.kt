@@ -11,6 +11,7 @@ import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 
 abstract class ImageSinglePointOnRouteComponent(
+    val routeModel: RouteEditorViewModel,
     initialImage: BufferedImage,
     initialLocation: RouteEditorViewModel.PreciseLocation,
     editGovernor: SinglePointOnTrackEditHandle.EditGovernor,

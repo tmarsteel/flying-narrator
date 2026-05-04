@@ -47,6 +47,7 @@ class RouteComponent(
     private val routeBoundComponents = mutableListOf<RouteBoundComponent>()
     fun addRouteBoundComponent(component: RouteBoundComponent) {
         if (routeBoundComponents.add(component)) {
+            routeBoundComponents.sortBy { it.zIndex }
             component.onMounted(this)
         }
     }
@@ -231,7 +232,7 @@ class RouteComponent(
     private val subComponentsIdleState = object : SubComponentState {
         override fun mouseMoved(e: MouseEvent) {
             val pointedLocation = toRouteSpace(e.point)
-            for (component in routeBoundComponents) {
+            for (component in routeBoundComponents.asReversed()) {
                 if (component.shouldCapture(pointedLocation)) {
                     subComponentState = SubComponentHoveredState(component, e.point)
                     repaint()

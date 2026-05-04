@@ -46,6 +46,11 @@ abstract class RouteBoundComponent {
     open val isSelectable: Boolean get()= false
 
     /**
+     * like the CSS z-index: the greater, the more in the foreground this component is shown (=the later it is rendered)
+     */
+    open val zIndex: Int get()= 0
+
+    /**
      * Visualize this element by drawing on top of the current track view.
      * @param g paints to the [RouteComponent], its swing/pixel coordinate space
      */
