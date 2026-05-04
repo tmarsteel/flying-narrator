@@ -47,7 +47,7 @@ class RouteEditorApp {
             routeComponent.addRouteBoundComponent(FinishMarker(viewModel))
             Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
-                .map { CornerFeatureComponent(viewModel, it) }
+                .map { CornerFeatureComponent(viewModel, viewModel.makeCornerModel(it)) }
                 .forEach(routeComponent::addRouteBoundComponent)
 
             val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)

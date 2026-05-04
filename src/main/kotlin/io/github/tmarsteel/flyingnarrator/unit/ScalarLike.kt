@@ -16,9 +16,15 @@ interface ScalarLike<Self> : Comparable<Self> {
     val absoluteValue: Self get()= if (sign < 0) withSign(-sign) else withSign(sign)
 
     companion object {
-        fun <T, S : ScalarLike<S>> Iterable<T>.sumOf(selector: (T) -> S): S {
-            return asSequence().map(selector).reduce { acc, a -> acc + a }
+        fun <S : ScalarLike<S>> Sequence<S>.sum(): S {
+            return reduce { acc, a -> acc + a }
         }
+        fun <S : ScalarLike<S>> Iterable<S>.sum(): S = asSequence().sum()
+
+        fun <T, S : ScalarLike<S>> Sequence<T>.sumOf(selector: (T) -> S): S {
+            return map(selector).reduce { acc, a -> acc + a }
+        }
+        fun <T, S : ScalarLike<S>> Iterable<T>.sumOf(selector: (T) -> S): S = asSequence().sumOf(selector)
 
         operator fun <S : ScalarLike<S>> Double.times(scalar: ScalarLike<S>): S = scalar.times(this)
         operator fun <S : ScalarLike<S>> Double.div(scalar: ScalarLike<S>): S = scalar.div(this)

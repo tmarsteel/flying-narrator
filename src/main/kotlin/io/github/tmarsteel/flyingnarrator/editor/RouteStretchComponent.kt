@@ -1,7 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
 import com.formdev.flatlaf.ui.FlatUIUtils
-import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.map
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
@@ -10,7 +9,6 @@ import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.utils.foldInto
 import java.awt.BasicStroke
 import java.awt.Color
-import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Polygon
@@ -19,19 +17,17 @@ import java.awt.geom.Ellipse2D
 import kotlin.math.roundToInt
 
 abstract class RouteStretchComponent(
-    val viewModel: RouteEditorViewModel,
-    initialSegmentIndices: IntRange,
+    val routeViewModel: RouteEditorViewModel,
+    val stretchModel: RouteEditorViewModel.Corner,
     val displayColor: Color,
     val hoverColor: Color,
     val isEditable: Boolean,
-) : RouteBoundComponent {
-    val segmentIndices = mutableSignalOf(initialSegmentIndices)
-
-    private val trackPoints = segmentIndices.map { idxs ->
-        val starts = viewModel.mathSegments
+) : RouteBoundComponent() {
+    private val trackPoints = stretchModel.segmentIndices.map { idxs ->
+        val starts = routeViewModel.mathSegments
             .subList(idxs.first, idxs.last + 1)
             .map { it.startPoint }
-        starts + listOf(viewModel.mathSegments[idxs.last].endPoint)
+        starts + listOf(routeViewModel.mathSegments[idxs.last].endPoint)
     }
 
     protected val displayShape = trackPoints.map { pts ->
@@ -49,17 +45,9 @@ abstract class RouteStretchComponent(
     }
 
     final override var isHovered = false
-    private var parent: RouteComponent? = null
-    override fun onMounted(parent: RouteComponent) {
-        this.parent = parent
-    }
-
-    override fun onUnmounted() {
-        this.parent = null
-    }
 
     final override fun paint(g: Graphics2D) {
-        withTransform(g, parent!!.routeTransform.value) {
+        withTransform(g, parent.value!!.routeTransform.value) {
             if (isHovered) {
                 g.color = hoverColor
                 g.fill(highlightDisplayShape.value)
@@ -75,20 +63,20 @@ abstract class RouteStretchComponent(
     private var startPointHandle: EndPointHandle? = null
     private var endPointHandle: EndPointHandle? = null
 
-    final override fun onSelected(addComponent: (Component) -> Unit) {
+    final override fun onSelected() {
         if (startPointHandle == null) {
             startPointHandle = object : EndPointHandle(
-                segmentIndices.value.first,
+                stretchModel.segmentIndices.value.first,
                 true,
                 object : EditGovernor.Editable {
                     override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
-                        if (segmentIndex > segmentIndices.value.last) {
+                        if (segmentIndex > stretchModel.segmentIndices.value.last) {
                             return false
                         }
 
                         // TODO: validate not moving start into the previous corner
 
-                        segmentIndices.update { segmentIndex..it.last }
+                        stretchModel.segmentIndices.update { segmentIndex..it.last }
                         return true
                     }
                 }
@@ -96,28 +84,29 @@ abstract class RouteStretchComponent(
         }
         if (endPointHandle == null) {
             endPointHandle = object : EndPointHandle(
-                segmentIndices.value.last,
+                stretchModel.segmentIndices.value.last,
                 false,
                 object : EditGovernor.Editable {
                     override fun tryMoveTo(segmentIndex: Int, atStart: Boolean): Boolean {
-                        if (segmentIndex < segmentIndices.value.first) {
+                        if (segmentIndex < stretchModel.segmentIndices.value.first) {
                             return false
                         }
 
                         // TODO: validate not moving end into the next corner
 
-                        segmentIndices.update  { it.first..segmentIndex }
+                        stretchModel.segmentIndices.update  { it.first..segmentIndex }
                         return true
                     }
                 }
             ) {}
         }
-        addComponent(startPointHandle!!)
-        addComponent(endPointHandle!!)
+        parent.value!!.add(startPointHandle!!)
+        parent.value!!.add(endPointHandle!!)
     }
 
     override fun onDeselected() {
-
+        startPointHandle?.let { parent.value?.remove(it) }
+        endPointHandle?.let { parent.value?.remove(it) }
     }
 
     private abstract inner class EndPointHandle(
@@ -125,7 +114,7 @@ abstract class RouteStretchComponent(
         atStart: Boolean,
         editGovernor: EditGovernor,
     ) : EditableSinglePointOnRouteComponent(
-        viewModel,
+        routeViewModel,
         segmentIndex,
         atStart,
         editGovernor,

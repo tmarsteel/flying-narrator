@@ -1,5 +1,8 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
+import io.github.fenrur.signal.MutableSignal
+import io.github.fenrur.signal.mutableSignalOf
+import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.MLine
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.route.Route
@@ -43,6 +46,19 @@ class RouteEditorViewModel(
             ?.first
             ?: -1
     }
+
+    fun makeCornerModel(corner: Feature.Corner): Corner = Corner(
+        mutableSignalOf(
+            IntRange(
+                route.indexOf(corner.segments.first()),
+                route.indexOf(corner.segments.last())
+            )
+        )
+    )
+
+    class Corner(
+        val segmentIndices: MutableSignal<IntRange>
+    )
 
     companion object {
         private fun computeRouteBounds(route: Route): Rectangle2D.Double {

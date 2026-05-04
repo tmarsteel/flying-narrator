@@ -16,7 +16,6 @@ import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BasicStroke
 import java.awt.Color
-import java.awt.Component
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
@@ -302,21 +301,14 @@ class RouteComponent(
     private inner class SubComponentSelectedState(
         val selected: RouteBoundComponent,
     ) : SubComponentState {
-        private val componentsInSelectedMode = mutableListOf<Component>()
-        private fun addComponentForSelectionMode(component: Component) {
-            componentsInSelectedMode.add(component)
-            this@RouteComponent.add(component)
-        }
-
         init {
             selected.isHovered = false
             this@RouteComponent.setCursor(null)
-            selected.onSelected(this::addComponentForSelectionMode)
+            selected.onSelected()
         }
 
         private fun deselect() {
             selected.onDeselected()
-            componentsInSelectedMode.forEach(this@RouteComponent::remove)
             subComponentState = subComponentsIdleState
         }
 
