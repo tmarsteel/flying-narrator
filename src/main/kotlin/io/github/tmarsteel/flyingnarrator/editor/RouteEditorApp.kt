@@ -3,6 +3,7 @@ package io.github.tmarsteel.flyingnarrator.editor
 import com.formdev.flatlaf.FlatLightLaf
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ChicaneUIRouteFeature
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CrestUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CornerUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartUIRouteFeature
@@ -58,6 +59,7 @@ class RouteEditorApp {
             routeComponent.addRouteBoundComponent(StartUIRouteFeature(viewModel))
             routeComponent.addRouteBoundComponent(FinishUIRouteFeature(viewModel))
             routeComponent.addRouteBoundComponent(ChicaneUIRouteFeature(viewModel, 5610.meters))
+            routeComponent.addRouteBoundComponent(CrestUIRouteFeature(viewModel, 3000.meters))
             Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
                 .map { CornerUIRouteFeature(viewModel, viewModel.makeCornerModel(it)) }

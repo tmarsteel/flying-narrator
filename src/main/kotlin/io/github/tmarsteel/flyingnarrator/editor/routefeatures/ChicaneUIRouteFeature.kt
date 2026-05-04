@@ -65,7 +65,7 @@ class ChicaneUIRouteFeature(
 
     companion object {
         private val TILE by lazy {
-            ImageIO.read(StartUIRouteFeature::class.java.getResource("chicane-24-tiled.png")!!)
+            ImageIO.read(ChicaneUIRouteFeature::class.java.getResource("chicane-24-tiled.png")!!)
         }
         val ICON_ENTRY_LEFT_DEFAULT by lazy {
             TILE.getSubimage(0, 0, 24, 24)

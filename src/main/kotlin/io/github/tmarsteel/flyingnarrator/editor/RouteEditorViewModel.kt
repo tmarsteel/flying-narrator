@@ -162,6 +162,10 @@ class RouteEditorViewModel(
         val segmentIndices: Signal<IntRange> = combine(indexOfFirstSegment, indexOfLastSegment, ::IntRange)
     }
 
+    class CrestModel(
+        val location: MutableSignal<PreciseLocation>,
+    )
+
     class ChicaneModel(
         val location: MutableSignal<PreciseLocation>,
         val entry: MutableSignal<Entry>,

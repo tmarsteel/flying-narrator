@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Serialization**: kotlinx-serialization (JSON) + Jackson (XML)
 - **Audio**: Opus codec (via libopus native library), OggOpus format, javax.sound.sampled
 - **TTS**: Google Cloud Text-to-Speech integration with SSML support
-- **UI**: Swing (with FlatLaf look and feel)
+- **UI**: Swing (with FlatLaf look and feel) + `signal-jvm` v3.0.1 (`io.github.fenrur`) for reactive state
 - **Game Integration**: Dirt Rally 2.0 telemetry receiver (UDP), race data parsing from XML
 - **Other Notable**: OkHttp (HTTP), Rhino (JavaScript), JNA (native interop), Protocol Buffers
 
@@ -50,7 +50,8 @@ io.github.tmarsteel.flyingnarrator/
 ├── unit/              # Custom unit types (Distance, etc.)
 ├── io/                # JSON/XML serialization utilities
 ├── http/              # HTTP utilities
-└── editor/            # Route editing UI components
+├── editor/            # Route editing UI components
+└── ui/reactive/       # Lifecycle-aware signal subscription helpers (LifecycleSignalSubscription, subscribeOn)
 ```
 
 ## Architecture Overview
@@ -77,14 +78,15 @@ io.github.tmarsteel.flyingnarrator/
    - OggOpus codec support via native libopus library bindings
    - Clips are encoded as OggOpus for efficiency
 
-5. **UI** (`CodriverApp`):
+5. **UI** (`CodriverApp`, `editor/`):
    - Swing-based GUI with state machine (idle → race in progress → finished)
    - Displays current stage name and elapsed race time
    - Updates in real-time as telemetry arrives
+   - Editor components use `signal-jvm` for reactive state: `signalOf()` for read-only signals, `mutableSignalOf()` for mutable state, `combine()` for derived state. Subscriptions bind to Swing component lifecycle via `LifecycleSignalSubscription` / `.subscribeOn()` extension (in `ui/reactive/`) to avoid leaks on mount/unmount.
 
 ### Key Design Patterns
 
-- **Observer Pattern**: Game events flow through `GameObserver.Listener` interface
+- **Observer Pattern**: Game events flow through `GameObserver.Listener` interface; editor UI state uses `signal-jvm` signals instead of manual listeners
 - **Route Abstraction**: `RouteReader` interface allows support for different game formats (DR2, WRC, etc.)
 - **Serialization Abstraction**: Pluggable TTS and audio format support
 - **3D Geometry**: Custom `Vector3` and `HermiteSpline` for road reconstruction from control points
