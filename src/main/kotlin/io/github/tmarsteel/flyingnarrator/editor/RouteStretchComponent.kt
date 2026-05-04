@@ -95,6 +95,7 @@ abstract class RouteStretchComponent(
             )
         },
         object : EditGovernor.Editable {
+            override val startEditingAfterMovementOfPixels = 0
             override fun processPotentialMove(location: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation? {
                 if (isCornerEntry) {
                     if (location.segment.index > stretchModel.indexOfLastSegment.value) {
