@@ -8,6 +8,7 @@ import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sum
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import java.awt.Color
 import javax.swing.JToolTip
+import javax.swing.UIManager
 
 class CornerUIRouteFeature(
     routeModel: RouteEditorViewModel,
@@ -15,8 +16,11 @@ class CornerUIRouteFeature(
 ) : StretchUIRouteFeature(
     routeModel,
     stretchModel,
-    Color.ORANGE,
-    Color(0x8020FF00.toInt(), true),
+    UIManager.getColor(KEY_DISPLAY_COLOR)
+        ?: UIManager.getColor("Component.accentColor")
+        ?: Color.ORANGE,
+    UIManager.getColor(KEY_HOVER_COLOR)
+        ?: Color(0x20FF00),
     true,
 ) {
     private val cornerSegments = stretchModel.segmentIndices.map { idxs ->
@@ -55,5 +59,10 @@ class CornerUIRouteFeature(
             isVisible = true
             tipText = ""
         }
+    }
+
+    companion object {
+        val KEY_DISPLAY_COLOR = "${CornerUIRouteFeature::class.simpleName}.displayColor"
+        val KEY_HOVER_COLOR = "${CornerUIRouteFeature::class.simpleName}.hoverColor"
     }
 }

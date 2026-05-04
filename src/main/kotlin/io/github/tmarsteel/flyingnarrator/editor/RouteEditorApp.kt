@@ -6,6 +6,7 @@ import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ChicaneUIRouteFea
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CornerUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartUIRouteFeature
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StretchUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.route.Speedmap
@@ -13,6 +14,7 @@ import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import kotlinx.serialization.json.decodeFromStream
 import java.awt.BorderLayout
+import java.awt.Color
 import java.nio.file.Paths
 import javax.swing.JFrame
 import javax.swing.JOptionPane
@@ -28,6 +30,12 @@ class RouteEditorApp {
         fun main(args: Array<String>) {
             try {
                 UIManager.setLookAndFeel(FlatLightLaf())
+                UIManager.getDefaults().apply {
+                    put(CornerUIRouteFeature.KEY_DISPLAY_COLOR, Color(0x2285E1))
+                    put(CornerUIRouteFeature.KEY_HOVER_COLOR, Color(0x1C78CE)) // from FlatLaf Slider.hoverThumbColor
+                    put(StretchUIRouteFeature.KEY_END_HANDLE_BORDER_COLOR, Color.BLACK)
+                    put(StretchUIRouteFeature.KEY_END_HANDLE_COLOR, Color(0x2285E1)) // from FlatLaf Slider.thumbColor
+                }
             } catch (_: Exception) {
                 try {
                     UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())

@@ -72,7 +72,7 @@ class RouteComponent(
 
     private val baseImage: Signal<BufferedImage>
     init {
-        val styleAndBuffer = routeStyling.scan(Pair(routeStyling.value, BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB))) { (_, currentBaseImage), routeStyle ->
+        val styleAndBuffer = routeStyling.scan(Pair(routeStyling.value, BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))) { (_, currentBaseImage), routeStyle ->
             val targetWidth = ceil(viewModel.routeBounds.width * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
             val targetHeight = ceil(viewModel.routeBounds.height * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
             var nextBaseImage = if (currentBaseImage.width == targetWidth && currentBaseImage.height == targetHeight) {
@@ -81,7 +81,7 @@ class RouteComponent(
                 BufferedImage(
                     targetWidth.coerceAtLeast(1),
                     targetHeight.coerceAtLeast(1),
-                    BufferedImage.TYPE_INT_RGB
+                    BufferedImage.TYPE_INT_ARGB
                 )
             }
             Pair(routeStyle, nextBaseImage)
@@ -406,11 +406,8 @@ class RouteComponent(
         const val TOOLTIP_OFFSET_Y = 15
 
         private fun drawRoute(route: List<RouteEditorViewModel.RouteSegmentModel>, baseImage: BufferedImage, routeStyle: RouteStyling, routeTransform: AffineTransform) {
-            val bgColor = Color.WHITE
             val g = baseImage.createGraphics()
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-            g.color = bgColor
-            g.fillRect(0, 0, baseImage.width, baseImage.height)
 
             g.transform(routeTransform)
             g.stroke = BasicStroke(routeStyle.trackWidth.toDoubleInMeters().toFloat())

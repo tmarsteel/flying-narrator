@@ -19,6 +19,7 @@ import java.awt.Graphics2D
 import java.awt.Polygon
 import java.awt.Shape
 import java.awt.geom.Ellipse2D
+import javax.swing.UIManager
 import kotlin.math.roundToInt
 
 abstract class StretchUIRouteFeature(
@@ -38,9 +39,6 @@ abstract class StretchUIRouteFeature(
     protected val displayShape = trackPoints.map { pts ->
         createTrackOutlineShape(pts, DISPLAY_SHAPE_THICKNESS)
     }
-    protected val highlightDisplayShape = trackPoints.map { pts ->
-        createTrackOutlineShape(pts, HIGHLIGHT_DISPLAY_SHAPE_THICKNESS)
-    }
     protected val hoverTriggerShape= trackPoints.map { pts ->
         createTrackOutlineShape(pts, HOVER_TRIGGER_SHAPE_THICKNESS)
     }
@@ -51,12 +49,7 @@ abstract class StretchUIRouteFeature(
 
     final override fun paint(g: Graphics2D) {
         withTransform(g, parent.value!!.routeTransform.value) {
-            if (hovered.value) {
-                g.color = hoverColor
-                g.fill(highlightDisplayShape.value)
-            }
-
-            g.color = displayColor
+            g.color = if (hovered.value) hoverColor else displayColor
             g.fill(displayShape.value)
         }
     }
@@ -115,7 +108,7 @@ abstract class StretchUIRouteFeature(
         },
     ) {
         init {
-            setSize(20, 20)
+            setSize(16, 16)
         }
 
         override fun paintComponent(g: Graphics?) {
@@ -124,21 +117,22 @@ abstract class StretchUIRouteFeature(
             FlatUIUtils.setRenderingHints(g)
             g.translate(END_HANDLE_BORDER_STROKE.lineWidth.toDouble(), END_HANDLE_BORDER_STROKE.lineWidth.toDouble())
             g.scale(width / (END_HANDLE_SHAPE.width + END_HANDLE_BORDER_STROKE.lineWidth * 2.0), height / (END_HANDLE_SHAPE.height + END_HANDLE_BORDER_STROKE.lineWidth * 2.0))
-            g.color = Color.RED
+            g.color = UIManager.getColor(KEY_END_HANDLE_COLOR)
             g.fill(END_HANDLE_SHAPE)
             g.stroke = END_HANDLE_BORDER_STROKE
-            g.color = Color.BLACK
+            g.color = UIManager.getColor(KEY_END_HANDLE_BORDER_COLOR)
             g.draw(END_HANDLE_SHAPE)
         }
     }
 
     companion object {
         val DISPLAY_SHAPE_THICKNESS = 5.meters
-        val HIGHLIGHT_DISPLAY_SHAPE_THICKNESS = 15.meters
         val HOVER_TRIGGER_SHAPE_THICKNESS = 30.meters
 
         val END_HANDLE_SHAPE = Ellipse2D.Double(0.0, 0.0, 10.0, 10.0)
-        val END_HANDLE_BORDER_STROKE = BasicStroke(3f)
+        val END_HANDLE_BORDER_STROKE = BasicStroke(2f)
+        val KEY_END_HANDLE_BORDER_COLOR = "${StretchUIRouteFeature::class.simpleName}.endHandleBorderColor"
+        val KEY_END_HANDLE_COLOR = "${StretchUIRouteFeature::class.simpleName}.endHandleColor"
 
         private fun createTrackOutlineShape(trackPoints: Iterable<Vector3>, thickness: Distance): Shape {
             val pointsOnRouteWithPerpendiculars = trackPoints
