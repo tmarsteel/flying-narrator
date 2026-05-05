@@ -3,9 +3,9 @@ package io.github.tmarsteel.flyingnarrator.editor
 import com.formdev.flatlaf.FlatLightLaf
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ChicaneUIRouteFeature
-import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CrestUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CornerUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishUIRouteFeature
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ObstacleUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StretchUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.feature.Feature
@@ -59,7 +59,11 @@ class RouteEditorApp {
             routeComponent.addRouteBoundComponent(StartUIRouteFeature(viewModel))
             routeComponent.addRouteBoundComponent(FinishUIRouteFeature(viewModel))
             routeComponent.addRouteBoundComponent(ChicaneUIRouteFeature(viewModel, 5610.meters))
-            routeComponent.addRouteBoundComponent(CrestUIRouteFeature(viewModel, 3000.meters))
+            routeComponent.addRouteBoundComponent(ObstacleUIRouteFeature(viewModel, 3000.meters, RouteEditorViewModel.ObstacleModel.Type.CREST))
+            routeComponent.addRouteBoundComponent(ObstacleUIRouteFeature(viewModel, 3500.meters, RouteEditorViewModel.ObstacleModel.Type.DIP))
+            routeComponent.addRouteBoundComponent(ObstacleUIRouteFeature(viewModel, 4000.meters, RouteEditorViewModel.ObstacleModel.Type.JUMP))
+            routeComponent.addRouteBoundComponent(ObstacleUIRouteFeature(viewModel, 4500.meters, RouteEditorViewModel.ObstacleModel.Type.TUNNEL))
+            routeComponent.addRouteBoundComponent(ObstacleUIRouteFeature(viewModel, 5000.meters, RouteEditorViewModel.ObstacleModel.Type.NARROWS))
             Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
                 .map { CornerUIRouteFeature(viewModel, viewModel.makeCornerModel(it)) }

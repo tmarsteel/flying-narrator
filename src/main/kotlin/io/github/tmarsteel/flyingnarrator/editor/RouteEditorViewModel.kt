@@ -162,9 +162,20 @@ class RouteEditorViewModel(
         val segmentIndices: Signal<IntRange> = combine(indexOfFirstSegment, indexOfLastSegment, ::IntRange)
     }
 
-    class CrestModel(
+    class ObstacleModel(
         val location: MutableSignal<PreciseLocation>,
-    )
+        val type: MutableSignal<Type>,
+    ) {
+        enum class Type {
+            CREST,
+            DIP,
+            JUMP,
+            NARROWS,
+            WIDENS,
+            TUNNEL,
+            ;
+        }
+    }
 
     class ChicaneModel(
         val location: MutableSignal<PreciseLocation>,
