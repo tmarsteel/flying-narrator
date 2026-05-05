@@ -7,6 +7,8 @@ import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sum
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import java.awt.Color
+import javax.swing.JMenuItem
+import javax.swing.JPopupMenu
 import javax.swing.JToolTip
 import javax.swing.UIManager
 
@@ -59,6 +61,14 @@ class CornerUIRouteFeature(
             isVisible = true
             tipText = ""
         }
+    }
+
+    override val popupMenu = JPopupMenu().apply {
+        add(JMenuItem("Delete").also { item ->
+            item.addActionListener {
+                this@CornerUIRouteFeature.parent.value?.removeRouteBoundComponent(this@CornerUIRouteFeature)
+            }
+        })
     }
 
     companion object {

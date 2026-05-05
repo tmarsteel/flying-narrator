@@ -185,6 +185,30 @@ sealed interface InferredPacenoteItem {
         }
     }
 
+    data object Jump : InferredPacenoteItem {
+        override fun toString(): String {
+            return "jump"
+        }
+    }
+
+    data object Tunnel : InferredPacenoteItem {
+        override fun toString(): String {
+            return "tunnel"
+        }
+    }
+
+    data object Narrows : InferredPacenoteItem {
+        override fun toString(): String {
+            return "narrows"
+        }
+    }
+
+    data object Widens : InferredPacenoteItem {
+        override fun toString(): String {
+            return "widens"
+        }
+    }
+
     data object FinishLine : InferredPacenoteItem {
         override fun toString(): String {
             return "over finish"

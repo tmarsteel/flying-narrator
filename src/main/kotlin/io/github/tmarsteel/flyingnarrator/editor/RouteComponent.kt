@@ -228,6 +228,7 @@ class RouteComponent(
         fun mouseMoved(e: MouseEvent) {}
         fun mouseClicked(e: MouseEvent) {}
         fun onKeyTyped(e: KeyEvent) {}
+        fun onKeyPressed(e: KeyEvent) {}
         fun paint(g: Graphics2D) {}
     }
     private val subComponentsIdleState = object : SubComponentState {
@@ -298,6 +299,16 @@ class RouteComponent(
             }
         }
 
+        override fun onKeyPressed(e: KeyEvent) {
+            if (e.isMetaDown || e.isShiftDown || e.isAltDown || e.isControlDown) return
+            if (e.keyCode != KeyEvent.VK_DELETE) return
+            hovered.hovered.value = false
+            this@RouteComponent.setCursor(null)
+            subComponentState = subComponentsIdleState
+            removeRouteBoundComponent(hovered)
+            e.consume()
+        }
+
         override fun paint(g: Graphics2D) {
             hovered.tooltip?.let { tooltip ->
                 withTransform(g, AffineTransform.getTranslateInstance(tooltip.x.toDouble(), tooltip.y.toDouble())) {
@@ -341,6 +352,15 @@ class RouteComponent(
             deselect()
             e.consume()
         }
+
+        override fun onKeyPressed(e: KeyEvent) {
+            if (e.isMetaDown || e.isShiftDown || e.isAltDown || e.isControlDown) return
+            if (e.keyCode != KeyEvent.VK_DELETE) return
+            selected.selected.value = false
+            subComponentState = subComponentsIdleState
+            removeRouteBoundComponent(selected)
+            e.consume()
+        }
     }
 
     private var subComponentState: SubComponentState = subComponentsIdleState
@@ -372,11 +392,10 @@ class RouteComponent(
                 return false
             }
 
-            if (e.id != KeyEvent.KEY_TYPED) {
-                return false
+            when (e.id) {
+                KeyEvent.KEY_TYPED -> subComponentState.onKeyTyped(e)
+                KeyEvent.KEY_PRESSED -> subComponentState.onKeyPressed(e)
             }
-
-            subComponentState.onKeyTyped(e)
 
             return e.isConsumed
         }

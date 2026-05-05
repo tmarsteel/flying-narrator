@@ -7,6 +7,7 @@ import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
+import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
 import javax.swing.JRadioButtonMenuItem
 
@@ -45,6 +46,12 @@ class ChicaneUIRouteFeature(
         add(entryLeftMenuItem)
         add(entryRightMenuItem)
         add(entryUnspecifiedMenuItem)
+        addSeparator()
+        add(JMenuItem("Delete").also { item ->
+            item.addActionListener {
+                this@ChicaneUIRouteFeature.parent.value?.removeRouteBoundComponent(this@ChicaneUIRouteFeature)
+            }
+        })
     }
     init {
         chicaneModel.entry.subscribeOn(lifecycle) { entry ->
