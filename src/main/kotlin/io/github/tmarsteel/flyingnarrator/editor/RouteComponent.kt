@@ -5,7 +5,7 @@ import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.operators.scan
-import io.github.tmarsteel.flyingnarrator.editor.routefeatures.UIRouteFeature
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.RouteShapedComponent
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJComponent
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
@@ -40,23 +40,23 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 class RouteComponent(
-    val viewModel: RouteEditorViewModel,
+    val routeModel: RouteViewModel,
 ) : ReactiveJComponent(), Scrollable {
     val routeStyling = mutableSignalOf(RouteStyling())
     val carMarker = mutableSignalOf(CarMarker())
 
-    private val routeFeatures = mutableListOf<UIRouteFeature>()
-    fun addRouteBoundComponent(component: UIRouteFeature) {
-        if (routeFeatures.add(component)) {
-            routeFeatures.sortBy { it.zIndex }
+    private val routeShapedComponents = mutableListOf<RouteShapedComponent>()
+    fun addRouteShapedComponent(component: RouteShapedComponent) {
+        if (routeShapedComponents.add(component)) {
+            routeShapedComponents.sortBy { it.zIndex }
             component.onMounted(this)
         }
     }
-    fun removeRouteBoundComponent(component: UIRouteFeature) {
-        if (component in routeFeatures) {
+    fun removeRouteShapedComponent(component: RouteShapedComponent) {
+        if (component in routeShapedComponents) {
             component.onUnmounted()
         }
-        routeFeatures.remove(component)
+        routeShapedComponents.remove(component)
     }
 
     val routeTransform = routeStyling.map { style ->
@@ -64,8 +64,8 @@ class RouteComponent(
             translate(style.paddingPx.toDouble(), style.paddingPx.toDouble())
             scale(style.scale, -style.scale)
             translate(
-                -viewModel.routeBounds.x,
-                -(viewModel.routeBounds.y + viewModel.routeBounds.height)
+                -routeModel.routeBounds.x,
+                -(routeModel.routeBounds.y + routeModel.routeBounds.height)
             )
         }
     }
@@ -73,8 +73,8 @@ class RouteComponent(
     private val baseImage: Signal<BufferedImage>
     init {
         val styleAndBuffer = routeStyling.scan(Pair(routeStyling.value, BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))) { (_, currentBaseImage), routeStyle ->
-            val targetWidth = ceil(viewModel.routeBounds.width * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
-            val targetHeight = ceil(viewModel.routeBounds.height * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
+            val targetWidth = ceil(routeModel.routeBounds.width * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
+            val targetHeight = ceil(routeModel.routeBounds.height * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
             var nextBaseImage = if (currentBaseImage.width == targetWidth && currentBaseImage.height == targetHeight) {
                 currentBaseImage
             } else {
@@ -87,7 +87,7 @@ class RouteComponent(
             Pair(routeStyle, nextBaseImage)
         }
         baseImage = combine(styleAndBuffer, routeTransform) { (style, image), transform ->
-            drawRoute(viewModel.segments, image, style, transform)
+            drawRoute(routeModel.segments, image, style, transform)
             image
         }
     }
@@ -101,11 +101,6 @@ class RouteComponent(
         }
     }
 
-    var baseImageNeedsRepaint = true
-    fun invalidateBaseImage() {
-        baseImageNeedsRepaint = true
-    }
-
     override fun getPreferredSize(): Dimension = preferredScrollableViewportSize
 
     override fun getMinimumSize(): Dimension = preferredScrollableViewportSize
@@ -113,8 +108,8 @@ class RouteComponent(
     override fun getPreferredScrollableViewportSize(): Dimension {
         val style = routeStyling.value
         return Dimension(
-            ceil(viewModel.routeBounds.width * style.scale).toInt() + style.paddingPx * 2,
-            ceil(viewModel.routeBounds.height * style.scale).toInt() + style.paddingPx * 2,
+            ceil(routeModel.routeBounds.width * style.scale).toInt() + style.paddingPx * 2,
+            ceil(routeModel.routeBounds.height * style.scale).toInt() + style.paddingPx * 2,
         )
     }
 
@@ -135,8 +130,8 @@ class RouteComponent(
 
     fun fitScaleToSize(targetWidth: Int, targetHeight: Int) {
         routeStyling.update { style ->
-            val scaleX = (targetWidth.toDouble() - style.paddingPx * 2) / viewModel.routeBounds.width
-            val scaleY = (targetHeight.toDouble() - style.paddingPx * 2) / viewModel.routeBounds.height
+            val scaleX = (targetWidth.toDouble() - style.paddingPx * 2) / routeModel.routeBounds.width
+            val scaleY = (targetHeight.toDouble() - style.paddingPx * 2) / routeModel.routeBounds.height
             style.copy(scale = scaleX.coerceAtMost(scaleY))
         }
     }
@@ -154,7 +149,7 @@ class RouteComponent(
         subG.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         try {
             val transform = subG.transform
-            for (component in routeFeatures) {
+            for (component in routeShapedComponents) {
                 subG.transform = transform
                 component.paint(subG)
             }
@@ -174,7 +169,7 @@ class RouteComponent(
             return@combine null
         }
 
-        val location = viewModel.findPreciseLocation(marker.distanceAlongTrack)
+        val location = routeModel.findPreciseLocation(marker.distanceAlongTrack)
         if (location == null) {
             return@combine null
         }
@@ -234,7 +229,7 @@ class RouteComponent(
     private val subComponentsIdleState = object : SubComponentState {
         override fun mouseMoved(e: MouseEvent) {
             val pointedLocation = toRouteSpace(e.point)
-            for (component in routeFeatures.asReversed()) {
+            for (component in routeShapedComponents.asReversed()) {
                 if (component.shouldCapture(pointedLocation)) {
                     subComponentState = SubComponentHoveredState(component, e.point)
                     repaint()
@@ -252,7 +247,7 @@ class RouteComponent(
         }
     }
     private inner class SubComponentHoveredState(
-        val hovered: UIRouteFeature,
+        val hovered: RouteShapedComponent,
         hoverEnteredAt: Point,
     ) : SubComponentState {
         init {
@@ -266,7 +261,7 @@ class RouteComponent(
 
         override fun mouseMoved(e: MouseEvent) {
             val pointedLocation = toRouteSpace(e.point)
-            for (component in routeFeatures.asReversed()) {
+            for (component in routeShapedComponents.asReversed()) {
                 if (component.shouldCapture(pointedLocation)) {
                     if (component === hovered) {
                         return
@@ -305,7 +300,7 @@ class RouteComponent(
             hovered.hovered.value = false
             this@RouteComponent.setCursor(null)
             subComponentState = subComponentsIdleState
-            removeRouteBoundComponent(hovered)
+            removeRouteShapedComponent(hovered)
             e.consume()
         }
 
@@ -319,7 +314,7 @@ class RouteComponent(
     }
 
     private inner class SubComponentSelectedState(
-        val selected: UIRouteFeature,
+        val selected: RouteShapedComponent,
     ) : SubComponentState {
         init {
             selected.hovered.value = false
@@ -358,7 +353,7 @@ class RouteComponent(
             if (e.keyCode != KeyEvent.VK_DELETE) return
             selected.selected.value = false
             subComponentState = subComponentsIdleState
-            removeRouteBoundComponent(selected)
+            removeRouteShapedComponent(selected)
             e.consume()
         }
     }
@@ -429,7 +424,7 @@ class RouteComponent(
         const val TOOLTIP_OFFSET_X = 15
         const val TOOLTIP_OFFSET_Y = 15
 
-        private fun drawRoute(route: List<RouteEditorViewModel.RouteSegmentModel>, baseImage: BufferedImage, routeStyle: RouteStyling, routeTransform: AffineTransform) {
+        private fun drawRoute(route: List<RouteViewModel.RouteSegmentModel>, baseImage: BufferedImage, routeStyle: RouteStyling, routeTransform: AffineTransform) {
             val g = baseImage.createGraphics()
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 

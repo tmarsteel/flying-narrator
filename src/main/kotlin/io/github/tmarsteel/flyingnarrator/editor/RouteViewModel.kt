@@ -14,7 +14,7 @@ import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.geom.Rectangle2D
 
-class RouteEditorViewModel(
+class RouteViewModel(
     route: Route,
 ) {
     val segments = route
@@ -40,6 +40,8 @@ class RouteEditorViewModel(
     val routeBounds: Rectangle2D.Double = computeRouteBounds(route)
     val start: Signal<PreciseLocation> = signalOf(PreciseLocation.atSegmentStart(segments.first()))
     val finish: Signal<PreciseLocation> = signalOf(PreciseLocation.atSegmentEnd(segments.last()))
+    val corners = mutableSignalOf<Set<CornerModel>>(emptySet())
+    val obstacles = mutableSignalOf<Set<ObstacleModel>>(emptySet())
 
     /**
      * @param searchRange limit the search to this index range; defaults to the full route.
@@ -124,6 +126,8 @@ class RouteEditorViewModel(
             check(segment.line.contains2d(point))
         }
 
+        val distanceAlongRoute: Distance get()= segment.startsAtDistance + distanceAlongSegment
+
         fun atSegmentStart(): PreciseLocation = if (distanceAlongSegment == 0.meters) this else {
             PreciseLocation(
                 segment,
@@ -138,6 +142,10 @@ class RouteEditorViewModel(
                 segment.base.length,
                 segment.line.endPoint,
             )
+        }
+
+        override fun toString(): String {
+            return "PreciseLocation(@${segment.startsAtDistance + distanceAlongSegment}, segment#${segment.index})"
         }
 
         companion object {
@@ -164,28 +172,26 @@ class RouteEditorViewModel(
 
     class ObstacleModel(
         val location: MutableSignal<PreciseLocation>,
-        val type: MutableSignal<Type>,
+        val type: Type,
     ) {
-        enum class Type {
-            CREST,
-            DIP,
-            JUMP,
-            NARROWS,
-            WIDENS,
-            TUNNEL,
-            ;
-        }
-    }
+        override fun toString(): String = "ObstacleModel(location=${location.value}, type=$type)"
 
-    class ChicaneModel(
-        val location: MutableSignal<PreciseLocation>,
-        val entry: MutableSignal<Entry>,
-    ) {
-        enum class Entry {
-            LEFT,
-            RIGHT,
-            UNSPECIFIED,
-            ;
+        sealed interface Type {
+            object Crest : Type
+            object Dip : Type
+            object Jump : Type
+            object Narrows : Type
+            object Widens : Type
+            class Chicane(
+                val entrySide: MutableSignal<EntrySide> = mutableSignalOf(EntrySide.UNSPECIFIED)
+            ) : Type {
+                enum class EntrySide {
+                    LEFT,
+                    RIGHT,
+                    UNSPECIFIED,
+                    ;
+                }
+            }
         }
     }
 

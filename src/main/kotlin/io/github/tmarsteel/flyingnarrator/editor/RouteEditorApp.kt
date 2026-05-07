@@ -1,22 +1,27 @@
 package io.github.tmarsteel.flyingnarrator.editor
 
 import com.formdev.flatlaf.FlatLightLaf
+import io.github.fenrur.signal.mutableSignalOf
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
-import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ChicaneUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CornerUIRouteFeature
-import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishUIRouteFeature
-import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ObstacleUIRouteFeature
-import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartUIRouteFeature
-import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StretchUIRouteFeature
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishComponent
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ObstacleComponent
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartComponent
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StretchRouteShapedComponent
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.route.Speedmap
+import io.github.tmarsteel.flyingnarrator.ui.reactive.changesWithInitial
+import io.github.tmarsteel.flyingnarrator.ui.reactive.plusAssign
+import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import kotlinx.serialization.json.decodeFromStream
 import java.awt.BorderLayout
 import java.awt.Color
 import java.nio.file.Paths
+import java.util.WeakHashMap
+import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JOptionPane
 import javax.swing.UIManager
@@ -34,8 +39,8 @@ class RouteEditorApp {
                 UIManager.getDefaults().apply {
                     put(CornerUIRouteFeature.KEY_DISPLAY_COLOR, Color(0x2285E1))
                     put(CornerUIRouteFeature.KEY_HOVER_COLOR, Color(0x1C78CE)) // from FlatLaf Slider.hoverThumbColor
-                    put(StretchUIRouteFeature.KEY_END_HANDLE_BORDER_COLOR, Color.BLACK)
-                    put(StretchUIRouteFeature.KEY_END_HANDLE_COLOR, Color(0x2285E1)) // from FlatLaf Slider.thumbColor
+                    put(StretchRouteShapedComponent.KEY_END_HANDLE_BORDER_COLOR, Color.BLACK)
+                    put(StretchRouteShapedComponent.KEY_END_HANDLE_COLOR, Color(0x2285E1)) // from FlatLaf Slider.thumbColor
                 }
             } catch (_: Exception) {
                 try {
@@ -51,23 +56,47 @@ class RouteEditorApp {
             }
 
             val route = DirtRally2RouteReader(Paths.get(inputFilePath)).read()
-            val viewModel = RouteEditorViewModel(route)
+            val viewModel = RouteViewModel(route)
 
             val routeComponent = RouteComponent(viewModel).also {
                 it.routeStyling.update { rs -> rs.copy(distanceMarkersEvery = 500.meters) }
             }
-            routeComponent.addRouteBoundComponent(StartUIRouteFeature(viewModel))
-            routeComponent.addRouteBoundComponent(FinishUIRouteFeature(viewModel))
-            routeComponent.addRouteBoundComponent(ChicaneUIRouteFeature(viewModel, 5610.meters))
-            routeComponent.add(ObstacleUIRouteFeature(viewModel, 3000.meters, RouteEditorViewModel.ObstacleModel.Type.CREST))
-            routeComponent.add(ObstacleUIRouteFeature(viewModel, 3500.meters, RouteEditorViewModel.ObstacleModel.Type.DIP))
-            routeComponent.add(ObstacleUIRouteFeature(viewModel, 4000.meters, RouteEditorViewModel.ObstacleModel.Type.JUMP))
-            routeComponent.add(ObstacleUIRouteFeature(viewModel, 4500.meters, RouteEditorViewModel.ObstacleModel.Type.TUNNEL))
-            routeComponent.add(ObstacleUIRouteFeature(viewModel, 5000.meters, RouteEditorViewModel.ObstacleModel.Type.NARROWS))
+
+            val cornerComponents = WeakHashMap<RouteViewModel.CornerModel, CornerUIRouteFeature>()
+            viewModel.corners.changesWithInitial().subscribeOn(routeComponent.lifecycle) { delta ->
+                delta.added.forEach { newCorner ->
+                    val cornerComponent = CornerUIRouteFeature(viewModel, newCorner)
+                    cornerComponents[newCorner] = cornerComponent
+                    routeComponent.addRouteShapedComponent(cornerComponent)
+                }
+                delta.removed
+                    .mapNotNull(cornerComponents::get)
+                    .forEach(routeComponent::removeRouteShapedComponent)
+            }
+
+            val obstacleComponents = WeakHashMap<RouteViewModel.ObstacleModel, JComponent>()
+            viewModel.obstacles.changesWithInitial().subscribeOn(routeComponent.lifecycle) { delta ->
+                delta.added.forEach { newObstacle ->
+                    val obstacleComponent = ObstacleComponent(viewModel, newObstacle)
+                    obstacleComponents[newObstacle] = obstacleComponent
+                    routeComponent.add(obstacleComponent)
+                }
+                delta.removed
+                    .mapNotNull(obstacleComponents::get)
+                    .forEach(routeComponent::remove)
+            }
+
+            routeComponent.add(StartComponent(viewModel))
+            routeComponent.add(FinishComponent(viewModel))
+
+            viewModel.obstacles += RouteViewModel.ObstacleModel(
+                mutableSignalOf(viewModel.findPreciseLocation(5310.meters)!!),
+                RouteViewModel.ObstacleModel.Type.Chicane(),
+            )
+
             Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
-                .map { CornerUIRouteFeature(viewModel, viewModel.makeCornerModel(it)) }
-                .forEach(routeComponent::addRouteBoundComponent)
+                .forEach { viewModel.corners += viewModel.makeCornerModel(it) }
 
             val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)
             val window = JFrame()

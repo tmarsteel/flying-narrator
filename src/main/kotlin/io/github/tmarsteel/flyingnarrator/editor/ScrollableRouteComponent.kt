@@ -49,8 +49,8 @@ class ScrollableRouteComponent(
     )
 
     private val _mouseListener = object : MouseListener, MouseMotionListener, MouseWheelListener {
-        val scrollZoomDivisor = routeComponent.viewModel.routeBounds.width
-            .coerceAtLeast(routeComponent.viewModel.routeBounds.height)
+        val scrollZoomDivisor = routeComponent.routeModel.routeBounds.width
+            .coerceAtLeast(routeComponent.routeModel.routeBounds.height)
             .let { it / 100.0 }
 
         var dragStartedAt: Point? = null

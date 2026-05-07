@@ -10,7 +10,11 @@ import java.awt.Graphics2D
 import javax.swing.JPopupMenu
 import javax.swing.JToolTip
 
-abstract class UIRouteFeature {
+/**
+ * Models ui components that follow the shape of the route instead of being rectangular like swing forces components
+ * to be.
+ */
+abstract class RouteShapedComponent {
     protected val lifecycle = ReactiveComponentLifecycle()
 
     private val _parent = mutableSignalOf<RouteComponent?>(null)
@@ -27,10 +31,10 @@ abstract class UIRouteFeature {
     }
 
     /**
-     * Called to determine whether a mouse position in the parent [RouteComponent] belongs to this [UIRouteFeature].
+     * Called to determine whether a mouse position in the parent [RouteComponent] belongs to this [RouteShapedComponent].
      * @param pointedTrackLocation where the mouse points, in the track coordinate space, but with [Vector3.z] being `0`
      * because [RouteComponent] is 2-dimensional top-down
-     * @return whether the mouse interaction at this point belongs to this [UIRouteFeature]
+     * @return whether the mouse interaction at this point belongs to this [RouteShapedComponent]
      */
     abstract fun shouldCapture(pointedTrackLocation: Vector3): Boolean
 

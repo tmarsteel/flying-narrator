@@ -1,7 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import io.github.fenrur.signal.operators.map
-import io.github.tmarsteel.flyingnarrator.editor.RouteEditorViewModel
+import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sum
@@ -13,9 +13,9 @@ import javax.swing.JToolTip
 import javax.swing.UIManager
 
 class CornerUIRouteFeature(
-    routeModel: RouteEditorViewModel,
-    stretchModel: RouteEditorViewModel.CornerModel,
-) : StretchUIRouteFeature(
+    routeModel: RouteViewModel,
+    stretchModel: RouteViewModel.CornerModel,
+) : StretchRouteShapedComponent(
     routeModel,
     stretchModel,
     UIManager.getColor(KEY_DISPLAY_COLOR)
@@ -66,7 +66,7 @@ class CornerUIRouteFeature(
     override val popupMenu = JPopupMenu().apply {
         add(JMenuItem("Delete").also { item ->
             item.addActionListener {
-                this@CornerUIRouteFeature.parent.value?.removeRouteBoundComponent(this@CornerUIRouteFeature)
+                this@CornerUIRouteFeature.parent.value?.removeRouteShapedComponent(this@CornerUIRouteFeature)
             }
         })
     }

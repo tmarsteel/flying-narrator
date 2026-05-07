@@ -12,6 +12,11 @@ abstract class ReactiveRouteComponentChild : ReactiveJComponent() {
     private val _parent = mutableSignalOf<RouteComponent?>(null)
     protected val parentRouteComponent: Signal<RouteComponent?> = _parent
 
+    protected fun expectParentRouteComponent(): RouteComponent {
+        return parentRouteComponent.value
+            ?: throw IllegalStateException("the component is currently not mounted")
+    }
+
     override fun addNotify() {
         _parent.value = super.parent as? RouteComponent
             ?: error("this component must be a child of RouteComponent, but found parent ${super.parent}")

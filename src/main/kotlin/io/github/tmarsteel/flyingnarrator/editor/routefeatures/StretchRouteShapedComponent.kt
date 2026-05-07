@@ -4,8 +4,7 @@ import com.formdev.flatlaf.ui.FlatUIUtils
 import io.github.fenrur.signal.operators.bimap
 import io.github.fenrur.signal.operators.map
 import io.github.tmarsteel.flyingnarrator.editor.IntArrayAccumulator
-import io.github.tmarsteel.flyingnarrator.editor.PointOnTrackEditHandle
-import io.github.tmarsteel.flyingnarrator.editor.RouteEditorViewModel
+import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
@@ -22,13 +21,13 @@ import java.awt.geom.Ellipse2D
 import javax.swing.UIManager
 import kotlin.math.roundToInt
 
-abstract class StretchUIRouteFeature(
-    val routeViewModel: RouteEditorViewModel,
-    val stretchModel: RouteEditorViewModel.CornerModel,
+abstract class StretchRouteShapedComponent(
+    val routeViewModel: RouteViewModel,
+    val stretchModel: RouteViewModel.CornerModel,
     val displayColor: Color,
     val hoverColor: Color,
     val isEditable: Boolean,
-) : UIRouteFeature() {
+) : RouteShapedComponent() {
     private val trackPoints = stretchModel.segmentIndices.map { idxs ->
         val starts = routeViewModel.segments
             .slice(idxs)
@@ -77,22 +76,20 @@ abstract class StretchUIRouteFeature(
         }
     }
 
-    private inner class EndPointHandle(isCornerEntry: Boolean) : PointOnTrackEditHandle(
-        routeViewModel,
+    private inner class EndPointHandle(isCornerEntry: Boolean) : MovableLocationOnRouteComponent(
         if (isCornerEntry) {
             stretchModel.indexOfFirstSegment.bimap(
-                forward = { RouteEditorViewModel.PreciseLocation.atSegmentStart(routeViewModel.segments[it]) },
+                forward = { RouteViewModel.PreciseLocation.atSegmentStart(routeViewModel.segments[it]) },
                 reverse = { it.segment.index },
             )
         } else {
             stretchModel.indexOfLastSegment.bimap(
-                forward = { RouteEditorViewModel.PreciseLocation.atSegmentEnd(routeViewModel.segments[it]) },
+                forward = { RouteViewModel.PreciseLocation.atSegmentEnd(routeViewModel.segments[it]) },
                 reverse = { it.segment.index },
             )
         },
-        object : EditGovernor.Editable {
-            override val startEditingAfterMovementOfPixels = 0
-            override fun processPotentialMove(location: RouteEditorViewModel.PreciseLocation): RouteEditorViewModel.PreciseLocation? {
+        object : MoveGovernor {
+            override fun processPotentialMove(location: RouteViewModel.PreciseLocation): RouteViewModel.PreciseLocation? {
                 if (isCornerEntry) {
                     if (location.segment.index > stretchModel.indexOfLastSegment.value) {
                         return null
@@ -131,8 +128,8 @@ abstract class StretchUIRouteFeature(
 
         val END_HANDLE_SHAPE = Ellipse2D.Double(0.0, 0.0, 10.0, 10.0)
         val END_HANDLE_BORDER_STROKE = BasicStroke(2f)
-        val KEY_END_HANDLE_BORDER_COLOR = "${StretchUIRouteFeature::class.simpleName}.endHandleBorderColor"
-        val KEY_END_HANDLE_COLOR = "${StretchUIRouteFeature::class.simpleName}.endHandleColor"
+        val KEY_END_HANDLE_BORDER_COLOR = "${StretchRouteShapedComponent::class.simpleName}.endHandleBorderColor"
+        val KEY_END_HANDLE_COLOR = "${StretchRouteShapedComponent::class.simpleName}.endHandleColor"
 
         private fun createTrackOutlineShape(trackPoints: Iterable<Vector3>, thickness: Distance): Shape {
             val pointsOnRouteWithPerpendiculars = trackPoints
