@@ -11,17 +11,15 @@ import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StretchRouteShape
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.route.Speedmap
-import io.github.tmarsteel.flyingnarrator.ui.reactive.changesWithInitial
+import io.github.tmarsteel.flyingnarrator.ui.reactive.bridgeToChildComponents
+import io.github.tmarsteel.flyingnarrator.ui.reactive.bridgeToStatefulOn
 import io.github.tmarsteel.flyingnarrator.ui.reactive.plusAssign
-import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import kotlinx.serialization.json.decodeFromStream
 import java.awt.BorderLayout
 import java.awt.Color
 import java.nio.file.Paths
-import java.util.WeakHashMap
-import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JOptionPane
 import javax.swing.UIManager
@@ -62,28 +60,15 @@ class RouteEditorApp {
                 it.routeStyling.update { rs -> rs.copy(distanceMarkersEvery = 500.meters) }
             }
 
-            val cornerComponents = WeakHashMap<RouteViewModel.CornerModel, CornerUIRouteFeature>()
-            viewModel.corners.changesWithInitial().subscribeOn(routeComponent.lifecycle) { delta ->
-                delta.added.forEach { newCorner ->
-                    val cornerComponent = CornerUIRouteFeature(viewModel, newCorner)
-                    cornerComponents[newCorner] = cornerComponent
-                    routeComponent.addRouteShapedComponent(cornerComponent)
-                }
-                delta.removed
-                    .mapNotNull(cornerComponents::get)
-                    .forEach(routeComponent::removeRouteShapedComponent)
+            viewModel.corners.bridgeToStatefulOn(
+                routeComponent.lifecycle,
+                routeComponent::addRouteShapedComponent,
+                routeComponent::removeRouteShapedComponent
+            ) { corner ->
+                CornerUIRouteFeature(viewModel, corner)
             }
-
-            val obstacleComponents = WeakHashMap<RouteViewModel.ObstacleModel, JComponent>()
-            viewModel.obstacles.changesWithInitial().subscribeOn(routeComponent.lifecycle) { delta ->
-                delta.added.forEach { newObstacle ->
-                    val obstacleComponent = ObstacleComponent(viewModel, newObstacle)
-                    obstacleComponents[newObstacle] = obstacleComponent
-                    routeComponent.add(obstacleComponent)
-                }
-                delta.removed
-                    .mapNotNull(obstacleComponents::get)
-                    .forEach(routeComponent::remove)
+            viewModel.obstacles.bridgeToChildComponents(routeComponent) { obstacle ->
+                ObstacleComponent(viewModel, obstacle)
             }
 
             routeComponent.add(StartComponent(viewModel))

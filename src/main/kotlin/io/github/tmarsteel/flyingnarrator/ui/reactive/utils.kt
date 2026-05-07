@@ -5,6 +5,8 @@ import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.operators.pairwise
 import io.github.fenrur.signal.operators.scan
+import java.util.WeakHashMap
+import javax.swing.JComponent
 
 fun <T> Signal<T>.subscribeOn(lifecycle: ReactiveComponentLifecycle, consumer: (T) -> Unit) {
     lifecycle.addLifecycleAware(LifecycleSignalSubscription(this, { consumer(it.getOrThrow()) }))
@@ -35,4 +37,36 @@ operator fun <T> MutableSignal<Set<T>>.plusAssign(element: T) {
 
 operator fun <T> MutableSignal<Set<T>>.minusAssign(element: T) {
     this.update { it - element }
+}
+
+/**
+ * While [lifecycle] is active, translates the deltas from `this` to swing state.
+ * @param onAdded called for new elements, e.g. [javax.swing.JComponent.add]
+ * @param onRemoved called for removed elements, e.g. [javax.swing.JComponent.remove]
+ * @param transform transform viewmodel state [T] to a stateful object [M]
+ */
+fun <T, M> Signal<Set<T>>.bridgeToStatefulOn(
+    lifecycle: ReactiveComponentLifecycle,
+    onAdded: (M) -> Unit,
+    onRemoved: (M) -> Unit,
+    transform: (T) -> M,
+) {
+    val modelToViewObject = WeakHashMap<T, M>()
+    this.changesWithInitial().subscribeOn(lifecycle) { delta ->
+        delta.added.forEach { newModel ->
+            modelToViewObject.compute(newModel) { newModel, oldViewState ->
+                oldViewState ?: transform(newModel).also { onAdded(it) }
+            }
+        }
+        delta.removed
+            .mapNotNull(modelToViewObject::get)
+            .forEach(onRemoved)
+    }
+}
+
+fun <T> Signal<Set<T>>.bridgeToChildComponents(
+    parent: ReactiveJComponent,
+    transform: (T) -> JComponent
+) {
+    bridgeToStatefulOn(parent.lifecycle, parent::add, parent::remove, transform)
 }
