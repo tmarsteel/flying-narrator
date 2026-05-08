@@ -1,6 +1,5 @@
 package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
-import com.formdev.flatlaf.ui.FlatUIUtils
 import io.github.fenrur.signal.operators.bimap
 import io.github.fenrur.signal.operators.map
 import io.github.tmarsteel.flyingnarrator.editor.IntArrayAccumulator
@@ -11,14 +10,10 @@ import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.utils.foldInto
-import java.awt.BasicStroke
 import java.awt.Color
-import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Polygon
 import java.awt.Shape
-import java.awt.geom.Ellipse2D
-import javax.swing.UIManager
 import kotlin.math.roundToInt
 
 abstract class StretchRouteShapedComponent(
@@ -103,33 +98,11 @@ abstract class StretchRouteShapedComponent(
                 }
             }
         },
-    ) {
-        init {
-            setSize(16, 16)
-        }
-
-        override fun paintComponent(g: Graphics?) {
-            g as Graphics2D
-
-            FlatUIUtils.setRenderingHints(g)
-            g.translate(END_HANDLE_BORDER_STROKE.lineWidth.toDouble(), END_HANDLE_BORDER_STROKE.lineWidth.toDouble())
-            g.scale(width / (END_HANDLE_SHAPE.width + END_HANDLE_BORDER_STROKE.lineWidth * 2.0), height / (END_HANDLE_SHAPE.height + END_HANDLE_BORDER_STROKE.lineWidth * 2.0))
-            g.color = UIManager.getColor(KEY_END_HANDLE_COLOR)
-            g.fill(END_HANDLE_SHAPE)
-            g.stroke = END_HANDLE_BORDER_STROKE
-            g.color = UIManager.getColor(KEY_END_HANDLE_BORDER_COLOR)
-            g.draw(END_HANDLE_SHAPE)
-        }
-    }
+    )
 
     companion object {
         val DISPLAY_SHAPE_THICKNESS = 5.meters
         val HOVER_TRIGGER_SHAPE_THICKNESS = 30.meters
-
-        val END_HANDLE_SHAPE = Ellipse2D.Double(0.0, 0.0, 10.0, 10.0)
-        val END_HANDLE_BORDER_STROKE = BasicStroke(2f)
-        val KEY_END_HANDLE_BORDER_COLOR = "${StretchRouteShapedComponent::class.simpleName}.endHandleBorderColor"
-        val KEY_END_HANDLE_COLOR = "${StretchRouteShapedComponent::class.simpleName}.endHandleColor"
 
         private fun createTrackOutlineShape(trackPoints: Iterable<Vector3>, thickness: Distance): Shape {
             val pointsOnRouteWithPerpendiculars = trackPoints

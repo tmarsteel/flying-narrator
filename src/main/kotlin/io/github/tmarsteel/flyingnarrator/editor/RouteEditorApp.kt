@@ -5,9 +5,9 @@ import io.github.fenrur.signal.mutableSignalOf
 import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CornerUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishComponent
+import io.github.tmarsteel.flyingnarrator.editor.routefeatures.LocationOnRouteComponent
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ObstacleComponent
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartComponent
-import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StretchRouteShapedComponent
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.io.FlyingNarratorJsonFormat
 import io.github.tmarsteel.flyingnarrator.route.Speedmap
@@ -22,6 +22,7 @@ import java.awt.Color
 import java.nio.file.Paths
 import javax.swing.JFrame
 import javax.swing.JOptionPane
+import javax.swing.JToolBar
 import javax.swing.UIManager
 import kotlin.concurrent.thread
 import kotlin.io.path.inputStream
@@ -37,8 +38,8 @@ class RouteEditorApp {
                 UIManager.getDefaults().apply {
                     put(CornerUIRouteFeature.KEY_DISPLAY_COLOR, Color(0x2285E1))
                     put(CornerUIRouteFeature.KEY_HOVER_COLOR, Color(0x1C78CE)) // from FlatLaf Slider.hoverThumbColor
-                    put(StretchRouteShapedComponent.KEY_END_HANDLE_BORDER_COLOR, Color.BLACK)
-                    put(StretchRouteShapedComponent.KEY_END_HANDLE_COLOR, Color(0x2285E1)) // from FlatLaf Slider.thumbColor
+                    put(LocationOnRouteComponent.BORDER_COLOR, Color.BLACK)
+                    put(LocationOnRouteComponent.COLOR, Color(0x2285E1)) // from FlatLaf Slider.thumbColor
                 }
             } catch (_: Exception) {
                 try {
@@ -83,10 +84,16 @@ class RouteEditorApp {
                 .filterIsInstance<Feature.Corner>()
                 .forEach { viewModel.corners += viewModel.makeCornerModel(it) }
 
+            val toolbar = JToolBar(JToolBar.VERTICAL)
+            for (tool in TOOLS) {
+                toolbar.add(tool.makeToolbarButton(routeComponent))
+            }
+
             val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)
             val window = JFrame()
             window.layout = BorderLayout()
             window.add(scrollableRouteComponent, BorderLayout.CENTER)
+            window.add(toolbar, BorderLayout.WEST)
             window.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
             window.maximizedBounds
             window.extendedState = window.extendedState or JFrame.MAXIMIZED_BOTH
@@ -127,5 +134,14 @@ class RouteEditorApp {
                     }
                 }
         }
+
+        val TOOLS = listOf(
+            AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Chicane() }),
+            AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Crest }),
+            AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Dip }),
+            AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Jump }),
+            AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Narrows }),
+            AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Widens }),
+        )
     }
 }

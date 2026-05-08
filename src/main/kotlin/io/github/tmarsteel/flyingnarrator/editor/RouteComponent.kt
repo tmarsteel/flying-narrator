@@ -59,6 +59,9 @@ class RouteComponent(
         routeShapedComponents.remove(component)
     }
 
+    /**
+     * transforms from route coordinate space to this components screen coordinate space
+     */
     val routeTransform = routeStyling.map { style ->
         AffineTransform().apply {
             translate(style.paddingPx.toDouble(), style.paddingPx.toDouble())
@@ -357,6 +360,50 @@ class RouteComponent(
             e.consume()
         }
     }
+    private inner class ActiveEditingToolSubComponentState(
+        val activation: RouteEditingTool.Activation
+    ) : SubComponentState {
+        init {
+            cursor = activation.cursor
+        }
+
+        override fun mouseClicked(e: MouseEvent) {
+            activation.onMouseClicked(e)
+        }
+
+        override fun onKeyPressed(e: KeyEvent) {
+            if (e.isMetaDown || e.isShiftDown || e.isAltDown || e.isControlDown) {
+                return
+            }
+
+            if (e.keyChar != '\u001B') {
+                return
+            }
+
+            e.consume()
+            activeTool = null
+        }
+
+        fun deselect() {
+            cursor = null
+            activation.onDeselected()
+        }
+    }
+
+    var activeTool: RouteEditingTool.Activation? = null
+        set(newTool) {
+            if (field == newTool) {
+                return
+            }
+
+            (subComponentState as? ActiveEditingToolSubComponentState)?.deselect()
+            subComponentState = if (newTool != null) {
+                ActiveEditingToolSubComponentState(newTool)
+            } else {
+                subComponentsIdleState
+            }
+            field = newTool
+        }
 
     private var subComponentState: SubComponentState = subComponentsIdleState
 

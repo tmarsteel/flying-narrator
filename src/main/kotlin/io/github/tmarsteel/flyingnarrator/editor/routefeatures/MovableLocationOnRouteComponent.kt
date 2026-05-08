@@ -36,8 +36,7 @@ abstract class MovableLocationOnRouteComponent(
         }
 
         val routeModel = expectParentRouteComponent().routeModel
-        val searchWindow = (locationOnRoute.value.segment.index - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
-            (locationOnRoute.value.segment.index + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(routeModel.segments.lastIndex)
+        val searchWindow = getLocationSearchWindowAroundPreviousLocation(routeModel, locationOnRoute.value)
         val closestLocation = routeModel.findPreciseLocationClosestTo(pointedLocation, searchWindow)
             ?: return
         val processedLocation = moveGovernor.processPotentialMove(closestLocation)
@@ -131,5 +130,16 @@ abstract class MovableLocationOnRouteComponent(
 
     companion object {
         private val DRAG_SEARCH_HALF_WINDOW = ceil(75.0 / OPTIMAL_ROAD_SEGMENT_LENGTH).toInt()
+
+        fun getLocationSearchWindowAroundPreviousLocation(
+            routeModel: RouteViewModel,
+            previousLocation: RouteViewModel.PreciseLocation?,
+        ): IntRange {
+            if (previousLocation == null) {
+                return routeModel.segments.indices
+            }
+            return (previousLocation.segment.index - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
+                (previousLocation.segment.index + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(routeModel.segments.lastIndex)
+        }
     }
 }

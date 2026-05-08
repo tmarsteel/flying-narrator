@@ -177,6 +177,9 @@ class RouteViewModel(
         override fun toString(): String = "ObstacleModel(location=${location.value}, type=$type)"
 
         sealed interface Type {
+            val displayName: String
+                get() = this::class.simpleName ?: "<?>"
+
             object Crest : Type
             object Dip : Type
             object Jump : Type

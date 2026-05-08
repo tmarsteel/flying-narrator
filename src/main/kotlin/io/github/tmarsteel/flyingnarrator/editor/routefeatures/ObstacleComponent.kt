@@ -153,18 +153,26 @@ class ObstacleComponent(
             )
         }
 
+        val CHICANE_ENTRY_LEFT_ICON get()= ICONS[0]
+        val CHICANE_ENTRY_RIGHT_ICON get()= ICONS[1]
+        val CREST_ICON get()= ICONS[2]
+        val DIP_ICON get()= ICONS[3]
+        val JUMP_ICON get()= ICONS[4]
+        val NARROW_ICON get()= ICONS[5]
+        val WIDE_ICON get()= ICONS[6]
+
         fun iconFor(type: Signal<RouteViewModel.ObstacleModel.Type>): Signal<BufferedImage> = type.flatMap { type ->
             when (type) {
                 is RouteViewModel.ObstacleModel.Type.Chicane -> type.entrySide.map { when (it) {
                     RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.LEFT,
-                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.UNSPECIFIED -> ICONS[0]
-                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.RIGHT -> ICONS[1]
+                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.UNSPECIFIED -> CHICANE_ENTRY_LEFT_ICON
+                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.RIGHT -> CHICANE_ENTRY_RIGHT_ICON
                 }}
-                RouteViewModel.ObstacleModel.Type.Crest -> signalOf(ICONS[2])
-                RouteViewModel.ObstacleModel.Type.Dip -> signalOf(ICONS[3])
-                RouteViewModel.ObstacleModel.Type.Jump -> signalOf(ICONS[4])
-                RouteViewModel.ObstacleModel.Type.Narrows -> signalOf(ICONS[5])
-                RouteViewModel.ObstacleModel.Type.Widens -> signalOf(ICONS[6])
+                RouteViewModel.ObstacleModel.Type.Crest -> signalOf(CREST_ICON)
+                RouteViewModel.ObstacleModel.Type.Dip -> signalOf(DIP_ICON)
+                RouteViewModel.ObstacleModel.Type.Jump -> signalOf(JUMP_ICON)
+                RouteViewModel.ObstacleModel.Type.Narrows -> signalOf(NARROW_ICON)
+                RouteViewModel.ObstacleModel.Type.Widens -> signalOf(WIDE_ICON)
             }
         }
     }
