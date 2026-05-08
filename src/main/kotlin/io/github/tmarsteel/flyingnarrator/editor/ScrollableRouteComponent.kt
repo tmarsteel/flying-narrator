@@ -48,6 +48,10 @@ class ScrollableRouteComponent(
         HORIZONTAL_SCROLLBAR_AS_NEEDED
     )
 
+    init {
+        scrollPane.border = null
+    }
+
     private val _mouseListener = object : MouseListener, MouseMotionListener, MouseWheelListener {
         val scrollZoomDivisor = routeComponent.routeModel.routeBounds.width
             .coerceAtLeast(routeComponent.routeModel.routeBounds.height)

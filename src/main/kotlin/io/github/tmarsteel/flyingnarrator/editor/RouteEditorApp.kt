@@ -89,11 +89,22 @@ class RouteEditorApp {
                 toolbar.add(tool.makeToolbarButton(routeComponent))
             }
 
+            val workflowController = object : WorkflowStepPanel.WorkflowController {
+                override fun tryNavigateBack(stepIndex: Int): Boolean {
+                    return JOptionPane.showConfirmDialog(routeComponent.rootPane, "Are you sure you want to navigate back?", "Confirm", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION
+                }
+
+                override fun onNavigatedForward(stepIndex: Int) {
+                    // TODO
+                }
+            }
+
             val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)
             val window = JFrame()
             window.layout = BorderLayout()
             window.add(scrollableRouteComponent, BorderLayout.CENTER)
             window.add(toolbar, BorderLayout.WEST)
+            window.add(WorkflowStepPanel(workflowController), BorderLayout.SOUTH)
             window.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
             window.maximizedBounds
             window.extendedState = window.extendedState or JFrame.MAXIMIZED_BOTH

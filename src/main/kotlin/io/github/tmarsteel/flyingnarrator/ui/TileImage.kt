@@ -12,8 +12,8 @@ class TileImage(
         require(base.width % tileSize.width == 0)
         require(base.height % tileSize.height == 0)
     }
-    val rows = base.width / tileSize.width
-    val columns = base.height / tileSize.height
+    val rows = base.height / tileSize.height
+    val columns = base.width / tileSize.width
 
     private val tileCache = mutableMapOf<Int, WeakReference<BufferedImage>>()
 
@@ -24,8 +24,8 @@ class TileImage(
     operator fun get(index: Int): BufferedImage {
         tileCache[index]?.get()?.let { return it }
         val subimage = base.getSubimage(
-            (index % rows) * tileSize.width,
-            (index / columns) * tileSize.height,
+            (index % columns) * tileSize.width,
+            index / columns * tileSize.height,
             tileSize.width,
             tileSize.height,
         )
