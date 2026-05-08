@@ -160,6 +160,7 @@ class ObstacleComponent(
         val JUMP_ICON get()= ICONS[4]
         val NARROW_ICON get()= ICONS[5]
         val WIDE_ICON get()= ICONS[6]
+        val CORNER_ICON get()= ICONS[7]
 
         fun iconFor(type: Signal<RouteViewModel.ObstacleModel.Type>): Signal<BufferedImage> = type.flatMap { type ->
             when (type) {

@@ -158,5 +158,15 @@
        id="use2"
        inkscape:label="widens"
        transform="matrix(1,0,0,-1,24,71.389902)" />
+    <path
+       style="font-variation-settings:'wght' 462;opacity:0.993658;fill:none;stroke:#000000;stroke-width:2.19213;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:markers stroke fill"
+       d="m 79.833233,44.890252 c 0,0 -0.81143,-5.915165 0.255058,-9.182096 2.286478,-7.004077 7.056612,-5.86634 7.056612,-5.86634"
+       id="path4"
+       sodipodi:nodetypes="csc" />
+    <path
+       style="font-variation-settings:'wght' 462;opacity:0.993658;fill:none;stroke:#000000;stroke-width:2.19213;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:markers stroke fill"
+       d="m 83.999184,26.015942 4.931126,3.570815 -3.995912,5.526263"
+       id="path5"
+       sodipodi:nodetypes="ccc" />
   </g>
 </svg>

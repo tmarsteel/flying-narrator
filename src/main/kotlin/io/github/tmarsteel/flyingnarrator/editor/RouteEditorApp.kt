@@ -142,6 +142,7 @@ class RouteEditorApp {
             AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Jump }),
             AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Narrows }),
             AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Widens }),
+            AddCornerRouteEditingTool(),
         )
     }
 }
