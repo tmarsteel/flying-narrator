@@ -98,9 +98,7 @@ class ScrollableRouteComponent(
 
         override fun mouseEntered(e: MouseEvent?) {}
         override fun mouseExited(e: MouseEvent?) {}
-        override fun mouseMoved(e: MouseEvent?) {
-            println(e)
-        }
+        override fun mouseMoved(e: MouseEvent?) {}
         override fun mouseClicked(e: MouseEvent?) {}
     }
 

@@ -14,6 +14,7 @@ import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.reactive.bridgeToChildComponents
 import io.github.tmarsteel.flyingnarrator.ui.reactive.bridgeToStatefulOn
+import io.github.tmarsteel.flyingnarrator.ui.reactive.plusAssign
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BorderLayout
 import javax.swing.Icon
@@ -56,10 +57,9 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
             routeComponent.add(StartComponent(route))
             routeComponent.add(FinishComponent(route))
 
-            // TODO
-            /*Feature.discoverIn(route)
+            Feature.discoverIn(rawRoute)
                 .filterIsInstance<Feature.Corner>()
-                .forEach { route.corners += route.makeCornerModel(it) }*/
+                .forEach { route.corners += route.makeCornerModel(it) }
 
             val toolbar = JToolBar(JToolBar.VERTICAL)
 

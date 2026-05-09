@@ -12,7 +12,7 @@ class Workflow<In, Out> private constructor(
     private val data: MutableList<StepInput>,
 ) {
     private var _currentStep = mutableSignalOf(instantiateStep(data.lastIndex))
-    val currentStep: Signal<WorkflowStep.Instance<*>> = _currentStep
+    val currentStep: Signal<IndexedValue<WorkflowStep.Instance<*>>> = _currentStep
 
     private val stepChangeMutex = Any()
 
@@ -29,7 +29,7 @@ class Workflow<In, Out> private constructor(
 
     fun advanceToNextStep() {
         synchronized(stepChangeMutex) {
-            val step = currentStep.value
+            val step = currentStep.value.value
             val stepData = StepInput(
                 step.getCopyOfCurrentOutputState(),
                 step.hasAnyManualChanges
@@ -48,11 +48,11 @@ class Workflow<In, Out> private constructor(
         }
     }
 
-    private fun instantiateStep(index: Int): WorkflowStep.Instance<*> {
+    private fun instantiateStep(index: Int): IndexedValue<WorkflowStep.Instance<*>> {
         val input = data[index].value
         @Suppress("UNCHECKED_CAST")
         val instance = (steps[index] as WorkflowStep<Any?, *>).buildUI(input)
-        return instance
+        return IndexedValue(index, instance)
     }
 
     class Builder<In, Out> private constructor(

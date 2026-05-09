@@ -18,8 +18,6 @@ import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveComponentLifecycle
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import java.awt.BorderLayout
 import java.awt.Color
-import java.awt.Component
-import java.awt.Container
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -51,12 +49,8 @@ class RouteEditorApp(
                 (window.contentPane.layout as BorderLayout).getLayoutComponent(BorderLayout.CENTER)?.let {
                     window.contentPane.remove(it)
                 }
-                window.contentPane.add(step.swingComponent, BorderLayout.CENTER)
-                step.swingComponent.revalidate()
-                SwingUtilities.invokeLater {
-                    println("---------\nAfter installing $step:")
-                    printComponentTree(window.contentPane)
-                }
+                window.contentPane.add(step.value.swingComponent, BorderLayout.CENTER)
+                step.value.swingComponent.revalidate()
             }
         }
 
@@ -112,9 +106,4 @@ class RouteEditorApp(
             app.start()
         }
     }
-}
-
-fun printComponentTree(c: Component, indent: String = "") {
-    println("$indent${c::class.simpleName} bounds=${c.bounds} visible=${c.isVisible} enabled=${c.isEnabled}")
-    if (c is Container) c.components.forEach { printComponentTree(it, "$indent  ") }
 }
