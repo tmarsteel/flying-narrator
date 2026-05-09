@@ -31,6 +31,7 @@ import javax.swing.JViewport
 import javax.swing.OverlayLayout
 import javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
 import javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+import javax.swing.SwingUtilities
 
 /**
  * Adds these features to a [RouteComponent]:
@@ -97,7 +98,9 @@ class ScrollableRouteComponent(
 
         override fun mouseEntered(e: MouseEvent?) {}
         override fun mouseExited(e: MouseEvent?) {}
-        override fun mouseMoved(e: MouseEvent?) {}
+        override fun mouseMoved(e: MouseEvent?) {
+            println(e)
+        }
         override fun mouseClicked(e: MouseEvent?) {}
     }
 
@@ -159,10 +162,6 @@ class ScrollableRouteComponent(
                 zoomLabel.text = "${(it.scale * 100.0).toInt()}%"
             }
         }
-
-        override fun revalidate() {
-            super.revalidate()
-        }
     }
 
     init {
@@ -199,6 +198,13 @@ class ScrollableRouteComponent(
         routeComponent.addMouseListener(_mouseListener)
         routeComponent.addMouseMotionListener(_mouseListener)
         routeComponent.addMouseWheelListener(_mouseListener)
+    }
+
+    override fun addNotify() {
+        super.addNotify()
+        SwingUtilities.invokeLater {
+            fitScaleToSize()
+        }
     }
 
     fun fitScaleToSize() {

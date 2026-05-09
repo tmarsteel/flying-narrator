@@ -19,20 +19,30 @@ repositories {
 }
 
 dependencies {
-    implementation("uk.m0nom:javaapiforkml:3.0.11")
-    implementation("org.mozilla:rhino:1.9.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     implementation("tools.jackson.module:jackson-module-kotlin:3.1.0")
+
+    // route data import: rallymaps.com
+    implementation("org.jsoup:jsoup:1.22.1")
+    implementation("uk.m0nom:javaapiforkml:3.0.11")
+    implementation("org.mozilla:rhino:1.9.1")
+
+    // support in reading dirt rally 2 game files
     implementation("tools.jackson.dataformat:jackson-dataformat-xml:3.1.1")
     implementation("tools.jackson.module:jackson-module-jaxb-annotations:3.1.1")
+
+    // google cloud TTS
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.jsoup:jsoup:1.22.1")
     implementation("com.google.protobuf:protobuf-kotlin:4.31.1")
     implementation("club.minnced:opus-java-api:1.1.1")
+
+    // opus codec
     implementation("net.java.dev.jna:jna:4.4.0")
     implementation("org.gagravarr:vorbis-java-core:0.8")
 
+    // UI
     implementation("com.formdev:flatlaf:3.7.1")
+    implementation("com.formdev:flatlaf-extras:3.7.1")
     implementation("io.github.fenrur:signal-jvm:3.0.1")
 
     testImplementation(kotlin("test"))

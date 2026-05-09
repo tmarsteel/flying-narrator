@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+        width="64"
+        height="64"
+        viewBox="0 0 64 64"
+        version="1.1"
+        id="svg1"
+        inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+        sodipodi:docname="features.svg"
+        xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+        xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+        xmlns="http://www.w3.org/2000/svg"
+>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     inkscape:zoom="8.3170034"
+     inkscape:cx="-7.8153149"
+     inkscape:cy="60.418396"
+     inkscape:window-width="2560"
+     inkscape:window-height="1369"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="path6" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="font-variation-settings:'wght' 462;opacity:0.993658;fill:none;stroke:#000000;stroke-width:2.19213;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill"
+       d="M 74.765211,55.159476 C 73.009434,33.874473 77.779283,15.058626 109.28309,6.3583299"
+       id="path4"
+       sodipodi:nodetypes="cc"
+       transform="translate(-60.934594,0.18922578)" />
+    <path
+       style="font-variation-settings:'wght' 462;opacity:0.993658;fill:none;stroke:#486cff;stroke-width:4.9;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
+       d="m 74.765211,46.657534 c -0.924039,-15.52849 4.385599,-27.035252 17.514,-33.497651"
+       id="path5"
+       sodipodi:nodetypes="cc"
+       transform="translate(-60.934594,0.18922578)" />
+    <g
+       inkscape:groupmode="layer"
+       id="layer6"
+       inkscape:label="glyph"
+       transform="translate(-60.934594,0.18922578)">
+      <g
+         id="path6"
+         style="opacity:0.993658">
+        <path
+           style="opacity:0.993658;font-variation-settings:'wght' 462;baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#ea4100;fill-opacity:0.327645;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 111.20368,34.721672 a 12,12 0 0 1 -11.999998,12 12,12 0 0 1 -12,-12 12,12 0 0 1 12,-12 12,12 0 0 1 11.999998,12 z"
+           id="path2" />
+        <path
+           style="font-variation-settings:'wght' 462;baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#d20002;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+           d="m 99.203125,21.720703 c -7.167857,0 -13,5.832143 -13,13 0,7.167857 5.832143,13 13,13 7.167855,0 13.000005,-5.832143 13.000005,-13 0,-7.167857 -5.83215,-13 -13.000005,-13 z m 0,2 c 6.086975,0 11.000005,4.913023 11.000005,11 0,6.086977 -4.91303,11 -11.000005,11 -6.086977,0 -11,-4.913023 -11,-11 0,-6.086977 4.913023,-11 11,-11 z"
+           id="path1" />
+      </g>
+      <path
+         style="font-variation-settings:'wght' 462;opacity:0.993658;fill:none;stroke:#d20002;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
+         d="m 106.98775,37.237039 c -2.13296,0.01103 -3.13818,-1.069262 -3.56091,-2.537489 -0.80481,-2.795258 -1.63423,-3.898471 -3.33436,-3.861161 -2.292038,0.0503 -2.742813,3.051382 -4.262549,5.397651 -1.128663,1.742503 -3.150378,1.540912 -4.315717,1.511115"
+         id="path7"
+         sodipodi:nodetypes="csasc" />
+    </g>
+  </g>
+</svg>
