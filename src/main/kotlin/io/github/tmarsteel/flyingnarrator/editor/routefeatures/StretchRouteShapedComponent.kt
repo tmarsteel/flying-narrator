@@ -77,12 +77,18 @@ abstract class StretchRouteShapedComponent(
         if (isCornerEntry) {
             stretchModel.indexOfFirstSegment.bimap(
                 forward = { LocationOnRoute.atSegmentStart(route.segments[it]) },
-                reverse = { it.segment.index },
+                reverse = {
+                    stretchModel.touchedOrManuallyAdded.value = true
+                    it.segment.index
+                },
             )
         } else {
             stretchModel.indexOfLastSegment.bimap(
                 forward = { LocationOnRoute.atSegmentEnd(route.segments[it]) },
-                reverse = { it.segment.index },
+                reverse = {
+                    stretchModel.touchedOrManuallyAdded.value = true
+                    it.segment.index
+                },
             )
         },
         object : MoveGovernor {

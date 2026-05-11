@@ -24,6 +24,9 @@ class Workflow<In, Out> private constructor(
         for (stepInput in data.subList(stepIndex + 1, data.lastIndex)) {
             if (stepInput.containsManualChanges) return true
         }
+        if (currentStep.value.value.hasAnyManualChanges.value) {
+            return true
+        }
         return false
     }
 

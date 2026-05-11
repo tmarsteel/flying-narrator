@@ -2,9 +2,11 @@ package io.github.tmarsteel.flyingnarrator.ui.reactive
 
 import io.github.fenrur.signal.MutableSignal
 import io.github.fenrur.signal.Signal
+import io.github.fenrur.signal.operators.combineAll
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.operators.pairwise
 import io.github.fenrur.signal.operators.scan
+import io.github.fenrur.signal.operators.switchMap
 import java.util.WeakHashMap
 import javax.swing.JComponent
 
@@ -37,6 +39,18 @@ operator fun <T> MutableSignal<Set<T>>.plusAssign(element: T) {
 
 operator fun <T> MutableSignal<Set<T>>.minusAssign(element: T) {
     this.update { it - element }
+}
+
+fun <T, R> Signal<Iterable<T>>.mapFlatten(
+    transform: (T) -> Signal<R>,
+): Signal<List<R>> {
+    return switchMap { es ->
+        combineAll(*es.map(transform).toTypedArray())
+    }
+}
+
+fun <T> Signal<Collection<T>>.switchAny(predicate: (T) -> Signal<Boolean>): Signal<Boolean> {
+    return mapFlatten(predicate).map { bs -> bs.any { it } }
 }
 
 /**

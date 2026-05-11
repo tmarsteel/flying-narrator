@@ -77,6 +77,7 @@ class AddObstacleFeatureAnnotationTool(
         override fun onMouseClicked(event: MouseEvent) {
             viewModel.obstacles += FeatureAnnotationViewModel.ObstacleModel(
                 mutableSignalOf(targetLocation.value),
+                mutableSignalOf(true),
                 makeType(),
             )
             routeComponent.activeTool = null

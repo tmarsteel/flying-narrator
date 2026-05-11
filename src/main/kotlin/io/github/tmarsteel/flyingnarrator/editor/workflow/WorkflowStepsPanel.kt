@@ -82,7 +82,9 @@ class WorkflowStepsPanel(private val workflow: Workflow<*, *>) : ReactiveJPanel(
             }
 
             workflow.goBackTo(targetStepIndex)
+            return
         }
+
         check(tabs.selectedIndex == lastValidStepIndex + 1) {
             "this shouldn't have happened, can only advance one step at a time"
         }

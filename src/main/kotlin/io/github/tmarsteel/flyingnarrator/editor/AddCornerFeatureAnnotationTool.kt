@@ -82,6 +82,7 @@ class AddCornerFeatureAnnotationTool : FeatureAnnotationTool {
             viewModel.corners += FeatureAnnotationViewModel.CornerModel(
                 mutableSignalOf(startIndex),
                 mutableSignalOf(endIndex),
+                mutableSignalOf(true),
             )
             routeComponent.activeTool = null
         }

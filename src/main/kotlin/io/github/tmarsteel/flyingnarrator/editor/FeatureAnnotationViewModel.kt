@@ -17,17 +17,20 @@ class FeatureAnnotationViewModel(
     fun makeCornerModel(corner: Feature.Corner): CornerModel = CornerModel(
         mutableSignalOf(route.segments.indexOf(corner.segments.first())),
         mutableSignalOf(route.segments.indexOf(corner.segments.last())),
+        mutableSignalOf(false),
     )
 
     class CornerModel(
         val indexOfFirstSegment: MutableSignal<Int>,
         val indexOfLastSegment: MutableSignal<Int>,
+        val touchedOrManuallyAdded: MutableSignal<Boolean>,
     ) {
         val segmentIndices: Signal<IntRange> = combine(indexOfFirstSegment, indexOfLastSegment, ::IntRange)
     }
 
     class ObstacleModel(
         val location: MutableSignal<LocationOnRoute>,
+        val touchedOrManuallyAdded: MutableSignal<Boolean>,
         val type: Type,
     ) {
         override fun toString(): String = "ObstacleModel(location=${location.value}, type=$type)"

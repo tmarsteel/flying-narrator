@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor.workflow
 
 import com.formdev.flatlaf.extras.FlatSVGIcon
+import io.github.fenrur.signal.operators.or
 import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.editor.AddCornerFeatureAnnotationTool
 import io.github.tmarsteel.flyingnarrator.editor.AddObstacleFeatureAnnotationTool
@@ -17,6 +18,7 @@ import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.reactive.bridgeToChildComponents
 import io.github.tmarsteel.flyingnarrator.ui.reactive.bridgeToStatefulOn
 import io.github.tmarsteel.flyingnarrator.ui.reactive.plusAssign
+import io.github.tmarsteel.flyingnarrator.ui.reactive.switchAny
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import java.awt.BorderLayout
 import javax.swing.Icon
@@ -75,7 +77,7 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
             swingComponent.name = "features_step"
         }
 
-        override val hasAnyManualChanges = signalOf(false) // TODO!
+        override val hasAnyManualChanges = (viewModel.corners.switchAny { it.touchedOrManuallyAdded }).or(viewModel.obstacles.switchAny { it.touchedOrManuallyAdded })
         override val isComplete = signalOf(true)
 
         override fun getCopyOfCurrentOutputState(): Pair<Route, List<Feature>> {
