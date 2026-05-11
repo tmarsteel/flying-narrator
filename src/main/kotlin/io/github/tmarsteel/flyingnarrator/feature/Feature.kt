@@ -10,15 +10,15 @@ import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 import io.github.tmarsteel.flyingnarrator.utils.consecutiveRuns
 
 sealed interface Feature {
-    val startsAtTrackDistance: Distance
+    val startsAtDistance: Distance
     val length: Distance
 
     fun tryMergeWithSuccessor(successor: Feature): Feature?
 
     data class Straight(
         val segments: List<RouteSegment>,
-        override val startsAtTrackDistance: Distance,
     ) : Feature {
+        override val startsAtDistance: Distance get()= segments.first().startsAtDistance
         override val length: Distance = segments.sumOf { it.length }
         val angleFirstToLast: Angle = segments.first().raw.forward.angleTo(segments.last().raw.forward)
 
@@ -26,14 +26,14 @@ sealed interface Feature {
             if (successor !is Straight) {
                 return null
             }
-            return Straight(segments + successor.segments, startsAtTrackDistance)
+            return Straight(segments + successor.segments)
         }
     }
 
     class Corner(
         val segments: List<RouteSegment>,
-        override val startsAtTrackDistance: Distance,
     ) : Feature {
+        override val startsAtDistance: Distance get() = segments.first().startsAtDistance
         val totalAngle: Angle = segments.totalAngle
         override val length: Distance by lazy { segments.sumOf { it.length } }
 
@@ -44,7 +44,7 @@ sealed interface Feature {
                 return null
             }
 
-            return Corner(segments + successor.segments, startsAtTrackDistance)
+            return Corner(segments + successor.segments)
         }
 
         override fun toString(): String {
@@ -80,12 +80,11 @@ sealed interface Feature {
                 }
                 .map { (_, windowPairs) -> windowPairs.map { it.first() } }
                 .map { windowsInOneCorner ->
-                    val startsAt = windowsInOneCorner.first().tmpSegments.first().startsAtTrackDistance
                     val segments = route.segments.subList(
                         windowsInOneCorner.first().tmpSegments.first().roadSegmentIndex,
                         windowsInOneCorner.last().tmpSegments.last().roadSegmentIndex + 1,
                     )
-                    Corner(segments, startsAt)
+                    Corner(segments)
                 }
                 .forEach { feature ->
                     features.add(feature)
@@ -163,14 +162,12 @@ private fun extendCornersInPlaceOnSingleTransition(features: MutableList<Feature
     }
 
     val newStart = if (startExtendSegments == 0) startCorner else {
-        Feature.Corner(startCorner.segments + extendableSegments.subList(1, startExtendSegments + 1), startCorner.startsAtTrackDistance)
+        Feature.Corner(startCorner.segments + extendableSegments.subList(1, startExtendSegments + 1))
     }
-    val newStraightStartsAt = straight.startsAtTrackDistance + extendableSegments.subList(0, startExtendSegments + 1).sumOf { it.length } // TODO: test whether this is correct
-    val newStraight = Feature.Straight(extendableSegments.subList(startExtendSegments + 1, extendableSegments.size - endExtendSegments - 1), newStraightStartsAt)
+    val newStraight = Feature.Straight(extendableSegments.subList(startExtendSegments + 1, extendableSegments.size - endExtendSegments - 1))
     val newEnd = if (endExtendSegments == 0) endCorner else {
         val newEndExtraSegments = extendableSegments.subList(extendableSegments.lastIndex - endExtendSegments - 1, extendableSegments.size - 2)
-        val newEndStartsAt = endCorner.startsAtTrackDistance - newEndExtraSegments.sumOf { it.length }
-        Feature.Corner( newEndExtraSegments + endCorner.segments, newEndStartsAt)
+        Feature.Corner( newEndExtraSegments + endCorner.segments)
     }
     check(startCorner.segments.size + straight.segments.size + endCorner.segments.size == newStart.segments.size + newStraight.segments.size + newEnd.segments.size)  {
         "buggy code :("

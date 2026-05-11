@@ -12,6 +12,7 @@ import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishComponent
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ObstacleComponent
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartComponent
 import io.github.tmarsteel.flyingnarrator.feature.Feature
+import io.github.tmarsteel.flyingnarrator.feature.Feature.Straight
 import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.reactive.bridgeToChildComponents
 import io.github.tmarsteel.flyingnarrator.ui.reactive.bridgeToStatefulOn
@@ -28,19 +29,18 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
     override val icon: Icon = FlatSVGIcon(this::class.java.getResource("features.svg"))
 
     override fun buildUI(input: Route): WorkflowStep.Instance<Pair<Route, List<Feature>>> {
-        return Instance(input)
+        return Instance(FeatureAnnotationViewModel(input))
     }
 
     private class Instance(
-        route: Route,
+        val viewModel: FeatureAnnotationViewModel,
     ) : WorkflowStep.Instance<Pair<Route, List<Feature>>>  {
-        val viewModel = FeatureAnnotationViewModel(route)
         override val swingComponent = JPanel()
 
         init {
             swingComponent.layout = BorderLayout()
 
-            val routeComponent = RouteComponent(route).also {
+            val routeComponent = RouteComponent(viewModel.route).also {
                 it.routeStyling.update { rs -> rs.copy(distanceMarkersEvery = 500.meters) }
             }
 
@@ -49,16 +49,16 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
                 routeComponent::addRouteShapedComponent,
                 routeComponent::removeRouteShapedComponent
             ) { corner ->
-                CornerUIRouteFeature(route, corner)
+                CornerUIRouteFeature(viewModel.route, corner)
             }
             viewModel.obstacles.bridgeToChildComponents(routeComponent) { obstacle ->
                 ObstacleComponent(viewModel, obstacle)
             }
 
-            routeComponent.add(StartComponent(route))
-            routeComponent.add(FinishComponent(route))
+            routeComponent.add(StartComponent(viewModel.route))
+            routeComponent.add(FinishComponent(viewModel.route))
 
-            Feature.discoverIn(route)
+            Feature.discoverIn(viewModel.route)
                 .filterIsInstance<Feature.Corner>()
                 .forEach { viewModel.corners += viewModel.makeCornerModel(it) }
 
@@ -79,7 +79,44 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
         override val isComplete = signalOf(true)
 
         override fun getCopyOfCurrentOutputState(): Pair<Route, List<Feature>> {
-            TODO()
+            val features = mutableListOf<Feature>()
+            viewModel.corners.value.mapTo(features, this::toFeature)
+            addInferredStraightsTo(features)
+
+            features.sortBy { it.startsAtDistance }
+            return Pair(viewModel.route, features)
+        }
+
+        private fun toFeature(model: FeatureAnnotationViewModel.CornerModel): Feature.Corner {
+            return Feature.Corner(viewModel.route.segments.slice(model.segmentIndices.value))
+        }
+
+        /**
+         * Adds a [Straight] to [features] for every section of road in [viewModel] that isn't a corner
+         */
+        fun addInferredStraightsTo(features: MutableList<in Straight>) {
+            val cornersByStartIndex = viewModel.corners.value.sortedBy { it.indexOfFirstSegment.value }
+            cornersByStartIndex[0].indexOfFirstSegment.value
+                .takeIf { it > 0 }
+                ?.let { firstCornerStartIdx ->
+                    features.add(Straight(viewModel.route.segments.slice(0.. firstCornerStartIdx)))
+                }
+
+            cornersByStartIndex
+                .asSequence()
+                .windowed(size = 2, step = 1, partialWindows = true)
+                .forEach { cs ->
+                    val previousCorner = cs[0]
+                    val nextCorner = cs.getOrNull(1)
+                    val nextCornerStartsAtIndex = nextCorner?.indexOfFirstSegment?.value ?: viewModel.route.segments.size
+                    val straightStartsAtIndex = previousCorner.indexOfLastSegment.value + 1
+                    val straightEndsAtIndex = nextCornerStartsAtIndex - 1
+                    if (straightEndsAtIndex < straightStartsAtIndex) {
+                        return@forEach // corners directly adjacent
+                    }
+                    val straightSegments = viewModel.route.segments.slice(straightStartsAtIndex .. straightEndsAtIndex)
+                    features.add(Straight(straightSegments))
+                }
         }
     }
 

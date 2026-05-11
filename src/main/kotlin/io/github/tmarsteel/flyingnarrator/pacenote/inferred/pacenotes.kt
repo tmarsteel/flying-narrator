@@ -17,13 +17,13 @@ fun Iterable<Feature>.derivePacenotes(): List<Pair<Distance, InferredPacenoteIte
                     distance <= STRAIGHT_ELISION_DISTANCE_THRESHOLD -> InferredPacenoteItem.ShortTransition
                     else -> InferredPacenoteItem.Straight(distance)
                 }
-                pacenoteItems += Pair(feature.startsAtTrackDistance, item)
+                pacenoteItems += Pair(feature.startsAtDistance, item)
             }
             is Feature.Corner -> {
                 if (pacenoteItems.lastOrNull()?.second is InferredPacenoteItem.Corner) {
-                    pacenoteItems += Pair(feature.startsAtTrackDistance, InferredPacenoteItem.ImmediateTransition)
+                    pacenoteItems += Pair(feature.startsAtDistance, InferredPacenoteItem.ImmediateTransition)
                 }
-                pacenoteItems += Pair(feature.startsAtTrackDistance, cornerFeatureToPacenoteItem(feature))
+                pacenoteItems += Pair(feature.startsAtDistance, cornerFeatureToPacenoteItem(feature))
             }
         }
     }
