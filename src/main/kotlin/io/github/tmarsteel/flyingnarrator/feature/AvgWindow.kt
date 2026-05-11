@@ -22,10 +22,10 @@ data class AvgWindow(
 
         fun fromTmpSegments(tmpSegments: List<TmpSegment>): List<AvgWindow> {
             val avgWindows = tmpSegments
-                .windowsWhere(yieldCopies = true) { w -> w.sumOf { it.roadSegment.length } > 20.0.meters }
+                .windowsWhere(yieldCopies = true) { w -> w.sumOf { it.routeSegment.length } > 20.0.meters }
                 .map { w ->
                     val windowStartAt = w.first().startsAtTrackDistance
-                    val windowLength = (w.last().let { it.startsAtTrackDistance + it.roadSegment.length } - windowStartAt)
+                    val windowLength = (w.last().let { it.startsAtTrackDistance + it.routeSegment.length } - windowStartAt)
                     val weightedAvg = w.asSequence().weightedAverageOf(
                         value = { it.angleToStart },
                         weight = {

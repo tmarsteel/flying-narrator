@@ -7,6 +7,7 @@ import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.operators.scan
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.RouteShapedComponent
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJComponent
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.ui.toPoint
@@ -40,7 +41,7 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 class RouteComponent(
-    val routeModel: RouteViewModel,
+    val route: Route,
 ) : ReactiveJComponent(), Scrollable {
     val routeStyling = mutableSignalOf(RouteStyling())
     val carMarker = mutableSignalOf(CarMarker())
@@ -67,8 +68,8 @@ class RouteComponent(
             translate(style.paddingPx.toDouble(), style.paddingPx.toDouble())
             scale(style.scale, -style.scale)
             translate(
-                -routeModel.routeBounds.x,
-                -(routeModel.routeBounds.y + routeModel.routeBounds.height)
+                -route.bounds.x,
+                -(route.bounds.y + route.bounds.height)
             )
         }
     }
@@ -76,8 +77,8 @@ class RouteComponent(
     private val baseImage: Signal<BufferedImage>
     init {
         val styleAndBuffer = routeStyling.scan(Pair(routeStyling.value, BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))) { (_, currentBaseImage), routeStyle ->
-            val targetWidth = ceil(routeModel.routeBounds.width * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
-            val targetHeight = ceil(routeModel.routeBounds.height * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
+            val targetWidth = ceil(route.bounds.width * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
+            val targetHeight = ceil(route.bounds.height * routeStyle.scale).toInt() + routeStyle.paddingPx * 2
             var nextBaseImage = if (currentBaseImage.width == targetWidth && currentBaseImage.height == targetHeight) {
                 currentBaseImage
             } else {
@@ -90,7 +91,7 @@ class RouteComponent(
             Pair(routeStyle, nextBaseImage)
         }
         baseImage = combine(styleAndBuffer, routeTransform) { (style, image), transform ->
-            drawRoute(routeModel.segments, image, style, transform)
+            drawRoute(route, image, style, transform)
             image
         }
     }
@@ -111,8 +112,8 @@ class RouteComponent(
     override fun getPreferredScrollableViewportSize(): Dimension {
         val style = routeStyling.value
         return Dimension(
-            ceil(routeModel.routeBounds.width * style.scale).toInt() + style.paddingPx * 2,
-            ceil(routeModel.routeBounds.height * style.scale).toInt() + style.paddingPx * 2,
+            ceil(route.bounds.width * style.scale).toInt() + style.paddingPx * 2,
+            ceil(route.bounds.height * style.scale).toInt() + style.paddingPx * 2,
         )
     }
 
@@ -133,8 +134,8 @@ class RouteComponent(
 
     fun fitScaleToSize(targetWidth: Int, targetHeight: Int) {
         routeStyling.update { style ->
-            val scaleX = (targetWidth.toDouble() - style.paddingPx * 2) / routeModel.routeBounds.width
-            val scaleY = (targetHeight.toDouble() - style.paddingPx * 2) / routeModel.routeBounds.height
+            val scaleX = (targetWidth.toDouble() - style.paddingPx * 2) / route.bounds.width
+            val scaleY = (targetHeight.toDouble() - style.paddingPx * 2) / route.bounds.height
             style.copy(scale = scaleX.coerceAtMost(scaleY))
         }
     }
@@ -172,14 +173,14 @@ class RouteComponent(
             return@combine null
         }
 
-        val location = routeModel.findPreciseLocation(marker.distanceAlongTrack)
+        val location = route.findPreciseLocation(marker.distanceAlongTrack)
         if (location == null) {
             return@combine null
         }
 
         Pair(
             routeTransform.transform(location.point.toPoint2D(), null).toPoint(),
-            location.segment.base.forward.clockwiseAngleFromPositiveY()
+            location.segment.raw.forward.clockwiseAngleFromPositiveY()
         )
     }
 
@@ -361,7 +362,7 @@ class RouteComponent(
         }
     }
     private inner class ActiveEditingToolSubComponentState(
-        val activation: RouteEditingTool.Activation
+        val activation: FeatureAnnotationTool.Activation
     ) : SubComponentState {
         init {
             cursor = activation.cursor
@@ -390,7 +391,7 @@ class RouteComponent(
         }
     }
 
-    var activeTool: RouteEditingTool.Activation? = null
+    var activeTool: FeatureAnnotationTool.Activation? = null
         set(newTool) {
             if (field == newTool) {
                 return
@@ -471,27 +472,23 @@ class RouteComponent(
         const val TOOLTIP_OFFSET_X = 15
         const val TOOLTIP_OFFSET_Y = 15
 
-        private fun drawRoute(route: List<RouteViewModel.RouteSegmentModel>, baseImage: BufferedImage, routeStyle: RouteStyling, routeTransform: AffineTransform) {
+        private fun drawRoute(route: Route, baseImage: BufferedImage, routeStyle: RouteStyling, routeTransform: AffineTransform) {
             val g = baseImage.createGraphics()
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
             g.transform(routeTransform)
             g.stroke = BasicStroke(routeStyle.trackWidth.toDoubleInMeters().toFloat())
-            var carryPoint = Vector3.ORIGIN
-            var prevX = carryPoint.x
-            var prevY = carryPoint.y
+            var lastDrawnLineEndsAt = Vector3.ORIGIN
             var lastDistanceMarkerAt = 0.meters
-            for (segment in route) {
-                carryPoint += segment.base.forward
+            for (segment in route.segments) {
+                val x = segment.line.endPoint.x
+                val y = segment.line.endPoint.y
 
-                val x = carryPoint.x
-                val y = carryPoint.y
-
-                val lineLength = Vector3(prevX - x, prevY - y, 0.0).length2d
+                val lineLength = (segment.line.endPoint - lastDrawnLineEndsAt).length2d
                 val drawThisLine = lineLength > routeStyle.trackWidth.toDoubleInMeters() * 1.75
                 if (drawThisLine) {
                     g.color = routeStyle.trackColor
-                    g.draw(Line2D.Double(prevX, prevY, x, y))
+                    g.draw(Line2D.Double(lastDrawnLineEndsAt.x, lastDrawnLineEndsAt.y, x, y))
                 }
 
                 if (segment.startsAtDistance - lastDistanceMarkerAt >= routeStyle.distanceMarkersEvery && routeStyle.distanceMarkerColor != null) {
@@ -504,16 +501,15 @@ class RouteComponent(
                 }
 
                 if (drawThisLine) {
-                    prevX = x
-                    prevY = y
+                    lastDrawnLineEndsAt = segment.line.endPoint
                 }
             }
 
-            val finishPt = routeTransform.transform(Point2D.Double(prevX, prevY), null)
+            val lastPoint = routeTransform.transform(Point2D.Double(lastDrawnLineEndsAt.x, lastDrawnLineEndsAt.y), null)
             withTransform(g, AffineTransform()) {
-                val finalDistance = route.last().let{ it.startsAtDistance + it.base.length }
+                val finalDistance = route.segments.last().let { it.startsAtDistance + it.length }
                 g.color = routeStyle.distanceMarkerColor
-                g.drawString(finalDistance.toString(), finishPt.x.toInt(), (finishPt.y + 10).toInt())
+                g.drawString(finalDistance.toString(), lastPoint.x.toInt(), (lastPoint.y + 10).toInt())
             }
 
             g.dispose()

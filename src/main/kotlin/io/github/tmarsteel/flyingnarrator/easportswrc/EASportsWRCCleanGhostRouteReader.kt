@@ -1,9 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.easportswrc
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
-import io.github.tmarsteel.flyingnarrator.route.RoadSegment
-import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.RouteDto
 import io.github.tmarsteel.flyingnarrator.route.RouteReader
+import io.github.tmarsteel.flyingnarrator.route.RouteSegmentDto
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -29,7 +30,7 @@ class EASportsWRCCleanGhostRouteReader(
             .takeWhile { it == 0.0 }
             .count()
 
-        ghost.positions
+        val segmentDtos = ghost.positions
             .asSequence()
             .drop(launchSequenceLength - 1)
             .windowed(size = 2, step = 1, partialWindows = false)
@@ -42,11 +43,13 @@ class EASportsWRCCleanGhostRouteReader(
                 )
             }
             .map { it * GAME_COORDINATE_UNITS_OVER_DISTANCE }
-            .map(::RoadSegment)
+            .map(::RouteSegmentDto)
             .toList()
+
+        RouteDto(segmentDtos, segmentDtos.sumOf { it.forward.length }.meters)
     }
 
-    override fun read(): Route {
+    override fun read(): RouteDto {
         return route
     }
 

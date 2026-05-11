@@ -7,10 +7,11 @@ import de.micromata.opengis.kml.v_2_2_0.LineString
 import de.micromata.opengis.kml.v_2_2_0.Placemark
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
-import io.github.tmarsteel.flyingnarrator.route.RoadSegment
-import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.RouteDto
 import io.github.tmarsteel.flyingnarrator.route.RouteReader
+import io.github.tmarsteel.flyingnarrator.route.RouteSegmentDto
 import io.github.tmarsteel.flyingnarrator.route.oversample
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import jakarta.xml.bind.JAXBContext
 import org.glassfish.jaxb.runtime.v2.runtime.JAXBContextImpl
 import java.nio.file.Path
@@ -21,7 +22,7 @@ class KmlRouteReader(
     private val file: Path,
     private val placemarkIndex: Int,
 ) : RouteReader {
-    override fun read(): Route {
+    override fun read(): RouteDto {
         val unmarshaller = jaxBContext.createUnmarshaller()
 
         val kmlRoot = unmarshaller.unmarshal(StreamSource(file.toFile()), Kml::class.java).value
@@ -40,13 +41,15 @@ class KmlRouteReader(
             throw IllegalArgumentException("The geometry of placemark #$placemarkIndex in $file must be a LineString, got ${lineString::class.simpleName}")
         }
 
-        return lineString.coordinates
+        val segmentDtos = lineString.coordinates
             .asSequence()
             .windowed(size = 2, step = 1)
             .map { (a, b) -> a.euclideanVectorTo(b) }
-            .map(::RoadSegment)
+            .map(::RouteSegmentDto)
             .oversample(OPTIMAL_ROAD_SEGMENT_LENGTH)
             .toList()
+
+        return RouteDto(segmentDtos, segmentDtos.sumOf { it.forward.length }.meters)
     }
 
     private companion object {

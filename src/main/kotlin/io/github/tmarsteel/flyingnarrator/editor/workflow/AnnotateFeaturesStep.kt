@@ -2,10 +2,10 @@ package io.github.tmarsteel.flyingnarrator.editor.workflow
 
 import com.formdev.flatlaf.extras.FlatSVGIcon
 import io.github.fenrur.signal.signalOf
-import io.github.tmarsteel.flyingnarrator.editor.AddCornerRouteEditingTool
-import io.github.tmarsteel.flyingnarrator.editor.AddObstacleRouteEditingTool
+import io.github.tmarsteel.flyingnarrator.editor.AddCornerFeatureAnnotationTool
+import io.github.tmarsteel.flyingnarrator.editor.AddObstacleFeatureAnnotationTool
+import io.github.tmarsteel.flyingnarrator.editor.FeatureAnnotationViewModel
 import io.github.tmarsteel.flyingnarrator.editor.RouteComponent
-import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
 import io.github.tmarsteel.flyingnarrator.editor.ScrollableRouteComponent
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.CornerUIRouteFeature
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishComponent
@@ -32,9 +32,9 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
     }
 
     private class Instance(
-        rawRoute: Route,
+        route: Route,
     ) : WorkflowStep.Instance<Pair<Route, List<Feature>>>  {
-        val route = RouteViewModel(rawRoute)
+        val viewModel = FeatureAnnotationViewModel(route)
         override val swingComponent = JPanel()
 
         init {
@@ -44,28 +44,28 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
                 it.routeStyling.update { rs -> rs.copy(distanceMarkersEvery = 500.meters) }
             }
 
-            route.corners.bridgeToStatefulOn(
+            viewModel.corners.bridgeToStatefulOn(
                 routeComponent.lifecycle,
                 routeComponent::addRouteShapedComponent,
                 routeComponent::removeRouteShapedComponent
             ) { corner ->
                 CornerUIRouteFeature(route, corner)
             }
-            route.obstacles.bridgeToChildComponents(routeComponent) { obstacle ->
-                ObstacleComponent(route, obstacle)
+            viewModel.obstacles.bridgeToChildComponents(routeComponent) { obstacle ->
+                ObstacleComponent(viewModel, obstacle)
             }
 
             routeComponent.add(StartComponent(route))
             routeComponent.add(FinishComponent(route))
 
-            Feature.discoverIn(rawRoute)
+            Feature.discoverIn(route)
                 .filterIsInstance<Feature.Corner>()
-                .forEach { route.corners += route.makeCornerModel(it) }
+                .forEach { viewModel.corners += viewModel.makeCornerModel(it) }
 
             val toolbar = JToolBar(JToolBar.VERTICAL)
 
             for (tool in TOOLS) {
-                toolbar.add(tool.makeToolbarButton(routeComponent))
+                toolbar.add(tool.makeToolbarButton(routeComponent, viewModel))
             }
 
             val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)
@@ -84,12 +84,12 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
     }
 
     private val TOOLS = listOf(
-        AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Chicane() }),
-        AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Crest }),
-        AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Dip }),
-        AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Jump }),
-        AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Narrows }),
-        AddObstacleRouteEditingTool({ RouteViewModel.ObstacleModel.Type.Widens }),
-        AddCornerRouteEditingTool(),
+        AddObstacleFeatureAnnotationTool({ FeatureAnnotationViewModel.ObstacleModel.Type.Chicane() }),
+        AddObstacleFeatureAnnotationTool({ FeatureAnnotationViewModel.ObstacleModel.Type.Crest }),
+        AddObstacleFeatureAnnotationTool({ FeatureAnnotationViewModel.ObstacleModel.Type.Dip }),
+        AddObstacleFeatureAnnotationTool({ FeatureAnnotationViewModel.ObstacleModel.Type.Jump }),
+        AddObstacleFeatureAnnotationTool({ FeatureAnnotationViewModel.ObstacleModel.Type.Narrows }),
+        AddObstacleFeatureAnnotationTool({ FeatureAnnotationViewModel.ObstacleModel.Type.Widens }),
+        AddCornerFeatureAnnotationTool(),
     )
 }

@@ -4,15 +4,17 @@ import io.github.tmarsteel.flyingnarrator.dirtrally2.DirtRally2RouteReader
 import io.github.tmarsteel.flyingnarrator.feature.AvgWindow
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.TmpSegment
+import io.github.tmarsteel.flyingnarrator.route.Route
 import java.nio.file.Paths
 import kotlin.io.path.writer
 
 fun main(args: Array<String>) {
     val reader = DirtRally2RouteReader(Paths.get(args[0]))
-    val tmpSegments = TmpSegment.fromRoute(reader.read())
+    val route = Route(reader.read())
+    val tmpSegments = TmpSegment.fromRoute(route)
     val avgWindows = AvgWindow.fromTmpSegments(tmpSegments)
 
-    Feature.discoverIn(reader.read())
+    Feature.discoverIn(route)
 
     Paths.get("vis.csv").writer().use { writer ->
         writer.write("d,angle,delta\n")

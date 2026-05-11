@@ -1,11 +1,11 @@
 package io.github.tmarsteel.flyingnarrator.geometry
 
 import io.github.tmarsteel.flyingnarrator.feature.MLine
-import io.github.tmarsteel.flyingnarrator.route.RoadSegment
+import io.github.tmarsteel.flyingnarrator.route.RouteSegment
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import java.util.stream.IntStream
 
-fun List<RoadSegment>.toGeogebraSyntax(): String {
+fun List<RouteSegment>.toGeogebraSyntax(): String {
     fun pointName(index: Int) = index
         // avoid using X, Y and Z because reserved in geogebra
         .toString(23)
@@ -33,7 +33,7 @@ fun List<RoadSegment>.toGeogebraSyntax(): String {
         val vecName = vecName(index)
         sb.appendLine(
             """
-            ggbApplet.evalCommand("$pointName=$prevPointName+Vector((${segment.forward.x},${segment.forward.y}))");
+            ggbApplet.evalCommand("$pointName=$prevPointName+Vector((${segment.raw.forward.x},${segment.raw.forward.y}))");
             ggbApplet.evalCommand("$vecName=Vector($prevPointName,$pointName)");
             ggbApplet.setLayer("$pointName", 1);
             ggbApplet.setLayer("$vecName", 0);
@@ -76,7 +76,7 @@ fun List<RoadSegment>.toGeogebraSyntax(): String {
         val nextPointName = pointName(index + 1)
         val arcName = arcName(index)
         val radiusName = radiusName(index)
-        val angleToNext = segment.forward.angleTo(this[index + 1].forward)
+        val angleToNext = segment.raw.forward.angleTo(this[index + 1].raw.forward)
         if (angleToNext < 0.radians) {
             sb.appendLine(
                 """

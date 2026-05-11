@@ -1,14 +1,15 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
-import io.github.tmarsteel.flyingnarrator.route.RoadSegment
+import io.github.tmarsteel.flyingnarrator.route.RouteSegment
+import io.github.tmarsteel.flyingnarrator.route.RouteSegmentDto
 import io.github.tmarsteel.flyingnarrator.unit.Angle
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.degrees
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 
-val Iterable<RoadSegment>.totalAngle: Angle
+val Sequence<RouteSegmentDto>.totalAngle: Angle
     get() {
         val iterator = iterator()
         if (!iterator.hasNext()) {
@@ -22,11 +23,14 @@ val Iterable<RoadSegment>.totalAngle: Angle
         return acc.currentAngle
     }
 
-val List<RoadSegment>.compoundRadius: Distance
+val Iterable<RouteSegment>.totalAngle: Angle
+    get() = map { it.raw }.asSequence().totalAngle
+
+val List<RouteSegmentDto>.compoundRadius: Distance
     get() {
         check(size > 1)
 
-        val lTotalAngle = totalAngle
+        val lTotalAngle = asSequence().totalAngle
         if (lTotalAngle.absoluteValue > 160.degrees) {
             /** the perpendicular-line-intersection algo only works reliably for coners considerably less than 180° */
             val cutIndex = size / 2
@@ -50,3 +54,6 @@ val List<RoadSegment>.compoundRadius: Distance
         val center = line1.intersect2d(line2)?.first ?: return Double.POSITIVE_INFINITY.meters
         return (cornerEndsAt - center).length2d.meters
     }
+
+val Iterable<RouteSegment>.compoundRadius: Distance
+    get() = map { it.raw }.compoundRadius

@@ -1,9 +1,10 @@
 package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import io.github.fenrur.signal.MutableSignal
-import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.route.LocationOnRoute
+import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.CustomCursor
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
@@ -14,7 +15,7 @@ import java.awt.event.MouseMotionListener
 import kotlin.math.ceil
 
 abstract class MovableLocationOnRouteComponent(
-    val editableLocation: MutableSignal<RouteViewModel.PreciseLocation>,
+    val editableLocation: MutableSignal<LocationOnRoute>,
     val moveGovernor: MoveGovernor,
 ) : LocationOnRouteComponent(editableLocation), MouseListener, MouseMotionListener {
     init {
@@ -35,9 +36,9 @@ abstract class MovableLocationOnRouteComponent(
             Vector3(it.x, it.y, 0.0)
         }
 
-        val routeModel = expectParentRouteComponent().routeModel
-        val searchWindow = getLocationSearchWindowAroundPreviousLocation(routeModel, locationOnRoute.value)
-        val closestLocation = routeModel.findPreciseLocationClosestTo(pointedLocation, searchWindow)
+        val route = expectParentRouteComponent().route
+        val searchWindow = getLocationSearchWindowAroundPreviousLocation(route, locationOnRoute.value)
+        val closestLocation = route.findPreciseLocationClosestTo(pointedLocation, searchWindow)
             ?: return
         val processedLocation = moveGovernor.processPotentialMove(closestLocation)
             ?: return
@@ -79,7 +80,7 @@ abstract class MovableLocationOnRouteComponent(
          * @param previousRestingLocation the location on the route this component had before interactive location
          * editing started.
          */
-        fun onInteractiveMovementStarted(previousRestingLocation: RouteViewModel.PreciseLocation) {}
+        fun onInteractiveMovementStarted(previousRestingLocation: LocationOnRoute) {}
 
         /**
          * called when the user finishes interactively changing the location of this component
@@ -92,19 +93,19 @@ abstract class MovableLocationOnRouteComponent(
          * the indicated position is not valid. Also, the function can implement snapping by returning an altered
          * location.
          */
-        fun processPotentialMove(location: RouteViewModel.PreciseLocation): RouteViewModel.PreciseLocation?
+        fun processPotentialMove(location: LocationOnRoute): LocationOnRoute?
 
         class FreelyMovable(
             /**
-             * Movement updates to [onMoveIndicated] within interactive edits ([onInteractiveMovementStarted]) will only
+             * Movement updates to [processPotentialMove] within interactive edits ([onInteractiveMovementStarted]) will only
              * be accepted after the new indicated location is at least this distance away.
              */
             val interactiveInertia: Distance = 50.meters
         ) : MoveGovernor {
             private var initialInertiaBroken = false
-            private var interactiveEditStartedAt: RouteViewModel.PreciseLocation? = null
+            private var interactiveEditStartedAt: LocationOnRoute? = null
 
-            override fun onInteractiveMovementStarted(previousRestingLocation: RouteViewModel.PreciseLocation) {
+            override fun onInteractiveMovementStarted(previousRestingLocation: LocationOnRoute) {
                 initialInertiaBroken = false
                 interactiveEditStartedAt = previousRestingLocation
             }
@@ -114,7 +115,7 @@ abstract class MovableLocationOnRouteComponent(
                 interactiveEditStartedAt = null
             }
 
-            override fun processPotentialMove(location: RouteViewModel.PreciseLocation): RouteViewModel.PreciseLocation? {
+            override fun processPotentialMove(location: LocationOnRoute): LocationOnRoute? {
                 if (interactiveEditStartedAt != null && !initialInertiaBroken) {
                     val distance = (location.distanceAlongRoute - interactiveEditStartedAt!!.distanceAlongRoute).absoluteValue
                     if (distance < interactiveInertia) {
@@ -132,14 +133,14 @@ abstract class MovableLocationOnRouteComponent(
         private val DRAG_SEARCH_HALF_WINDOW = ceil(75.0 / OPTIMAL_ROAD_SEGMENT_LENGTH).toInt()
 
         fun getLocationSearchWindowAroundPreviousLocation(
-            routeModel: RouteViewModel,
-            previousLocation: RouteViewModel.PreciseLocation?,
+            route: Route,
+            previousLocation: LocationOnRoute?,
         ): IntRange {
             if (previousLocation == null) {
-                return routeModel.segments.indices
+                return route.segments.indices
             }
             return (previousLocation.segment.index - DRAG_SEARCH_HALF_WINDOW).coerceAtLeast(0)..
-                (previousLocation.segment.index + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(routeModel.segments.lastIndex)
+                (previousLocation.segment.index + DRAG_SEARCH_HALF_WINDOW).coerceAtMost(route.segments.lastIndex)
         }
     }
 }

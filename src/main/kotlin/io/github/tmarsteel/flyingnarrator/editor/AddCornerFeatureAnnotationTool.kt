@@ -9,6 +9,7 @@ import io.github.tmarsteel.flyingnarrator.editor.routefeatures.LocationOnRouteCo
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.MovableLocationOnRouteComponent
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ObstacleComponent
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.route.LocationOnRoute
 import io.github.tmarsteel.flyingnarrator.ui.reactive.MousePositionSignal
 import io.github.tmarsteel.flyingnarrator.ui.reactive.plusAssign
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
@@ -18,12 +19,15 @@ import java.awt.event.MouseEvent
 import javax.swing.ImageIcon
 import javax.swing.JButton
 
-class AddCornerRouteEditingTool : RouteEditingTool {
-    override fun makeToolbarButton(routeComponent: RouteComponent): JButton {
-        return JButton(ImageIcon(ObstacleComponent.Companion.CORNER_ICON)).apply {
+class AddCornerFeatureAnnotationTool : FeatureAnnotationTool {
+    override fun makeToolbarButton(
+        routeComponent: RouteComponent,
+        viewModel: FeatureAnnotationViewModel,
+    ): JButton {
+        return JButton(ImageIcon(ObstacleComponent.CORNER_ICON)).apply {
             toolTipText = "Mark a corner"
             addActionListener {
-                routeComponent.activeTool = Activation(routeComponent, this)
+                routeComponent.activeTool = Activation(routeComponent, viewModel, this)
                 this.isSelected = true
             }
         }
@@ -31,8 +35,9 @@ class AddCornerRouteEditingTool : RouteEditingTool {
 
     private class Activation(
         val routeComponent: RouteComponent,
+        val viewModel: FeatureAnnotationViewModel,
         val button: JButton?,
-    ) : RouteEditingTool.Activation {
+    ) : FeatureAnnotationTool.Activation {
         override val cursor = Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR)
 
         val mousePositionInRouteComponent: Signal<Point?> = MousePositionSignal(routeComponent)
@@ -43,18 +48,18 @@ class AddCornerRouteEditingTool : RouteEditingTool {
                 }
             }
 
-        val targetLocation = pointedLocation.scan(null as RouteViewModel.PreciseLocation?) { previousRouteLocation, pointedLocation ->
+        val targetLocation = pointedLocation.scan(null as LocationOnRoute?) { previousRouteLocation, pointedLocation ->
                 if (pointedLocation == null) {
                     return@scan previousRouteLocation
                 }
 
                 val searchRange = MovableLocationOnRouteComponent.getLocationSearchWindowAroundPreviousLocation(
-                    routeComponent.routeModel,
+                    routeComponent.route,
                     previousRouteLocation
                 )
-                routeComponent.routeModel.findPreciseLocationClosestTo(pointedLocation, searchRange)
+                viewModel.route.findPreciseLocationClosestTo(pointedLocation, searchRange)
             }
-                .map { it ?: routeComponent.routeModel.start.value }
+                .map { it ?: routeComponent.route.start }
 
         val indicator = LocationOnRouteComponent(targetLocation)
 
@@ -64,17 +69,17 @@ class AddCornerRouteEditingTool : RouteEditingTool {
 
         override fun onMouseClicked(event: MouseEvent) {
             val targetLocation = targetLocation.value
-            val startIndex = routeComponent.routeModel.findPreciseLocation((targetLocation.distanceAlongRoute - HALF_CORNER_LENGTH))
+            val startIndex = routeComponent.route.findPreciseLocation((targetLocation.distanceAlongRoute - HALF_CORNER_LENGTH))
                 ?.segment
                 ?.index
                 ?: 0
 
-            val endIndex = routeComponent.routeModel.findPreciseLocation((targetLocation.distanceAlongRoute + HALF_CORNER_LENGTH))
+            val endIndex = routeComponent.route.findPreciseLocation((targetLocation.distanceAlongRoute + HALF_CORNER_LENGTH))
                 ?.segment
                 ?.index
-                ?: routeComponent.routeModel.segments.lastIndex
+                ?: routeComponent.route.segments.lastIndex
 
-            routeComponent.routeModel.corners += RouteViewModel.CornerModel(
+            viewModel.corners += FeatureAnnotationViewModel.CornerModel(
                 mutableSignalOf(startIndex),
                 mutableSignalOf(endIndex),
             )

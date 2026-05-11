@@ -9,8 +9,8 @@ import io.github.fenrur.signal.operators.increment
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.editor.ReactiveRouteComponentChild
-import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
 import io.github.tmarsteel.flyingnarrator.editor.transform
+import io.github.tmarsteel.flyingnarrator.route.LocationOnRoute
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import java.awt.BasicStroke
 import java.awt.Graphics
@@ -28,7 +28,7 @@ import kotlin.math.roundToInt
  * and published back into it.
  */
 open class LocationOnRouteComponent(
-    val locationOnRoute: Signal<RouteViewModel.PreciseLocation>,
+    val locationOnRoute: Signal<LocationOnRoute>,
 ) : ReactiveRouteComponentChild() {
     private val resizeEvents = mutableSignalOf(0L)
 

@@ -4,12 +4,15 @@ import java.awt.Cursor
 import java.awt.event.MouseEvent
 import javax.swing.JButton
 
-interface RouteEditingTool {
+interface FeatureAnnotationTool {
     /**
      * Creates a button to be shown in a [javax.swing.JToolBar]. The returned button should already contain an
      * [java.awt.event.ActionListener] as necessary for the tool.
      */
-    fun makeToolbarButton(routeComponent: RouteComponent): JButton
+    fun makeToolbarButton(
+        routeComponent: RouteComponent,
+        viewModel: FeatureAnnotationViewModel,
+    ): JButton
 
     interface Activation {
         val cursor: Cursor?

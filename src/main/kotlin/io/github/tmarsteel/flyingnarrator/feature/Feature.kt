@@ -1,7 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.feature
 
-import io.github.tmarsteel.flyingnarrator.route.RoadSegment
 import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.RouteSegment
 import io.github.tmarsteel.flyingnarrator.unit.Angle
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 import io.github.tmarsteel.flyingnarrator.unit.Distance
@@ -16,11 +16,11 @@ sealed interface Feature {
     fun tryMergeWithSuccessor(successor: Feature): Feature?
 
     data class Straight(
-        val segments: List<RoadSegment>,
+        val segments: List<RouteSegment>,
         override val startsAtTrackDistance: Distance,
     ) : Feature {
         override val length: Distance = segments.sumOf { it.length }
-        val angleFirstToLast: Angle = segments.first().forward.angleTo(segments.last().forward)
+        val angleFirstToLast: Angle = segments.first().raw.forward.angleTo(segments.last().raw.forward)
 
         override fun tryMergeWithSuccessor(successor: Feature): Feature? {
             if (successor !is Straight) {
@@ -31,7 +31,7 @@ sealed interface Feature {
     }
 
     class Corner(
-        val segments: List<RoadSegment>,
+        val segments: List<RouteSegment>,
         override val startsAtTrackDistance: Distance,
     ) : Feature {
         val totalAngle: Angle = segments.totalAngle
@@ -81,7 +81,7 @@ sealed interface Feature {
                 .map { (_, windowPairs) -> windowPairs.map { it.first() } }
                 .map { windowsInOneCorner ->
                     val startsAt = windowsInOneCorner.first().tmpSegments.first().startsAtTrackDistance
-                    val segments = route.subList(
+                    val segments = route.segments.subList(
                         windowsInOneCorner.first().tmpSegments.first().roadSegmentIndex,
                         windowsInOneCorner.last().tmpSegments.last().roadSegmentIndex + 1,
                     )
@@ -119,7 +119,7 @@ private fun extendCornersInPlaceOnSingleTransition(features: MutableList<Feature
     while (startExtendSegments + endExtendSegments + 2 < extendableSegments.size) {
         val startCornerEndSegment = extendableSegments[startExtendSegments]
         val endCornerStartSegment = extendableSegments[extendableSegments.lastIndex - endExtendSegments]
-        val cornerToCornerAngle = startCornerEndSegment.forward.angleTo(endCornerStartSegment.forward)
+        val cornerToCornerAngle = startCornerEndSegment.raw.forward.angleTo(endCornerStartSegment.raw.forward)
             .absoluteValue
         if (minObservedAngle == null || minObservedAngle.first > cornerToCornerAngle) {
             minObservedAngle = Triple(cornerToCornerAngle, startExtendSegments, endExtendSegments)

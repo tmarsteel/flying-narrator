@@ -4,10 +4,11 @@ import de.micromata.opengis.kml.v_2_2_0.Coordinate
 import io.github.tmarsteel.flyingnarrator.euclideanVectorTo
 import io.github.tmarsteel.flyingnarrator.feature.OPTIMAL_ROAD_SEGMENT_LENGTH
 import io.github.tmarsteel.flyingnarrator.http.CachingUrlReader
-import io.github.tmarsteel.flyingnarrator.route.RoadSegment
-import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.RouteDto
 import io.github.tmarsteel.flyingnarrator.route.RouteReader
+import io.github.tmarsteel.flyingnarrator.route.RouteSegmentDto
 import io.github.tmarsteel.flyingnarrator.route.oversample
+import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -53,13 +54,13 @@ class RallyMapsRouteSource(
             RallyMapsSpider.extractElevationProfile(urlReader(detailsURL))
         }
 
-        override fun read(): Route {
+        override fun read(): RouteDto {
             val lineString = stage.geometries
                 .map { it.geometry }
                 .filterIsInstance<LineStringDto>()
                 .firstOrNull() ?: throw UnreadableRallyMapsPageException("Could not find LineString geometry for stage ${stage.id} / ${stage.name}")
 
-            return lineString.coordinates
+            val segments = lineString.coordinates
                 .asSequence()
                 .windowed(size = 2, step = 1)
                 .map { (a, b) ->
@@ -67,9 +68,13 @@ class RallyMapsRouteSource(
                     val b3 = Coordinate(b.longitude, b.latitude)
                     a3.euclideanVectorTo(b3)
                 }
-                .map(::RoadSegment)
+                .map(::RouteSegmentDto)
                 .oversample(OPTIMAL_ROAD_SEGMENT_LENGTH)
                 .toList()
+
+            // TODO: proper start and finish
+
+            return RouteDto(segments, segments.sumOf { it.forward.length }.meters)
         }
     }
 

@@ -10,6 +10,7 @@ import io.github.tmarsteel.flyingnarrator.editor.routefeatures.LocationOnRouteCo
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.MovableLocationOnRouteComponent
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.ObstacleComponent
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.route.LocationOnRoute
 import io.github.tmarsteel.flyingnarrator.ui.reactive.MousePositionSignal
 import io.github.tmarsteel.flyingnarrator.ui.reactive.plusAssign
 import java.awt.Cursor
@@ -18,28 +19,32 @@ import java.awt.event.MouseEvent
 import javax.swing.ImageIcon
 import javax.swing.JButton
 
-class AddObstacleRouteEditingTool(
-    val makeType: () -> RouteViewModel.ObstacleModel.Type,
-) : RouteEditingTool {
+class AddObstacleFeatureAnnotationTool(
+    val makeType: () -> FeatureAnnotationViewModel.ObstacleModel.Type,
+) : FeatureAnnotationTool {
     private val typeExample by lazy(makeType)
     private val icon by lazy {
         ImageIcon(ObstacleComponent.iconFor(signalOf(typeExample)).value)
     }
-    override fun makeToolbarButton(routeComponent: RouteComponent): JButton {
+    override fun makeToolbarButton(
+        routeComponent: RouteComponent,
+        viewModel: FeatureAnnotationViewModel,
+    ): JButton {
         return JButton(icon).apply {
             toolTipText  = "Add a ${typeExample::class.simpleName}"
             addActionListener {
-                routeComponent.activeTool = Activation(makeType, routeComponent, this)
+                routeComponent.activeTool = Activation(makeType, routeComponent, viewModel,this)
                 this.isSelected = true
             }
         }
     }
 
     private class Activation(
-        val makeType: () -> RouteViewModel.ObstacleModel.Type,
+        val makeType: () -> FeatureAnnotationViewModel.ObstacleModel.Type,
         val routeComponent: RouteComponent,
+        val viewModel: FeatureAnnotationViewModel,
         val button: JButton?,
-    ) : RouteEditingTool.Activation {
+    ) : FeatureAnnotationTool.Activation {
         override val cursor = Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR)
 
         val mousePositionInRouteComponent: Signal<Point?> = MousePositionSignal(routeComponent)
@@ -50,18 +55,18 @@ class AddObstacleRouteEditingTool(
             }
         }
 
-        val targetLocation = pointedLocation.scan(null as RouteViewModel.PreciseLocation?) { previousRouteLocation, pointedLocation ->
+        val targetLocation = pointedLocation.scan(null as LocationOnRoute?) { previousRouteLocation, pointedLocation ->
             if (pointedLocation == null) {
                 return@scan previousRouteLocation
             }
 
             val searchRange = MovableLocationOnRouteComponent.getLocationSearchWindowAroundPreviousLocation(
-                routeComponent.routeModel,
+                routeComponent.route,
                 previousRouteLocation
             )
-            routeComponent.routeModel.findPreciseLocationClosestTo(pointedLocation, searchRange)
+            routeComponent.route.findPreciseLocationClosestTo(pointedLocation, searchRange)
         }
-            .map { it ?: routeComponent.routeModel.start.value }
+            .map { it ?: routeComponent.route.start }
 
         val indicator = LocationOnRouteComponent(targetLocation)
 
@@ -70,7 +75,7 @@ class AddObstacleRouteEditingTool(
         }
 
         override fun onMouseClicked(event: MouseEvent) {
-            routeComponent.routeModel.obstacles += RouteViewModel.ObstacleModel(
+            viewModel.obstacles += FeatureAnnotationViewModel.ObstacleModel(
                 mutableSignalOf(targetLocation.value),
                 makeType(),
             )

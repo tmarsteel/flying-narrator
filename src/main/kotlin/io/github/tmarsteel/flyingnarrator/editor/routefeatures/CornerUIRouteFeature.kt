@@ -1,8 +1,9 @@
 package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import io.github.fenrur.signal.operators.map
-import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
+import io.github.tmarsteel.flyingnarrator.editor.FeatureAnnotationViewModel
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
+import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sum
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
@@ -13,11 +14,11 @@ import javax.swing.JToolTip
 import javax.swing.UIManager
 
 class CornerUIRouteFeature(
-    routeModel: RouteViewModel,
-    stretchModel: RouteViewModel.CornerModel,
+    route: Route,
+    cornerModel: FeatureAnnotationViewModel.CornerModel,
 ) : StretchRouteShapedComponent(
-    routeModel,
-    stretchModel,
+    route,
+    cornerModel,
     UIManager.getColor(KEY_DISPLAY_COLOR)
         ?: UIManager.getColor("Component.accentColor")
         ?: Color.ORANGE,
@@ -25,26 +26,26 @@ class CornerUIRouteFeature(
         ?: Color(0x20FF00),
     true,
 ) {
-    private val cornerSegments = stretchModel.segmentIndices.map { idxs ->
-        routeViewModel.segments.slice(idxs)
+    private val cornerSegments = cornerModel.segmentIndices.map { idxs ->
+        route.segments.slice(idxs)
     }
 
     init {
         cornerSegments.subscribeOn(lifecycle) { segments ->
             val totalAngle = segments.asSequence()
                 .windowed(size = 2, step = 1, partialWindows = false)
-                .map { (a, b) -> a.base.forward.angleTo(b.base.forward) }
+                .map { (a, b) -> a.raw.forward.angleTo(b.raw.forward) }
                 .sum()
             val text = StringBuilder()
             text.append("<html>")
             text.append("Ør=")
-            text.append(segments.map { it.base }.compoundRadius)
+            text.append(segments.map { it.raw }.compoundRadius)
             text.append("<br>")
             text.append("∠=")
             text.append(totalAngle)
             text.append("<br>")
             text.append("d=")
-            text.append(segments.sumOf { it.base.length }.toString())
+            text.append(segments.sumOf { it.length }.toString())
             text.append("m<br>")
             text.append("@")
             text.append("??")

@@ -1,11 +1,12 @@
 package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
-import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
+import io.github.fenrur.signal.signalOf
+import io.github.tmarsteel.flyingnarrator.route.Route
 import javax.imageio.ImageIO
 
 class FinishComponent(
-    viewModel: RouteViewModel,
-) : LocationOnRouteComponent(viewModel.finish) {
+    route: Route,
+) : LocationOnRouteComponent(signalOf(route.finish)) {
     init {
         setSize(ICON.width, ICON.height)
     }

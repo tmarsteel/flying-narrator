@@ -4,11 +4,11 @@ import io.github.tmarsteel.flyingnarrator.geometry.HermiteSpline
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.unit.Angle.Companion.radians
 
-fun Sequence<RoadSegment>.oversample(targetSegmentLength: Double): Sequence<RoadSegment> {
+fun Sequence<RouteSegmentDto>.oversample(targetSegmentLength: Double): Sequence<RouteSegmentDto> {
     return asIterable().oversample(targetSegmentLength)
 }
 
-fun Iterable<RoadSegment>.oversample(targetSegmentLength: Double): Sequence<RoadSegment> {
+fun Iterable<RouteSegmentDto>.oversample(targetSegmentLength: Double): Sequence<RouteSegmentDto> {
     val oversampledPointsWithOriginalSegment = sequence {
         val iterator = iterator()
         if (!iterator.hasNext()) {
@@ -38,7 +38,7 @@ fun Iterable<RoadSegment>.oversample(targetSegmentLength: Double): Sequence<Road
 
     return oversampledPointsWithOriginalSegment
         .zipWithNext { (a, originalSegment), (b, _) ->
-            originalSegment.withForward(b - a)
+            originalSegment.copy(forward = b - a)
         }
 }
 

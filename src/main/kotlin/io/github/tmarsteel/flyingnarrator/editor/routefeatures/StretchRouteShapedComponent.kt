@@ -2,9 +2,11 @@ package io.github.tmarsteel.flyingnarrator.editor.routefeatures
 
 import io.github.fenrur.signal.operators.bimap
 import io.github.fenrur.signal.operators.map
+import io.github.tmarsteel.flyingnarrator.editor.FeatureAnnotationViewModel
 import io.github.tmarsteel.flyingnarrator.editor.IntArrayAccumulator
-import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
 import io.github.tmarsteel.flyingnarrator.geometry.Vector3
+import io.github.tmarsteel.flyingnarrator.route.LocationOnRoute
+import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import io.github.tmarsteel.flyingnarrator.ui.withTransform
 import io.github.tmarsteel.flyingnarrator.unit.Distance
@@ -17,17 +19,17 @@ import java.awt.Shape
 import kotlin.math.roundToInt
 
 abstract class StretchRouteShapedComponent(
-    val routeViewModel: RouteViewModel,
-    val stretchModel: RouteViewModel.CornerModel,
+    val route: Route,
+    val stretchModel: FeatureAnnotationViewModel.CornerModel,
     val displayColor: Color,
     val hoverColor: Color,
     val isEditable: Boolean,
 ) : RouteShapedComponent() {
     private val trackPoints = stretchModel.segmentIndices.map { idxs ->
-        val starts = routeViewModel.segments
+        val starts = route.segments
             .slice(idxs)
             .map { it.line.startPoint }
-        starts + listOf(routeViewModel.segments[idxs.last].line.endPoint)
+        starts + listOf(route.segments[idxs.last].line.endPoint)
     }
 
     protected val displayShape = trackPoints.map { pts ->
@@ -74,17 +76,17 @@ abstract class StretchRouteShapedComponent(
     private inner class EndPointHandle(isCornerEntry: Boolean) : MovableLocationOnRouteComponent(
         if (isCornerEntry) {
             stretchModel.indexOfFirstSegment.bimap(
-                forward = { RouteViewModel.PreciseLocation.atSegmentStart(routeViewModel.segments[it]) },
+                forward = { LocationOnRoute.atSegmentStart(route.segments[it]) },
                 reverse = { it.segment.index },
             )
         } else {
             stretchModel.indexOfLastSegment.bimap(
-                forward = { RouteViewModel.PreciseLocation.atSegmentEnd(routeViewModel.segments[it]) },
+                forward = { LocationOnRoute.atSegmentEnd(route.segments[it]) },
                 reverse = { it.segment.index },
             )
         },
         object : MoveGovernor {
-            override fun processPotentialMove(location: RouteViewModel.PreciseLocation): RouteViewModel.PreciseLocation? {
+            override fun processPotentialMove(location: LocationOnRoute): LocationOnRoute? {
                 if (isCornerEntry) {
                     if (location.segment.index > stretchModel.indexOfLastSegment.value) {
                         return null

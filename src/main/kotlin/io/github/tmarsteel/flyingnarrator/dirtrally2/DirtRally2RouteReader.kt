@@ -13,9 +13,10 @@ import io.github.tmarsteel.flyingnarrator.geometry.Vector3
 import io.github.tmarsteel.flyingnarrator.nefs.NefsFile
 import io.github.tmarsteel.flyingnarrator.nefs.NefsItemId
 import io.github.tmarsteel.flyingnarrator.nefs.protocol.Command
-import io.github.tmarsteel.flyingnarrator.route.RoadSegment
-import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.route.RouteDto
 import io.github.tmarsteel.flyingnarrator.route.RouteReader
+import io.github.tmarsteel.flyingnarrator.route.RouteSegment
+import io.github.tmarsteel.flyingnarrator.route.RouteSegmentDto
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import tools.jackson.databind.util.ByteBufferBackedInputStream
@@ -45,7 +46,7 @@ class DirtRally2RouteReader(
 
     val startPosition: DR2TrackProgressPosition = startGateDto.crossing
 
-    private val route by lazy {
+    private val routeDto by lazy {
         val allVectors = positionsOnCentralSpline
             .zipWithNext { pos1, pos2 ->
                 pos2 - pos1
@@ -53,25 +54,29 @@ class DirtRally2RouteReader(
             .toMutableList()
 
         var idxBeforeStart = 0
-        var idxAfterFinish = 0
+        var idxBeforeFinish = 0
+        var finishExtraDistance = 0.0
         var positionCarry = positionsOnCentralSpline.first()
         for ((idx, vec) in allVectors.withIndex()) {
-            if (startGate.isCrossedBy(positionCarry, vec)) {
+            if (startGate.getCrossingDistance(positionCarry, vec) != null) {
                 idxBeforeStart = idx
             }
-            if (finishGate.isCrossedBy(positionCarry, vec)) {
-                idxAfterFinish = idx + 1
+            finishGate.getCrossingDistance(positionCarry, vec)?.let {
+                idxBeforeFinish = idx
+                finishExtraDistance = it
             }
             positionCarry += vec
         }
 
-        allVectors
-            .subList(idxBeforeStart, idxAfterFinish)
-            .map(::RoadSegment)
+        val segments = allVectors
+            .subList(idxBeforeStart, allVectors.size)
+            .map(::RouteSegmentDto)
+
+        RouteDto(segments, (allVectors.subList(idxBeforeStart, idxBeforeFinish + 1).sumOf { it.length } + finishExtraDistance).meters)
     }
 
-    override fun read(): Route {
-        return route
+    override fun read(): RouteDto {
+        return routeDto
     }
 
     companion object {
@@ -97,7 +102,7 @@ class DirtRally2RouteReader(
         val right: Vector3,
         /**
          * The distance that the **game** specifies for this gate; this **will** vary from the distance that you get
-         * when summing [RoadSegment.length]s.
+         * when summing [RouteSegment.length]s.
          */
         val distanceInGame: Distance,
     ) {
@@ -112,12 +117,23 @@ class DirtRally2RouteReader(
         private val line1 = MLine(left, crossing - left)
         private val line2 = MLine(crossing, right - crossing)
 
-        fun isCrossedBy(startPoint: Vector3, roadSegmentForward: Vector3): Boolean {
+        /**
+         * Determines whether the line segment formed by [startPoint] and [roadSegmentForward] crosses this
+         * gate.
+         * @return the distance along [roadSegmentForward] at which this gate is crossed, or `null` if the given
+         * line segment doesn't cross this gate.
+         */
+        fun getCrossingDistance(startPoint: Vector3, roadSegmentForward: Vector3): Double? {
             val segmentLine = MLine(startPoint, roadSegmentForward)
             val line1Intersection = line1.intersect2d(segmentLine)
             val line2Intersection = line2.intersect2d(segmentLine)
 
-            return (line1Intersection != null && line1Intersection.second) || (line2Intersection != null && line2Intersection.second)
+            // TODO: correctly incorporate the Y dimension
+
+            val intersectionPoint = line1Intersection?.let { (p, onSegment) -> p.takeIf { onSegment } }
+                ?: line2Intersection?.let { (p, onSegment) -> p.takeIf { onSegment } }
+
+            return intersectionPoint?.let { (it - startPoint).length2d }
         }
     }
 }

@@ -4,7 +4,7 @@ import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.operators.flatMap
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.signalOf
-import io.github.tmarsteel.flyingnarrator.editor.RouteViewModel
+import io.github.tmarsteel.flyingnarrator.editor.FeatureAnnotationViewModel
 import io.github.tmarsteel.flyingnarrator.ui.TileImage
 import io.github.tmarsteel.flyingnarrator.ui.reactive.minusAssign
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
@@ -25,8 +25,8 @@ import javax.swing.JRadioButtonMenuItem
 import javax.swing.UIManager
 
 class ObstacleComponent(
-    routeModel: RouteViewModel,
-    val obstacleModel: RouteViewModel.ObstacleModel,
+    viewModel: FeatureAnnotationViewModel,
+    val obstacleModel: FeatureAnnotationViewModel.ObstacleModel,
 ) : MovableLocationOnRouteComponent(
     obstacleModel.location,
     MoveGovernor.FreelyMovable(),
@@ -62,20 +62,20 @@ class ObstacleComponent(
 
     init {
         componentPopupMenu = JPopupMenu()
-        if (obstacleModel.type is RouteViewModel.ObstacleModel.Type.Chicane) {
+        if (obstacleModel.type is FeatureAnnotationViewModel.ObstacleModel.Type.Chicane) {
             val entryLeftItem = JRadioButtonMenuItem("entry on the left").apply {
                 addActionListener {
-                    obstacleModel.type.entrySide.value = RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.LEFT
+                    obstacleModel.type.entrySide.value = FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.LEFT
                 }
             }
             val entryRightItem = JRadioButtonMenuItem("entry on the right").apply {
                 addActionListener {
-                    obstacleModel.type.entrySide.value = RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.RIGHT
+                    obstacleModel.type.entrySide.value = FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.RIGHT
                 }
             }
             val entrySideUnknownItem = JRadioButtonMenuItem("entry side not known").apply {
                 addActionListener {
-                    obstacleModel.type.entrySide.value = RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.UNSPECIFIED
+                    obstacleModel.type.entrySide.value = FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.UNSPECIFIED
                 }
             }
             val buttonGroup = ButtonGroup()
@@ -87,17 +87,17 @@ class ObstacleComponent(
 
             obstacleModel.type.entrySide.subscribeOn(lifecycle) { side ->
                 when (side) {
-                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.LEFT -> {
+                    FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.LEFT -> {
                         entryLeftItem.isSelected = true
                         entryRightItem.isSelected = false
                         entrySideUnknownItem.isSelected = false
                     }
-                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.RIGHT -> {
+                    FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.RIGHT -> {
                         entryLeftItem.isSelected = false
                         entryRightItem.isSelected = true
                         entrySideUnknownItem.isSelected = false
                     }
-                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.UNSPECIFIED -> {
+                    FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.UNSPECIFIED -> {
                         entryLeftItem.isSelected = false
                         entryRightItem.isSelected = false
                         entrySideUnknownItem.isSelected = true
@@ -107,7 +107,7 @@ class ObstacleComponent(
         }
         componentPopupMenu.add(JMenuItem("Delete").also { item ->
             item.addActionListener {
-                routeModel.obstacles -= obstacleModel
+                viewModel.obstacles -= obstacleModel
             }
         })
     }
@@ -162,18 +162,18 @@ class ObstacleComponent(
         val WIDE_ICON get()= ICONS[6]
         val CORNER_ICON get()= ICONS[7]
 
-        fun iconFor(type: Signal<RouteViewModel.ObstacleModel.Type>): Signal<BufferedImage> = type.flatMap { type ->
+        fun iconFor(type: Signal<FeatureAnnotationViewModel.ObstacleModel.Type>): Signal<BufferedImage> = type.flatMap { type ->
             when (type) {
-                is RouteViewModel.ObstacleModel.Type.Chicane -> type.entrySide.map { when (it) {
-                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.LEFT,
-                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.UNSPECIFIED -> CHICANE_ENTRY_LEFT_ICON
-                    RouteViewModel.ObstacleModel.Type.Chicane.EntrySide.RIGHT -> CHICANE_ENTRY_RIGHT_ICON
+                is FeatureAnnotationViewModel.ObstacleModel.Type.Chicane -> type.entrySide.map { when (it) {
+                    FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.LEFT,
+                    FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.UNSPECIFIED -> CHICANE_ENTRY_LEFT_ICON
+                    FeatureAnnotationViewModel.ObstacleModel.Type.Chicane.EntrySide.RIGHT -> CHICANE_ENTRY_RIGHT_ICON
                 }}
-                RouteViewModel.ObstacleModel.Type.Crest -> signalOf(CREST_ICON)
-                RouteViewModel.ObstacleModel.Type.Dip -> signalOf(DIP_ICON)
-                RouteViewModel.ObstacleModel.Type.Jump -> signalOf(JUMP_ICON)
-                RouteViewModel.ObstacleModel.Type.Narrows -> signalOf(NARROW_ICON)
-                RouteViewModel.ObstacleModel.Type.Widens -> signalOf(WIDE_ICON)
+                FeatureAnnotationViewModel.ObstacleModel.Type.Crest -> signalOf(CREST_ICON)
+                FeatureAnnotationViewModel.ObstacleModel.Type.Dip -> signalOf(DIP_ICON)
+                FeatureAnnotationViewModel.ObstacleModel.Type.Jump -> signalOf(JUMP_ICON)
+                FeatureAnnotationViewModel.ObstacleModel.Type.Narrows -> signalOf(NARROW_ICON)
+                FeatureAnnotationViewModel.ObstacleModel.Type.Widens -> signalOf(WIDE_ICON)
             }
         }
     }

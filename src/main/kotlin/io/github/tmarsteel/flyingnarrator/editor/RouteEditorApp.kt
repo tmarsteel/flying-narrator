@@ -100,7 +100,9 @@ class RouteEditorApp(
                 exitProcess(1)
             }
 
-            val route = DirtRally2RouteReader(Paths.get(inputFilePath)).read()
+            val route = DirtRally2RouteReader(Paths.get(inputFilePath))
+                .read()
+                .let(::Route)
 
             val app = RouteEditorApp(route)
             app.start()
