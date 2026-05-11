@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor.workflow
 
 import com.formdev.flatlaf.extras.FlatSVGIcon
+import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.pacenote.AudioPacenotes
 import io.github.tmarsteel.flyingnarrator.route.Speedmap
 import javax.swing.JComponent
@@ -14,7 +15,8 @@ object QualityCheckStep : WorkflowStep<Pair<AudioPacenotes, Speedmap>, Pair<Audi
     override fun buildUI(input: Pair<AudioPacenotes, Speedmap>): WorkflowStep.Instance<Pair<AudioPacenotes, Speedmap>> {
         return object : WorkflowStep.Instance<Pair<AudioPacenotes, Speedmap>> {
             override val swingComponent: JComponent = JLabel("TODO")
-            override val hasAnyManualChanges: Boolean = false
+            override val hasAnyManualChanges = signalOf(false)
+            override val isComplete = signalOf(true)
 
             override fun getCopyOfCurrentOutputState(): Pair<AudioPacenotes, Speedmap> {
                 return input

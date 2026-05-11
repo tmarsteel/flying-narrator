@@ -1,5 +1,6 @@
 package io.github.tmarsteel.flyingnarrator.editor.workflow
 
+import io.github.fenrur.signal.Signal
 import javax.swing.Icon
 import javax.swing.JComponent
 
@@ -12,7 +13,8 @@ interface WorkflowStep<in In, out Out> {
 
     interface Instance<out Out> {
         val swingComponent: JComponent
-        val hasAnyManualChanges: Boolean
+        val isComplete: Signal<Boolean>
+        val hasAnyManualChanges: Signal<Boolean>
         fun getCopyOfCurrentOutputState(): Out
     }
 }

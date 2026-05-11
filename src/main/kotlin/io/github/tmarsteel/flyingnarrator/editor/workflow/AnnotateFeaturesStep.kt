@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor.workflow
 
 import com.formdev.flatlaf.extras.FlatSVGIcon
+import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.editor.AddCornerRouteEditingTool
 import io.github.tmarsteel.flyingnarrator.editor.AddObstacleRouteEditingTool
 import io.github.tmarsteel.flyingnarrator.editor.RouteComponent
@@ -74,8 +75,8 @@ object AnnotateFeaturesStep : WorkflowStep<Route, Pair<Route, List<Feature>>> {
             swingComponent.name = "features_step"
         }
 
-        override val hasAnyManualChanges: Boolean
-            get() = false // TODO
+        override val hasAnyManualChanges = signalOf(false) // TODO!
+        override val isComplete = signalOf(true)
 
         override fun getCopyOfCurrentOutputState(): Pair<Route, List<Feature>> {
             TODO()

@@ -1,6 +1,7 @@
 package io.github.tmarsteel.flyingnarrator.editor.workflow
 
 import com.formdev.flatlaf.extras.FlatSVGIcon
+import io.github.fenrur.signal.signalOf
 import io.github.tmarsteel.flyingnarrator.pacenote.AudioPacenotes
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -13,7 +14,8 @@ object AudioAlignmentStep : WorkflowStep<AudioPacenotes, AudioPacenotes> {
     override fun buildUI(input: AudioPacenotes): WorkflowStep.Instance<AudioPacenotes> {
         return object : WorkflowStep.Instance<AudioPacenotes> {
             override val swingComponent: JComponent = JLabel("TODO")
-            override val hasAnyManualChanges: Boolean = false
+            override val hasAnyManualChanges = signalOf(false)
+            override val isComplete = signalOf(true)
 
             override fun getCopyOfCurrentOutputState(): AudioPacenotes {
                 return input

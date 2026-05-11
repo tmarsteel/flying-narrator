@@ -2,6 +2,7 @@ package io.github.tmarsteel.flyingnarrator.editor.workflow
 
 import com.formdev.flatlaf.FlatClientProperties
 import io.github.fenrur.signal.operators.map
+import io.github.fenrur.signal.operators.switchMap
 import io.github.tmarsteel.flyingnarrator.ui.reactive.ReactiveJPanel
 import io.github.tmarsteel.flyingnarrator.ui.reactive.subscribeOn
 import java.awt.BorderLayout
@@ -29,19 +30,20 @@ class WorkflowStepsPanel(private val workflow: Workflow<*, *>) : ReactiveJPanel(
         tabs.tabPlacement = JTabbedPane.BOTTOM
 
         tabs.selectedIndex = lastValidStepIndex
-        updateEnabledStatus()
+        updateEnabledStatus(workflow.currentStep.value)
         tabs.addChangeListener(this::onTabsChanged)
 
-        workflow.currentStep.map { it.index }.subscribeOn(lifecycle) {
-            if (it == lastValidStepIndex) {
-                return@subscribeOn
+        workflow.currentStep
+            .switchMap { stepWithIndex -> stepWithIndex.value.isComplete.map { Pair(stepWithIndex, it) } }
+            .subscribeOn(lifecycle) { (stepWithIndex, _) ->
+                if (stepWithIndex.index != lastValidStepIndex) {
+                    check(tabChangeIsInResponseToOutsideStateChange.compareAndSet(expectedValue = false, newValue = true))
+                    tabs.selectedIndex = stepWithIndex.index
+                    this.lastValidStepIndex = stepWithIndex.index
+                    tabChangeIsInResponseToOutsideStateChange.store(false)
+                }
+                updateEnabledStatus(stepWithIndex)
             }
-            check(tabChangeIsInResponseToOutsideStateChange.compareAndSet(expectedValue = false, newValue = true))
-            tabs.selectedIndex = it
-            this.lastValidStepIndex = it
-            tabChangeIsInResponseToOutsideStateChange.store(false)
-            updateEnabledStatus()
-        }
     }
 
     private var tabChangeIsInResponseToOutsideStateChange = AtomicBoolean(false)
@@ -88,9 +90,11 @@ class WorkflowStepsPanel(private val workflow: Workflow<*, *>) : ReactiveJPanel(
         workflow.advanceToNextStep()
     }
 
-    private fun updateEnabledStatus() {
+    private fun updateEnabledStatus(currentStep: IndexedValue<WorkflowStep.Instance<*>>) {
+        val currentIsComplete = currentStep.value.isComplete.value
         for (index in 0 until tabs.tabCount) {
-            tabs.setEnabledAt(index, index <= lastValidStepIndex + 1)
+            val isNextStep = index == currentStep.index + 1
+            tabs.setEnabledAt(index, index <= currentStep.index || (isNextStep && currentIsComplete))
         }
     }
 }

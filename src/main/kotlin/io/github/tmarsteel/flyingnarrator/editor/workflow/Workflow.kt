@@ -32,7 +32,7 @@ class Workflow<In, Out> private constructor(
             val step = currentStep.value.value
             val stepData = StepInput(
                 step.getCopyOfCurrentOutputState(),
-                step.hasAnyManualChanges
+                step.hasAnyManualChanges.value,
             )
             data.add(stepData)
             _currentStep.value = instantiateStep(data.lastIndex)
