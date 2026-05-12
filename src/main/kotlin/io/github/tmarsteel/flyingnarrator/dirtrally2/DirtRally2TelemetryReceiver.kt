@@ -20,7 +20,6 @@ import java.nio.file.Paths
 import java.util.Collections
 import javax.swing.SwingUtilities
 import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.io.path.name
 import kotlin.io.path.outputStream
 import kotlin.system.exitProcess
@@ -29,7 +28,6 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
-@OptIn(ExperimentalAtomicApi::class)
 object DirtRally2TelemetryReceiver {
     /**
      * @see Listener.onTelemetryReceptionEnded

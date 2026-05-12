@@ -2,9 +2,7 @@ package io.github.tmarsteel.flyingnarrator.ui.reactive
 
 import io.github.fenrur.signal.impl.CopyOnWriteArrayList
 import kotlin.concurrent.atomics.AtomicBoolean
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-@OptIn(ExperimentalAtomicApi::class)
 class ReactiveComponentLifecycle {
     private val mounted = AtomicBoolean(false)
     private val lifecycleAwares = CopyOnWriteArrayList<LifecycleAware>()

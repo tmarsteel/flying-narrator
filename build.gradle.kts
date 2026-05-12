@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import java.net.URI
 
 plugins {
@@ -85,4 +86,8 @@ tasks.test {
 }
 kotlin {
     jvmToolchain(21)
+}
+
+tasks.named<KotlinCompilationTask<*>>("compileKotlin").configure {
+    compilerOptions.optIn.add("kotlin.concurrent.atomics.ExperimentalAtomicApi")
 }

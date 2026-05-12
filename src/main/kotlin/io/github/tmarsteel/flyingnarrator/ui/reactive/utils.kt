@@ -5,10 +5,10 @@ import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.operators.combineAll
 import io.github.fenrur.signal.operators.map
 import io.github.fenrur.signal.operators.pairwise
-import io.github.fenrur.signal.operators.scan
 import io.github.fenrur.signal.operators.switchMap
 import java.util.WeakHashMap
 import javax.swing.JComponent
+import kotlin.concurrent.atomics.AtomicBoolean
 
 fun <T> Signal<T>.subscribeOn(lifecycle: ReactiveComponentLifecycle, consumer: (T) -> Unit) {
     lifecycle.addLifecycleAware(LifecycleSignalSubscription(this, { consumer(it.getOrThrow()) }))
@@ -19,10 +19,13 @@ fun <T> Signal<T>.subscribeOn(lifecycle: ReactiveComponentLifecycle, consumer: (
  * [Set] in [SetDelta.added].
  */
 fun <T> Signal<Set<T>>.changesWithInitial(): Signal<SetDelta<T>> {
+    val initialSeen = AtomicBoolean(false)
     return this
-        .scan(emptySet<T>(), { _, new -> new })
         .pairwise()
         .map { (previous, new) ->
+            if (previous === new && initialSeen.compareAndSet(expectedValue = false, newValue = true)) {
+                return@map SetDelta(new.toList(), emptyList())
+            }
             val added = new.filter { it !in previous }
             val removed = previous.filter { it !in new }
             SetDelta(added, removed)

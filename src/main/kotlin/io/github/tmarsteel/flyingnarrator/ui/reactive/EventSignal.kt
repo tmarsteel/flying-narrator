@@ -10,9 +10,7 @@ import io.github.fenrur.signal.impl.SignalGraph
 import io.github.fenrur.signal.impl.SourceSignalNode
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-@OptIn(ExperimentalAtomicApi::class)
 abstract class EventSignal<T>() : Signal<T>, SourceSignalNode {
     protected abstract fun getCurrentValue(): T
     protected abstract fun registerListener(onNewValue: (T) -> Unit): UnSubscriber

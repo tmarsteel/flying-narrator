@@ -3,14 +3,12 @@ package io.github.tmarsteel.flyingnarrator.audio
 import java.util.concurrent.LinkedBlockingQueue
 import javax.sound.sampled.Clip
 import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
 /**
  * Plays back [javax.sound.sampled.Clip]s from a background thread, one after the other from a queue.
  */
-@OptIn(ExperimentalAtomicApi::class)
 class ClipQueue : AutoCloseable {
     private val commandQueue = LinkedBlockingQueue<PlayerCommand>()
 

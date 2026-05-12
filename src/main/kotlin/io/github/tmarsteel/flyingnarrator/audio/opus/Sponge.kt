@@ -1,11 +1,9 @@
-@file:OptIn(ExperimentalAtomicApi::class)
 package io.github.tmarsteel.flyingnarrator.audio.opus
 
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 /**
  * Provides an [java.io.InputStream] and [java.io.OutputStream] that are connected to each other via a [ByteRingBuffer],
