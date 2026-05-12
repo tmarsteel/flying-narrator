@@ -4,15 +4,21 @@ import io.github.fenrur.signal.MutableSignal
 import io.github.fenrur.signal.Signal
 import io.github.fenrur.signal.mutableSignalOf
 import io.github.fenrur.signal.operators.combine
+import io.github.fenrur.signal.operators.or
+import io.github.tmarsteel.flyingnarrator.editor.workflow.WorkflowStep
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.route.LocationOnRoute
 import io.github.tmarsteel.flyingnarrator.route.Route
+import io.github.tmarsteel.flyingnarrator.ui.reactive.switchAny
 
 class FeatureAnnotationViewModel(
     val route: Route,
-) {
+) : WorkflowStep.State {
     val corners = mutableSignalOf<Set<CornerModel>>(emptySet())
     val obstacles = mutableSignalOf<Set<ObstacleModel>>(emptySet())
+
+    val hasAnyManualChangesSignal: Signal<Boolean> = (corners.switchAny { it.touchedOrManuallyAdded }).or(obstacles.switchAny { it.touchedOrManuallyAdded })
+    override val hasAnyManualChanges by hasAnyManualChangesSignal
 
     fun makeCornerModel(corner: Feature.Corner): CornerModel = CornerModel(
         mutableSignalOf(route.segments.indexOf(corner.segments.first())),

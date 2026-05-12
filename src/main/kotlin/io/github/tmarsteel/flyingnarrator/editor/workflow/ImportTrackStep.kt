@@ -11,15 +11,23 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 
 /**
- * TODO: actually implement importing
+ * TODO: remove the static route passthrough and actually implement importing
  */
-object ImportTrackStep : WorkflowStep<Route, Route> {
+class ImportTrackStep(val route: Route) : WorkflowStep<ImportTrackStep.State, Route> {
     override val name = "Import Track"
     override val description = "Import track data from DiRT Rally 2.0"
     override val icon: Icon = FlatSVGIcon(this::class.java.getResource("geometry.svg"))
 
-    override fun buildUI(input: Route): WorkflowStep.Instance<Route> {
-        return object : WorkflowStep.Instance<Route> {
+    override fun initializeState(workflow: Workflow): State {
+        return State(route)
+    }
+
+    override fun stateToOutput(state: State): Route {
+        return state.route
+    }
+
+    override fun buildUI(state: State): WorkflowStep.Instance<State> {
+        return object : WorkflowStep.Instance<State> {
             private val doneButton = JButton("done")
             override val swingComponent = JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.PAGE_AXIS)
@@ -34,9 +42,15 @@ object ImportTrackStep : WorkflowStep<Route, Route> {
                 }
             }
 
-            override fun getCopyOfCurrentOutputState(): Route {
-                return input
+            override fun getCopyOfCurrentState(): State {
+                return state
             }
         }
+    }
+
+    class State(
+        val route: Route,
+    ) : WorkflowStep.State {
+        override val hasAnyManualChanges = false
     }
 }

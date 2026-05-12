@@ -2,26 +2,35 @@ package io.github.tmarsteel.flyingnarrator.editor.workflow
 
 import com.formdev.flatlaf.extras.FlatSVGIcon
 import io.github.fenrur.signal.signalOf
-import io.github.tmarsteel.flyingnarrator.pacenote.AudioPacenotes
 import io.github.tmarsteel.flyingnarrator.route.Speedmap
 import javax.swing.JComponent
 import javax.swing.JLabel
 
-object SpeedmapStep : WorkflowStep<AudioPacenotes, Pair<AudioPacenotes, Speedmap>> {
+object SpeedmapStep : WorkflowStep<WorkflowStep.State, Speedmap> {
     override val name: String = "Speedmap"
     override val description = "Assure the speed of the car is considered correctly"
     override val icon = FlatSVGIcon(this::class.java.getResource("speedmap.svg"))
 
-    override fun buildUI(input: AudioPacenotes): WorkflowStep.Instance<Pair<AudioPacenotes, Speedmap>> {
-        return object : WorkflowStep.Instance<Pair<AudioPacenotes, Speedmap>> {
+    override fun initializeState(workflow: Workflow): WorkflowStep.State {
+        return object : WorkflowStep.State {
+            override val hasAnyManualChanges = false
+        }
+    }
+
+    override fun buildUI(state: WorkflowStep.State): WorkflowStep.Instance<WorkflowStep.State> {
+        return object : WorkflowStep.Instance<WorkflowStep.State> {
             override val swingComponent: JComponent = JLabel("TODO")
             override val hasAnyManualChanges = signalOf(false)
             override val isComplete = signalOf(true)
 
-            override fun getCopyOfCurrentOutputState(): Pair<AudioPacenotes, Speedmap> {
-                TODO()
+            override fun getCopyOfCurrentState(): WorkflowStep.State {
+                return state
             }
         }
+    }
+
+    override fun stateToOutput(state: WorkflowStep.State): Speedmap {
+        TODO("Not yet implemented")
     }
 
     /*

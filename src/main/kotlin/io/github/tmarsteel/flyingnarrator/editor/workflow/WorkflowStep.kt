@@ -4,17 +4,23 @@ import io.github.fenrur.signal.Signal
 import javax.swing.Icon
 import javax.swing.JComponent
 
-interface WorkflowStep<in In, out Out> {
+interface WorkflowStep<TState : WorkflowStep.State, out Out> {
     val name: String
     val description: String
     val icon: Icon
 
-    fun buildUI(input: In): Instance<Out>
+    fun initializeState(workflow: Workflow): TState
+    fun buildUI(state: TState): Instance<TState>
+    fun stateToOutput(state: TState): Out
 
-    interface Instance<out Out> {
+    interface Instance<out TState : State> {
         val swingComponent: JComponent
         val isComplete: Signal<Boolean>
         val hasAnyManualChanges: Signal<Boolean>
-        fun getCopyOfCurrentOutputState(): Out
+        fun getCopyOfCurrentState(): TState
+    }
+
+    interface State {
+        val hasAnyManualChanges: Boolean
     }
 }

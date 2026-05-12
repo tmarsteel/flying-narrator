@@ -11,11 +11,9 @@ import javax.swing.JTabbedPane
 import javax.swing.SwingConstants
 import javax.swing.event.ChangeEvent
 import kotlin.concurrent.atomics.AtomicBoolean
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-@OptIn(ExperimentalAtomicApi::class)
-class WorkflowStepsPanel(private val workflow: Workflow<*, *>) : ReactiveJPanel() {
-    private var lastValidStepIndex = workflow.currentStep.value.index
+class WorkflowStepsPanel(private val workflow: Workflow) : ReactiveJPanel() {
+    private var lastValidStepIndex = workflow.currentStepInstance.value.index
 
     private val tabs = JTabbedPane()
     init {
@@ -30,10 +28,10 @@ class WorkflowStepsPanel(private val workflow: Workflow<*, *>) : ReactiveJPanel(
         tabs.tabPlacement = JTabbedPane.BOTTOM
 
         tabs.selectedIndex = lastValidStepIndex
-        updateEnabledStatus(workflow.currentStep.value)
+        updateEnabledStatus(workflow.currentStepInstance.value)
         tabs.addChangeListener(this::onTabsChanged)
 
-        workflow.currentStep
+        workflow.currentStepInstance
             .switchMap { stepWithIndex -> stepWithIndex.value.isComplete.map { Pair(stepWithIndex, it) } }
             .subscribeOn(lifecycle) { (stepWithIndex, _) ->
                 if (stepWithIndex.index != lastValidStepIndex) {
@@ -58,7 +56,7 @@ class WorkflowStepsPanel(private val workflow: Workflow<*, *>) : ReactiveJPanel(
         }
 
         if (tabChangeIsInResponseToOutsideStateChange.load()) {
-            check(targetStepIndex == workflow.currentStep.value.index)
+            check(targetStepIndex == workflow.currentStepInstance.value.index)
             return
         }
 

@@ -33,7 +33,15 @@ class RouteEditorApp(
 ) {
     private val appLifecycle = ReactiveComponentLifecycle()
     private val window = JFrame()
-    private val workflow = WORKFLOW.start(route)
+    private val workflow = Workflow.startNew(listOf(
+        ImportTrackStep(route),
+        AnnotateFeaturesStep,
+        PacenotesStep,
+        SpeechStep,
+        AudioAlignmentStep,
+        SpeedmapStep,
+        QualityCheckStep,
+    ))
 
     init {
         window.contentPane.layout = BorderLayout()
@@ -44,7 +52,7 @@ class RouteEditorApp(
 
         // TODO: workflow state persistence machinery
 
-        workflow.currentStep.subscribeOn(appLifecycle) { step ->
+        workflow.currentStepInstance.subscribeOn(appLifecycle) { step ->
             SwingUtilities.invokeLater {
                 (window.contentPane.layout as BorderLayout).getLayoutComponent(BorderLayout.CENTER)?.let {
                     window.contentPane.remove(it)
@@ -69,14 +77,6 @@ class RouteEditorApp(
     }
 
     companion object {
-        val WORKFLOW = Workflow.Builder(ImportTrackStep)
-            .plusStep(AnnotateFeaturesStep)
-            .plusStep(PacenotesStep)
-            .plusStep(SpeechStep)
-            .plusStep(AudioAlignmentStep)
-            .plusStep(SpeedmapStep)
-            .plusStep(QualityCheckStep)
-
         @JvmStatic
         fun main(args: Array<String>) {
             try {
