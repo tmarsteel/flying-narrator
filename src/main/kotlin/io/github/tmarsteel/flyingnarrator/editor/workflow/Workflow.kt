@@ -46,7 +46,7 @@ class Workflow<In, Out> private constructor(
         synchronized(stepChangeMutex) {
             require(stepIndex <= data.lastIndex) { "cannot go back to step #$stepIndex, only ${data.lastIndex} steps have been completed available" }
 
-            data.subList(stepIndex, data.lastIndex).clear()
+            data.subList(stepIndex + 1, data.size).clear()
             _currentStep.value = instantiateStep(stepIndex)
         }
     }
