@@ -8,6 +8,7 @@ import io.github.tmarsteel.flyingnarrator.editor.routefeatures.FinishComponent
 import io.github.tmarsteel.flyingnarrator.editor.routefeatures.StartComponent
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.pacenote.PacenoteAtom
+import io.github.tmarsteel.flyingnarrator.pacenote.inferred.DefaultPacenoteSystem
 import io.github.tmarsteel.flyingnarrator.route.Route
 import java.awt.BorderLayout
 import javax.swing.JPanel
@@ -18,28 +19,39 @@ object PacenotesStep : WorkflowStep<Pair<Route, List<Feature>>, List<PacenoteAto
     override val icon = FlatSVGIcon(this::class.java.getResource("pacenotes.svg"))
 
     override fun buildUI(input: Pair<Route, List<Feature>>): WorkflowStep.Instance<List<PacenoteAtom>> {
-        return object : WorkflowStep.Instance<List<PacenoteAtom>> {
-            override val swingComponent = JPanel()
+        return Instance(input.first, input.second)
+    }
 
-            init {
-                swingComponent.layout = BorderLayout()
+    private class Instance(
+        val route: Route,
+        val features: List<Feature>,
+    ) : WorkflowStep.Instance<List<PacenoteAtom>> {
+        private val pacenoteSystem = DefaultPacenoteSystem()
+        private val items = pacenoteSystem.infer(route, features)
+        override val swingComponent = JPanel()
 
-                val routeComponent = RouteComponent(input.first)
-                routeComponent.add(StartComponent(input.first))
-                routeComponent.add(FinishComponent(input.first))
+        init {
+            swingComponent.layout = BorderLayout()
 
-                val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)
+            val routeComponent = RouteComponent(route)
+            routeComponent.add(StartComponent(route))
+            routeComponent.add(FinishComponent(route))
 
-                swingComponent.add(scrollableRouteComponent, BorderLayout.CENTER)
-                swingComponent.name = "pacenotes_step"
+            val scrollableRouteComponent = ScrollableRouteComponent(routeComponent)
+
+            swingComponent.add(scrollableRouteComponent, BorderLayout.CENTER)
+            swingComponent.name = "pacenotes_step"
+
+            items.forEach {
+                routeComponent.add(pacenoteSystem.makeRouteChildComponent(route, it))
             }
+        }
 
-            override val hasAnyManualChanges = signalOf(false)
-            override val isComplete = signalOf(true)
+        override val hasAnyManualChanges = signalOf(false)
+        override val isComplete = signalOf(true)
 
-            override fun getCopyOfCurrentOutputState(): List<PacenoteAtom> {
-                TODO()
-            }
+        override fun getCopyOfCurrentOutputState(): List<PacenoteAtom> {
+            return pacenoteSystem.atomize(items)
         }
     }
 }

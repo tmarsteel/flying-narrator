@@ -1,27 +1,46 @@
 package io.github.tmarsteel.flyingnarrator.pacenote.inferred
 
 import io.github.tmarsteel.flyingnarrator.feature.Feature
+import io.github.tmarsteel.flyingnarrator.route.LocationOnRoute
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.sumOf
 
 sealed interface InferredPacenoteItem {
-    data class Straight(val distance: Distance) : InferredPacenoteItem {
+    /**
+     * the location on the [io.github.tmarsteel.flyingnarrator.route.Route] where the physical element is located that
+     * is described by this [InferredPacenoteItem]; for elements covering a stretch of road (e.g. corners), this
+     * is where they start.
+     */
+    val subjectLocation: LocationOnRoute
+
+    data class Straight(
+        override val subjectLocation: LocationOnRoute,
+        val distance: Distance
+    ) : InferredPacenoteItem {
         override fun toString(): String {
             return distance.toDoubleInMeters().toInt().toString(10)
         }
     }
-    interface Transition : InferredPacenoteItem
-    data object ImmediateTransition : Transition {
+
+    sealed interface Transition : InferredPacenoteItem
+    data class ImmediateTransition(
+        override val subjectLocation: LocationOnRoute,
+    ) : Transition {
         override fun toString(): String {
             return "into"
         }
     }
-    data object ShortTransition : Transition {
+
+    data class ShortTransition(
+        override val subjectLocation: LocationOnRoute,
+    ) : Transition {
         override fun toString(): String {
             return "to"
         }
     }
+
     data class Corner(
+        override val subjectLocation: LocationOnRoute,
         val direction: Feature.Corner.Direction,
         /**
          * Whether this corner is across a junction/intersection
@@ -149,16 +168,16 @@ sealed interface InferredPacenoteItem {
             data object Caution : Modifier
         }
 
-        enum class Severity {
-            HAIRPIN,
-            SQUARE,
-            ONE,
-            TWO,
-            THREE,
-            FOUR,
-            FIVE,
-            SIX,
-            SLIGHT,
+        enum class Severity(val iconFilenamePart: String) {
+            HAIRPIN("hairpin"),
+            SQUARE("square"),
+            ONE("1"),
+            TWO("2"),
+            THREE("3"),
+            FOUR("4"),
+            FIVE("5"),
+            SIX("6"),
+            SLIGHT("6"),
             ;
 
             override fun toString(): String {
@@ -168,58 +187,11 @@ sealed interface InferredPacenoteItem {
     }
 
     /**
-     * a standalone crest
-     */
-    data object Crest : InferredPacenoteItem {
-        override fun toString(): String {
-            return "crest"
-        }
-    }
-
-    /**
-     * a standalone dip
-     */
-    data object Dip : InferredPacenoteItem {
-        override fun toString(): String {
-            return "dip"
-        }
-    }
-
-    data object Jump : InferredPacenoteItem {
-        override fun toString(): String {
-            return "jump"
-        }
-    }
-
-    data object Tunnel : InferredPacenoteItem {
-        override fun toString(): String {
-            return "tunnel"
-        }
-    }
-
-    data object Narrows : InferredPacenoteItem {
-        override fun toString(): String {
-            return "narrows"
-        }
-    }
-
-    data object Widens : InferredPacenoteItem {
-        override fun toString(): String {
-            return "widens"
-        }
-    }
-
-    data object FinishLine : InferredPacenoteItem {
-        override fun toString(): String {
-            return "over finish"
-        }
-    }
-
-    /**
      * Additional information applicable to _any_ stretch of road.
      */
     interface SectionModifier {
         data object OverCrest : SectionModifier
         data object ThroughDip : SectionModifier
+        data object BadCamber : SectionModifier
     }
 }

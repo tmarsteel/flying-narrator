@@ -2,40 +2,43 @@ package io.github.tmarsteel.flyingnarrator.pacenote.inferred
 
 import io.github.tmarsteel.flyingnarrator.feature.Feature
 import io.github.tmarsteel.flyingnarrator.feature.compoundRadius
+import io.github.tmarsteel.flyingnarrator.route.LocationOnRoute
+import io.github.tmarsteel.flyingnarrator.route.Route
 import io.github.tmarsteel.flyingnarrator.unit.Distance
 import io.github.tmarsteel.flyingnarrator.unit.Distance.Companion.meters
 import io.github.tmarsteel.flyingnarrator.unit.ScalarLike.Companion.times
 
-fun Iterable<Feature>.derivePacenotes(): List<Pair<Distance, InferredPacenoteItem>> {
-    val pacenoteItems = mutableListOf<Pair<Distance, InferredPacenoteItem>>()
-    for (feature in this) {
+fun derivePacenotes(route: Route, features: Iterable<Feature>): List<InferredPacenoteItem> {
+    val pacenoteAtoms = mutableListOf<InferredPacenoteItem>()
+    for (feature in features) {
+        val featureLocation = route.findPreciseLocation(feature.startsAtDistance)!!
         when (feature) {
             is Feature.Straight -> {
                 val distance = (feature.length / ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF).toInt() * ROUND_STRAIGHT_DISTANCES_TO_MULTIPLE_OF
                 val item = when {
-                    distance < IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD -> InferredPacenoteItem.ImmediateTransition
-                    distance <= STRAIGHT_ELISION_DISTANCE_THRESHOLD -> InferredPacenoteItem.ShortTransition
-                    else -> InferredPacenoteItem.Straight(distance)
+                    distance < IMMEDIATE_TRANSITION_DISTANCE_THRESHOLD -> InferredPacenoteItem.ImmediateTransition(featureLocation)
+                    distance <= STRAIGHT_ELISION_DISTANCE_THRESHOLD -> InferredPacenoteItem.ShortTransition(featureLocation)
+                    else -> InferredPacenoteItem.Straight(featureLocation, distance)
                 }
-                pacenoteItems += Pair(feature.startsAtDistance, item)
+                pacenoteAtoms += item
             }
             is Feature.Corner -> {
-                if (pacenoteItems.lastOrNull()?.second is InferredPacenoteItem.Corner) {
-                    pacenoteItems += Pair(feature.startsAtDistance, InferredPacenoteItem.ImmediateTransition)
+                if (pacenoteAtoms.lastOrNull() is InferredPacenoteItem.Corner) {
+                    pacenoteAtoms += InferredPacenoteItem.ImmediateTransition(featureLocation)
                 }
-                pacenoteItems += Pair(feature.startsAtDistance, cornerFeatureToPacenoteItem(feature))
+                pacenoteAtoms += cornerFeatureToPacenoteItem(feature, featureLocation)
             }
         }
     }
 
-    while (pacenoteItems.firstOrNull()?.second is InferredPacenoteItem.Transition) {
-        pacenoteItems.removeFirst()
+    while (pacenoteAtoms.firstOrNull() is InferredPacenoteItem.Transition) {
+        pacenoteAtoms.removeFirst()
     }
-    while (pacenoteItems.lastOrNull()?.second is InferredPacenoteItem.Transition) {
-        pacenoteItems.removeLast()
+    while (pacenoteAtoms.lastOrNull() is InferredPacenoteItem.Transition) {
+        pacenoteAtoms.removeLast()
     }
 
-    return pacenoteItems
+    return pacenoteAtoms
 }
 
 private val severityMinRadius = sequenceOf(
@@ -51,10 +54,15 @@ private fun radiusToSeverity(radius: Distance): InferredPacenoteItem.Corner.Seve
     return severityMinRadius.last { (minRadius, _) -> radius >= minRadius }.second
 }
 
-fun cornerFeatureToPacenoteItem(corner: Feature.Corner): InferredPacenoteItem {
+private fun cornerFeatureToPacenoteItem(corner: Feature.Corner, location: LocationOnRoute): InferredPacenoteItem {
     val radius = corner.segments.compoundRadius
-    return InferredPacenoteItem.Corner(corner.direction, false, listOf(
-        InferredPacenoteItem.Corner.Section(radius, radiusToSeverity(radius), radius, radiusToSeverity(radius), corner.length, emptyList())
-    ))
+    return InferredPacenoteItem.Corner(
+        location,
+        corner.direction,
+        false,
+        listOf(
+            InferredPacenoteItem.Corner.Section(radius, radiusToSeverity(radius), radius, radiusToSeverity(radius), corner.length, emptyList())
+        )
+    )
 }
 

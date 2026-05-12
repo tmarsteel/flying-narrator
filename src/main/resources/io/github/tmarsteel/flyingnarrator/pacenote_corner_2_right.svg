@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+        width="32"
+        height="32"
+        viewBox="0 0 32 32"
+        version="1.1"
+        id="svg1"
+        inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+        sodipodi:docname="pacenote_corner_2_right.svg"
+        xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+        xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+        xmlns="http://www.w3.org/2000/svg"
+>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     inkscape:zoom="11.762019"
+     inkscape:cx="18.449214"
+     inkscape:cy="9.3946456"
+     inkscape:window-width="2560"
+     inkscape:window-height="1369"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path2"
+       style="fill:none;stroke:#da4b01;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
+       d="M 9.5646849,2.8056407 17.386471,6.8865729 13.09299,13.645616 M 5.8238319,27.971388 c 0,0 -3.460644,-12.121994 -0.297567,-16.706315 C 7.9291789,7.7824748 17.471491,6.9715923 17.471491,6.9715923"
+       sodipodi:nodetypes="ccccac" />
+    <text
+       xml:space="preserve"
+       style="font-size:18.6667px;font-family:'Shadows Into Light';-inkscape-font-specification:'Shadows Into Light, ';writing-mode:lr-tb;direction:ltr;fill:none;stroke:#da4b01;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       x="20.617208"
+       y="26.951157"
+       id="text2"><tspan
+         sodipodi:role="line"
+         id="tspan2"
+         x="20.617208"
+         y="26.951157">2</tspan><tspan
+         sodipodi:role="line"
+         x="20.617208"
+         y="50.284531"
+         id="tspan3" /></text>
+  </g>
+</svg>

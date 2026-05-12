@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+        width="32"
+        height="32"
+        viewBox="0 0 32 32"
+        version="1.1"
+        id="svg1"
+        inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+        sodipodi:docname="pacenote_corner_square_left.svg"
+        xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+        xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+        xmlns="http://www.w3.org/2000/svg"
+>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     inkscape:zoom="11.762019"
+     inkscape:cx="18.534233"
+     inkscape:cy="9.3946456"
+     inkscape:window-width="2560"
+     inkscape:window-height="1369"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       id="path2"
+       style="fill:none;stroke:#c22100;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
+       d="m 17.962484,2.3805436 -5.611281,4.8461069 5.653792,4.8886165 m 6.92908,15.941141 c 0,0 2.058755,-15.945935 0.127528,-18.5767425 -2.118385,-2.885763 -12.88044,-2.3380344 -12.88044,-2.3380344"
+       sodipodi:nodetypes="ccccsc" />
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-family:'Shadows Into Light Two';-inkscape-font-specification:'Shadows Into Light Two';writing-mode:lr-tb;direction:ltr;fill:#c22100;fill-opacity:1;stroke:#c22100;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal"
+       x="3.7833636"
+       y="25.250767"
+       id="text2"><tspan
+         sodipodi:role="line"
+         x="3.7833636"
+         y="25.250767"
+         id="tspan3">Sq</tspan></text>
+  </g>
+</svg>

@@ -28,6 +28,10 @@ sealed interface Feature {
             }
             return Straight(segments + successor.segments)
         }
+
+        override fun toString(): String {
+            return "Straight($length @$startsAtDistance)"
+        }
     }
 
     class Corner(
@@ -51,9 +55,9 @@ sealed interface Feature {
             return "Corner(totalAngle=$totalAngle, totalDistance=$length, direction=$direction)"
         }
 
-        enum class Direction {
-            LEFT,
-            RIGHT,
+        enum class Direction(val iconFilenamePart: String) {
+            LEFT("left"),
+            RIGHT("right"),
             ;
 
             override fun toString(): String {
